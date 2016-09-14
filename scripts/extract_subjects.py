@@ -10,7 +10,7 @@ from mimic3benchmark.mimic3csv import *
 parser = argparse.ArgumentParser(description='Extract per-subject data from MIMIC-III CSV files.')
 parser.add_argument('mimic3_path', type=str, help='Directory containing MIMIC-III CSV files.')
 parser.add_argument('output_path', type=unicode, help='Directory where per-subject data should be written.')
-parser.add_argument('--event_tables', '-e', type=unicode, nargs='+', help='Tables from which to read events.', default=[ 'CHARTEVENTS', 'LABEVENTS' ])
+parser.add_argument('--event_tables', '-e', type=unicode, nargs='+', help='Tables from which to read events.', default=[ 'CHARTEVENTS', 'LABEVENTS', 'OUTPUTEVENTS' ])
 parser.add_argument('--itemids_file', '-i', type=unicode, help='CSV containing list of ITEMIDs to keep.')
 parser.add_argument('--verbose', '-v', type=int, help='Level of verbosity in output.', default=1)
 parser.add_argument('--test', action='store_true', help='TEST MODE: process only 1000 subjects, 1000000 events.')
