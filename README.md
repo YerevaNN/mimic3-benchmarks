@@ -31,3 +31,24 @@ will break up per-subject data into separate episodes (pertaining to ICU stays).
 The second script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.). Examples can be found in resources, but these are active development, and the checked in versions may lag, so ask for access to the Google docs where we're revising them.
 
 ## TODO
+
+There is a LOT of work to be done before we're ready to publish an actual benchmark and share this code with the world. Here's a brief braindump, but I'll file actual issues soon.
+
+### Phenotyping-specific todos:
+
+- Choose subset of ICD-9 codes to use as labels
+- Decide on whether and how to aggregate higher precision ICD-9 codes
+- Check assumptions made along the way, including
+  - exclude patients with transfers
+  - exclude patients with multiple stays within same hospital admission
+  - should we apply any additional exclusion criteria
+- Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
+- Write code to process data into final format (numpy arrays? CSVs? JSON?)
+- Get some sanity-checking results with simpler models
+
+### General todos:
+
+- Test and debug
+- Add comments and documentation
+- Refactor, where appropriate, to make code more generally useful
+- Expand coverage of variable map and variable range files.
