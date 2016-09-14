@@ -20,6 +20,8 @@ will break up and store the ICU stay, diagnosis, and events tables by subject. I
 
 **Be warned: the above takes FOREVER if you include the CHARTEVENTS or LABEVENTS data tables.**
 
+We are making some choices (in that script) that are specific to the phenotyping benchmark, such as excluding patients with transfers or multiple ICU visits within the same hospital admission, that may not be appropriate for other projects. However, we have attempted to write the code to be modular enough that it could be used for other benchmarks in the future.
+
 Next, running
 
 ```python scripts/extract_episodes_from_subjects.py [PATH TO SUBJECTS] [PATH TO VARIABLE MAP FILE] [PATH TO VARIABLE RANGES FILE]```
