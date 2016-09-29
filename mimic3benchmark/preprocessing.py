@@ -128,7 +128,12 @@ def clean_lab(df):
 
 # O2SAT: small number of 0<x<=1 that should be mapped to 0-100 scale
 def clean_o2sat(df):
-    v = df.VALUE.astype(float)
+    # change "ERROR" to NaN
+    v = df.VALUE
+    idx = v.apply(lambda s: type(s) is str and not re.match('^(\d+(\.\d*)?|\.\d+)$', s))
+    v.ix[idx] = np.nan
+    
+    v = v.astype(float)
     idx = (v<=1)
     v.ix[idx] = v[idx] * 100.
     return v
@@ -186,5 +191,11 @@ def clean_events(events):
     global cleaning_fns
     for var_name, clean_fn in clean_fns.iteritems():
         idx = (events.VARIABLE == var_name)
-        events.VALUE.ix[idx] = clean_fn(events.ix[idx])
+        try:
+            events.VALUE.ix[idx] = clean_fn(events.ix[idx])
+        except:
+            print "Exception in clean_events:", clean_fn.__name__
+            print "number of rows:", np.sum(idx)
+            print "values:", events.ix[idx]
+            exit()
     return events.ix[events.VALUE.notnull()]
