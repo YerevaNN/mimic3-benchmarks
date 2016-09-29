@@ -8,35 +8,35 @@ from pandas import DataFrame
 
 
 def read_patients_table(mimic3_path):
-    pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS_DATA_TABLE.csv'))
+    pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
     pats = pats[['SUBJECT_ID', 'GENDER', 'DOB', 'DOD']]
     pats.DOB = pd.to_datetime(pats.DOB)
     pats.DOD = pd.to_datetime(pats.DOD)
     return pats
 
 def read_admissions_table(mimic3_path):
-    admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS_DATA_TABLE.csv'))
+    admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
     admits = admits[['SUBJECT_ID', 'HADM_ID', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
     admits.DEATHTIME = pd.to_datetime(admits.DEATHTIME)
     return admits
 
 def read_icustays_table(mimic3_path):
-    stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS_DATA_TABLE.csv'))
+    stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
     stays.INTIME = pd.to_datetime(stays.INTIME)
     stays.OUTTIME = pd.to_datetime(stays.OUTTIME)
     return stays
 
 def read_icd_diagnoses_table(mimic3_path):
-    codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES_DATA_TABLE.csv'))
+    codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
     codes = codes[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']]
-    diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD_DATA_TABLE.csv'))
+    diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
     diagnoses = diagnoses.merge(codes, how='inner', left_on='ICD9_CODE', right_on='ICD9_CODE')
     diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']] = diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']].astype(int)
     return diagnoses
 
 def read_events_table_by_row(mimic3_path, table):
     nb_rows = { 'chartevents': 263201376, 'labevents': 27872576, 'outputevents': 4349340 }
-    reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '_DATA_TABLE.csv'), 'r'))
+    reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '.csv'), 'r'))
     for i,row in enumerate(reader):
         if 'ICUSTAY_ID' not in row:
             row['ICUSTAY_ID'] = ''
