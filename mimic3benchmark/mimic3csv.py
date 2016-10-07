@@ -150,7 +150,7 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
         nonlocal.curr_obs = []
     
     for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table):
-        if verbose:
+        if verbose and (row_no % 100000 == 0):
             if nonlocal.last_write_no != '':
                 sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
                                  '({3}) {4} rows for subject {5}'.format(table, row_no, nb_rows,
@@ -180,7 +180,7 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
     if nonlocal.curr_subject_id != '':
         write_current_observations()
 
-    if verbose:
+    if verbose and (row_no % 100000 == 0):
         sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
                          '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
                                                                  nonlocal.last_write_no,
