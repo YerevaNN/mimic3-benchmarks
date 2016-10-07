@@ -18,10 +18,26 @@ This is very, VERY early so use at your own peril! We don't have any benchmarks 
 
 will break up and store the ICU stay, diagnosis, and events tables by subject. It generates one directory per SUBJECT_ID and writes ICU stay information to ```[OUTPUT PATH]/[SUBJECT_ID]/stays.csv```, diagnoses to ```[SUBJECT_ID]/diagnoses.csv```, and events to  ```[SUBJECT_ID]/events.csv```.
 
-**Be warned: the above takes FOREVER if you include the CHARTEVENTS or LABEVENTS data tables.**
+**Be warned: the above takes ~~FOREVER~~ less than 2 hours (after [this commit](https://github.com/Hrant-Khachatrian/mimic3-benchmarks/commit/ba9f53c2b593fe13ba62deff02dcea1a2027e9f1)) if you include the CHARTEVENTS and LABEVENTS data tables.**
 
 We are making some choices (in that script) that are specific to the phenotyping benchmark, such as excluding patients with transfers or multiple ICU visits within the same hospital admission, that may not be appropriate for other projects. However, we have attempted to write the code to be modular enough that it could be used for other benchmarks in the future.
 
+#### Validating results
+The script at `scripts/validate_events.py` looks for various problems in the generated CSVs, attempts to fix some of them and removes the others. Here are the results on randomly chosen 1000 subjects:
+
+| Type | Description | Number of rows |
+| --- | --- | --- |
+| `n_events` | total number of events | 5937206 |
+| `nohadminstay` | HADM_ID does not appear in `stays.csv` | 836341 |
+| `emptyhadm` | HADM_ID is empty | 126480 |
+| `icustaymissinginstays` | ICUSTAY_ID does not appear in `stays.csv` | 232624 |
+| `noicustay` | ICUSTAY_ID is empty | 347768 |
+| `recovered` | empty ICUSTAY_IDs are recovered according to `stays.csv` files (given `HADM_ID`) | 347768 |
+| `couldnotrecover` | empty ICUSTAY_IDs that are not recovered. This should be zero, because the unrecoverable ones are counted in `icustaymissinginstays` | 0 |
+
+4741761 events (80%) remain after removing all suspicious rows.
+
+#### Extracting events of known types
 Next, running
 
 ```python scripts/extract_episodes_from_subjects.py [PATH TO SUBJECTS] [PATH TO VARIABLE MAP FILE] [PATH TO VARIABLE RANGES FILE]```
