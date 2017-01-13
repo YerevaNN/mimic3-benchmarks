@@ -74,5 +74,8 @@ for subject_dir in os.listdir(args.subjects_root_path):
         episodic_data.Weight.ix[stay_id] = get_first_valid_from_timeseries(episode, 'Weight')
         episodic_data.Height.ix[stay_id] = get_first_valid_from_timeseries(episode, 'Height')
         episodic_data.ix[episodic_data.index==stay_id].to_csv(os.path.join(args.subjects_root_path, subject_dir, 'episode{}.csv'.format(i+1)), index_label='Icustay')
+        columns = list(episode.columns)
+        columns_sorted = sorted(columns, key=(lambda x: "" if x == "Hours" else x))
+        episode = episode[columns_sorted]
         episode.to_csv(os.path.join(args.subjects_root_path, subject_dir, 'episode{}_timeseries.csv'.format(i+1)), index_label='Hours')
     sys.stdout.write(' DONE!\n')
