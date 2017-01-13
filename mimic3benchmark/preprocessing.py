@@ -108,6 +108,11 @@ def clean_dbp(df):
 def clean_crr(df):
     v = Series(np.zeros(df.shape[0]), index=df.index)
     v[:] = np.nan
+    
+    # when df.VALUE is empty, dtype can be float and comparision with string
+    # raises an exception, to fix this we change dtype to str
+    df.VALUE = df.VALUE.astype(str)
+    
     v.ix[(df.VALUE == 'Normal <3 secs') | (df.VALUE == 'Brisk')] = 0
     v.ix[(df.VALUE == 'Abnormal >3 secs') | (df.VALUE == 'Delayed')] = 1
     return v
