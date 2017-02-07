@@ -41,7 +41,8 @@ if args.verbose:
 
 stays = add_age_to_icustays(stays)
 stays = add_inunit_mortality_to_icustays(stays)
-stays = add_inhospital_mortality_to_icustays(stays)stays = filter_icustays_on_age(stays)
+stays = add_inhospital_mortality_to_icustays(stays)
+stays = filter_icustays_on_age(stays)
 if args.verbose:
 	print 'REMOVE PATIENTS AGE < 18:', stays.ICUSTAY_ID.unique().shape[0], stays.HADM_ID.unique().shape[0], stays.SUBJECT_ID.unique().shape[0]
 
