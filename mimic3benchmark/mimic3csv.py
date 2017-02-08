@@ -16,7 +16,9 @@ def read_patients_table(mimic3_path):
 
 def read_admissions_table(mimic3_path):
     admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
-    admits = admits[['SUBJECT_ID', 'HADM_ID', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
+    admits = admits[['SUBJECT_ID', 'HADM_ID', 'ADMITTIME', 'DISCHTIME', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
+    admits.ADMITTIME = pd.to_datetime(admits.ADMITTIME)
+    admits.DISCHTIME = pd.to_datetime(admits.DISCHTIME)
     admits.DEATHTIME = pd.to_datetime(admits.DEATHTIME)
     return admits
 
@@ -66,10 +68,17 @@ def add_age_to_icustays(stays):
     stays.AGE.ix[stays.AGE<0] = 90
     return stays
 
-def add_mortality_to_icustays(stays):
+def add_inhospital_mortality_to_icustays(stays):
+    mortality = stays.DOD.notnull() & ((stays.ADMITTIME <= stays.DOD) & (stays.DISCHTIME >= stays.DOD))
+    mortality = mortality | (stays.DEATHTIME.notnull() & ((stays.ADMITTIME <= stays.DEATHTIME) & (stays.DISCHTIME >= stays.DEATHTIME)))
+    stays['MORTALITY'] = mortality.astype(int)
+    stays['MORTALITY_INHOSPITAL'] = stays['MORTALITY']
+    return stays
+
+def add_inunit_mortality_to_icustays(stays):
     mortality = stays.DOD.notnull() & ((stays.INTIME <= stays.DOD) & (stays.OUTTIME >= stays.DOD))
     mortality = mortality | (stays.DEATHTIME.notnull() & ((stays.INTIME <= stays.DEATHTIME) & (stays.OUTTIME >= stays.DEATHTIME)))
-    stays['MORTALITY'] = mortality.astype(int)
+    stays['MORTALITY_INUNIT'] = mortality.astype(int)
     return stays
 
 def filter_admissions_on_nb_icustays(stays, min_nb_stays=1, max_nb_stays=1):
