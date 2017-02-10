@@ -53,6 +53,24 @@ def extract_diagnosis_labels(diagnoses):
     labels = labels[diagnosis_labels]
     return labels.rename_axis(dict(zip(diagnosis_labels, [ 'Diagnosis ' + d for d in diagnosis_labels])), axis=1)
 
+def add_hcup_ccs_2015_groups(diagnoses, definitions):
+    def_map = {}
+    for dx in definitions:
+        for code in definitions[dx]['codes']:
+            def_map[code] = (dx, definitions[dx]['use_in_benchmark'])
+    diagnoses['HCUP_CCS_2015'] = diagnoses.ICD9_CODE.apply(lambda c: def_map[c][0] if c in def_map else None)
+    diagnoses['USE_IN_BENCHMARK'] = diagnoses.ICD9_CODE.apply(lambda c: int(def_map[c][1]) if c in def_map else None)
+    return diagnoses
+
+def make_phenotype_label_matrix(phenotypes, stays=None):
+    phenotypes = phenotypes[['ICUSTAY_ID', 'HCUP_CCS_2015']].ix[phenotypes.USE_IN_BENCHMARK > 0].drop_duplicates()
+    phenotypes['VALUE'] = 1
+    phenotypes = phenotypes.pivot(index='ICUSTAY_ID', columns='HCUP_CCS_2015', values='VALUE')
+    if stays is not None:
+        phenotypes = phenotypes.ix[stays.ICUSTAY_ID.sort_values()]
+    return phenotypes.fillna(0).astype(int).sort_index(axis=0).sort_index(axis=1)
+
+
 ###################################
 # Time series preprocessing
 ###################################

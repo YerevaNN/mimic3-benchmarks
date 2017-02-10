@@ -55,7 +55,7 @@ def count_icd_codes(diagnoses, output_path=None):
 
 def remove_icustays_with_transfers(stays):
     stays = stays.ix[(stays.FIRST_WARDID == stays.LAST_WARDID) & (stays.FIRST_CAREUNIT == stays.LAST_CAREUNIT)]
-    return stays[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'DBSOURCE', 'INTIME', 'OUTTIME', 'LOS']]
+    return stays[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'LAST_CAREUNIT', 'DBSOURCE', 'INTIME', 'OUTTIME', 'LOS']]
 
 def merge_on_subject(table1, table2):
     return table1.merge(table2, how='inner', left_on=['SUBJECT_ID'], right_on=['SUBJECT_ID'])
@@ -112,7 +112,7 @@ def break_up_stays_by_subject(stays, output_path, subjects=None, verbose=1):
         sys.stdout.write('DONE!\n')
 
 def break_up_diagnoses_by_subject(diagnoses, output_path, subjects=None, verbose=1):
-    subjects = stays.SUBJECT_ID.unique() if subjects is None else subjects
+    subjects = diagnoses.SUBJECT_ID.unique() if subjects is None else subjects
     nb_subjects = subjects.shape[0]
     for i, subject_id in enumerate(subjects):
         if verbose:
