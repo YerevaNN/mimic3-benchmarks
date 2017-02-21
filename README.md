@@ -69,21 +69,13 @@ The second script requires two files, one that maps event ITEMIDs to clinical va
 
 There is a LOT of work to be done before we're ready to publish an actual benchmark and share this code with the world. Here's a brief braindump, but I'll file actual issues soon.
 
-### Phenotyping-specific todos:
-
-- Choose subset of ICD-9 codes to use as labels
-- Decide on whether and how to aggregate higher precision ICD-9 codes
-- Check assumptions made along the way, including
-  - exclude patients with transfers
-  - exclude patients with multiple stays within same hospital admission
-  - should we apply any additional exclusion criteria
-- Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
-- Write code to process data into final format (numpy arrays? CSVs? JSON?)
-- Get some sanity-checking results with simpler models
-
 ### General todos:
 
 - Test and debug
 - Add comments and documentation
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
+- Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
+- Write code to process data into final format (numpy arrays? CSVs? JSON?)
+- Get some sanity-checking results with simpler models
+
