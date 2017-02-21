@@ -1,7 +1,26 @@
 MIMIC-III Benchmarks
 =========================
+Python suite to construct benchmark machine learning datasets from the MIMIC-III clinical database. Currently, we are focused on building a multitask learning benchmark dataset that includes four key inpatient clinical prediction tasks that map onto core machine learning problems: prediction of mortality from early admission data (classification), real-time detection of decompensation (time series classification), forecasting length of stay (regression), and phenotype classification (multilabel sequence classification).
 
-Python suite to construct benchmark machine learning datasets from the MIMIC-III clinical database. Currently, we are focused on building a benchmark dataset for phenotyping, i.e., classifying MIMIC-III ICU episodes where the labels are ICD-9 diagnostic codes.
+*N.B. 1: these benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.*
+
+*N.B. 2: these benchmarks are attached to a manuscript currently under review and to be posted on arXiv no later than March 1, 2017. Anyone who uses these benchmarks in their research should cite this manuscript once it is available, as well as the original [MIMIC-III paper]((http://www.nature.com/articles/sdata201635)). For futher detail, see the license.*
+
+## Motivation
+
+Despite rapid growth in research that applies machine learning to clinical data, progress in the field appears far less dramatic than in other applications of machine learning. In image recognition, for example, the winning error rates in the [ImageNet Large Scale Visual Recognition Challenge](http://image-net.org/challenges/LSVRC/) (ILSVRC) plummeted almost 90\% from 2010 (0.2819) to 2016 (0.02991).
+There are many reasonable explanations for this discrepancy: clinical data sets are [inherently noisy and uncertain](http://www-scf.usc.edu/~dkale/papers/marlin-ihi2012-ehr_clustering.pdf) and often small relative to their complexity, and for many problems of interest, [ground truth labels for training and evaluation are unavailable](https://academic.oup.com/jamia/article-abstract/23/6/1166/2399304/Learning-statistical-models-of-phenotypes-using?redirectedFrom=PDF).
+
+However, there is another, simpler explanation: practical progress has been difficult to measure due to the absence of community benchmarks like ImageNet. Such benchmarks play an important role in accelerating progress in machine learning research. For one, they focus the community on specific problems and stoke ongoing debate about what those problems should be. They also reduce the startup overhead for researchers moving into a new area. Finally and perhaps most important, benchmarks facilitate reproducibility and direct comparison of competing ideas.
+
+Here we present four public benchmarks for machine learning researchers interested in health care, built using data from the publicly available Medical Information Mart for Intensive Care (MIMIC-III) database ([paper](http://www.nature.com/articles/sdata201635), [website](http://mimic.physionet.org)). Our four clinical prediction tasks are critical care variants of four opportunities to transform health care using in "big clinical data" as described in [Bates, et al, 2014](http://content.healthaffairs.org/content/33/7/1123.abstract):
+
+* early triage and risk assessment, i.e., mortality prediction
+* prediction of physiologic decompensation
+* identification of high cost patients, i.e. length of stay forecasting
+* characterization of complex, multi-system diseases, i.e., acute care phenotyping
+
+In Hrarutyunyan, Khachatrian, Kale, and Galstyan, 2017 (under review for SIGKDD 2017, arXiv manuscript forthcoming), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
 
 ## Requirements
 
