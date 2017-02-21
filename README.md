@@ -1,10 +1,12 @@
-N.B. 1: these benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.
+**Nota bene:**
 
-N.B. 2: if you use this code or these benchmarks in your research, please cite the following publication:
+* These benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.
+
+* If you use this code or these benchmarks in your research, please cite the following publication:
 
 *Hrayr Hrarutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. Under review for SIGKDD 2017.*
 
-A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).** See the license for further information.
+A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 MIMIC-III Benchmarks
 =========================
