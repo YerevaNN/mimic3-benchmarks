@@ -2,7 +2,7 @@
 
 * These benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.
 
-* If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Hrarutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. Under review for SIGKDD 2017.* A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
+* If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. Under review for SIGKDD 2017.* A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 MIMIC-III Benchmarks
 =========================
@@ -22,7 +22,7 @@ Here we present four public benchmarks for machine learning researchers interest
 * identification of high cost patients, i.e. length of stay forecasting
 * characterization of complex, multi-system diseases, i.e., acute care phenotyping
 
-In Hrarutyunyan, Khachatrian, Kale, and Galstyan 2017 (under review for SIGKDD 2017, arXiv manuscript forthcoming), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
+In Harutyunyan, Khachatrian, Kale, and Galstyan 2017 (under review for SIGKDD 2017, arXiv manuscript forthcoming), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
 
 ## Requirements
 
