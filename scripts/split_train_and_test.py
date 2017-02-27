@@ -16,7 +16,7 @@ def move_to_partition(patients, partition):
     for patient in patients:
         src = os.path.join(args.subjects_root_path, patient)
         dest = os.path.join(args.subjects_root_path, partition, patient)
-        shutil.move(src, dest)        
+        shutil.move(src, dest)
 
 
 folders = os.listdir(args.subjects_root_path)
