@@ -1,5 +1,3 @@
-**Nota bene:**
-
 * These benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.
 
 * If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. Under review for SIGKDD 2017.* A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
@@ -33,18 +31,47 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 
 ## Building a benchmark
 
-This is very, VERY early so use at your own peril! We don't have any benchmarks ready just yet. Rather, we have a pair of scripts that process MIMIC into a slightly more usable format. First, running
+Here are the required steps to build the benchmark. It assumes that you already have MIMIC-III dataset (lots of CSV files) on the disk.
+1. Clone the repo.
 
-```python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] [OUTPUT PATH]```
+        git clone https://github.com/YerevaNN/mimic3-benchmarks/
+        cd mimic3-benchmarks/
+    
+2. Add the path to the `PYTHONPATH`.
+ 
+        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
 
-will break up and store the ICU stay, diagnosis, and events tables by subject. It generates one directory per SUBJECT_ID and writes ICU stay information to ```[OUTPUT PATH]/[SUBJECT_ID]/stays.csv```, diagnoses to ```[SUBJECT_ID]/diagnoses.csv```, and events to  ```[SUBJECT_ID]/events.csv```.
+3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around 2 hours.
 
-**Be warned: the above takes ~~FOREVER~~ less than 2 hours (after [this commit](https://github.com/Hrant-Khachatrian/mimic3-benchmarks/commit/ba9f53c2b593fe13ba62deff02dcea1a2027e9f1)) if you include the CHARTEVENTS and LABEVENTS data tables.**
+        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
-We are making some choices (in that script) that are specific to the phenotyping benchmark, such as excluding patients with transfers or multiple ICU visits within the same hospital admission, that may not be appropriate for other projects. However, we have attempted to write the code to be modular enough that it could be used for other benchmarks in the future.
+4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
 
-#### Validating results
-The script at `scripts/validate_events.py` looks for various problems in the generated CSVs, attempts to fix some of them and removes the others. Here are the results on randomly chosen 1000 subjects:
+    	python scripts/validate_events.py data/root/
+
+5. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
+
+        python scripts/extract_episodes_from_subjects.py data/root/
+
+6. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
+
+	    python scripts/split_train_and_test.py data/root/
+	
+7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
+
+	    python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
+        python scripts/create_decompensation.py data/root/ data/decompensation/
+        python scripts/create_length_of_stay.py data/root/ data/length_of_stay/
+        python scripts/create_phenotyping.py data/root/ data/phenotyping/
+        python scripts/create_multitask.py data/root/ data/multitask/
+        
+## Working with baseline models
+
+For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
+
+##### More on validating results
+
+Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
 
 | Type | Description | Number of rows |
 | --- | --- | --- |
@@ -56,22 +83,8 @@ The script at `scripts/validate_events.py` looks for various problems in the gen
 | `recovered` | empty ICUSTAY_IDs are recovered according to `stays.csv` files (given `HADM_ID`) | 347768 |
 | `couldnotrecover` | empty ICUSTAY_IDs that are not recovered. This should be zero, because the unrecoverable ones are counted in `icustaymissinginstays` | 0 |
 
-4741761 events (80%) remain after removing all suspicious rows.
 
-#### Extracting events of known types
-Next, running
-
-```python scripts/extract_episodes_from_subjects.py [PATH TO SUBJECTS] [PATH TO VARIABLE MAP FILE] [PATH TO VARIABLE RANGES FILE]```
-
-will break up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```.
-
-The second script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.). Examples can be found in resources, but these are active development, and the checked in versions may lag, so ask for access to the Google docs where we're revising them.
-
-## TODO
-
-There is a LOT of work to be done before we're ready to publish an actual benchmark and share this code with the world. Here's a brief braindump, but I'll file actual issues soon.
-
-### General todos:
+## General todos:
 
 - Test and debug
 - Add comments and documentation
