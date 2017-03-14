@@ -11,7 +11,7 @@ def is_subject_folder(x):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--subjects_root_path', type=str,
+    parser.add_argument('subjects_root_path', type=str,
                         help='Directory containing subject sub-directories.')
     args = parser.parse_args()
     print args
