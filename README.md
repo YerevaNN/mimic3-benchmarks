@@ -34,41 +34,119 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 Here are the required steps to build the benchmark. It assumes that you already have MIMIC-III dataset (lots of CSV files) on the disk.
 1. Clone the repo.
 
-        git clone https://github.com/YerevaNN/mimic3-benchmarks/
-        cd mimic3-benchmarks/
+       git clone https://github.com/YerevaNN/mimic3-benchmarks/
+       cd mimic3-benchmarks/
     
 2. Add the path to the `PYTHONPATH`.
  
-        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
+       export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
 
-3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around 2 hours.
+3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
 
-        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
+       python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
 4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
 
-    	python scripts/validate_events.py data/root/
+       python scripts/validate_events.py data/root/
 
 5. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
 
-        python scripts/extract_episodes_from_subjects.py data/root/
+       python scripts/extract_episodes_from_subjects.py data/root/
 
 6. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
 
-	    python scripts/split_train_and_test.py data/root/
+       python scripts/split_train_and_test.py data/root/
 	
 7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
 
-	    python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
-        python scripts/create_decompensation.py data/root/ data/decompensation/
-        python scripts/create_length_of_stay.py data/root/ data/length_of_stay/
-        python scripts/create_phenotyping.py data/root/ data/phenotyping/
-        python scripts/create_multitask.py data/root/ data/multitask/
+       python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
+       python scripts/create_decompensation.py data/root/ data/decompensation/
+       python scripts/create_length_of_stay.py data/root/ data/length_of_stay/
+       python scripts/create_phenotyping.py data/root/ data/phenotyping/
+       python scripts/create_multitask.py data/root/ data/multitask/
         
 ## Working with baseline models
 
 For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
+Please note that running linear models can take hours. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
 
+### In-hospital mortality prediction
+
+Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 8 epochs.
+       
+       cd mimic3models/in_hospital_mortality/
+       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
+
+Run the following command to test the best pretrained neural network.
+       
+       cd mimic3models/in_hospital_mortality/
+       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a linear model.
+       cd mimic3models/in_hospital_mortality/logistic/
+       python -u main.py --l2 --C 0.001
+
+### Decompensation prediction
+
+Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 110 chunks.
+       
+       cd mimic3models/decompensation/
+       python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
+
+Run the following command to test the best pretrained neural network.
+       
+       cd mimic3models/decompensation/
+       python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a linear model.
+       cd mimic3models/decompensation/logistic/
+       python -u main.py
+
+### Length of stay prediction
+
+Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 15 chunks.
+       
+       cd mimic3models/length_of_stay/
+       python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
+
+Run the following command to test the best pretrained neural network.
+       
+       cd mimic3models/length_of_stay/
+       python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a linear model.
+       cd mimic3models/length_of_stay/logistic/
+       python -u main_cf.py
+
+### Phenotype classification
+
+Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 30 epochs.
+       
+       cd mimic3models/phenotyping/
+       python -u main.py --network lstm_2layer --dim 512 --mode train --batch_size 8 --log_every 30
+
+Run the following command to test the best pretrained neural network.
+       
+       cd mimic3models/phenotyping/
+       python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a linear model.
+       
+       cd mimic3models/phenotyping/logistic/
+       python -u main.py
+
+### Multitask
+
+Run the following command to train all the tasks together. The best model needs to be trained for about 12 epochs.
+       
+       cd mimic3models/multitask/
+       python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --fm_C 0.02 --sw_C 0.1 --los_C 0.5
+
+Run the following command to test the best pretrained neural network.
+       
+       cd mimic3models/phenotyping/
+       python -u main.py --network lstm --dim 1024 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       
 ##### More on validating results
 
 Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
