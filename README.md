@@ -68,83 +68,81 @@ Here are the required steps to build the benchmark. It assumes that you already 
 ## Working with baseline models
 
 For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
-Please note that running linear models can take hours. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
+Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
 
 ### In-hospital mortality prediction
 
-Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 8 epochs.
+Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
        
        cd mimic3models/in_hospital_mortality/
        python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
 
-Run the following command to test the best pretrained neural network.
+To test the model use the following:
        
-       cd mimic3models/in_hospital_mortality/
        python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command to train a linear model.
+Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
+       
        cd mimic3models/in_hospital_mortality/logistic/
        python -u main.py --l2 --C 0.001
 
 ### Decompensation prediction
 
-Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 110 chunks.
+The best model we got for this task was trained for 110 chunks.
        
        cd mimic3models/decompensation/
        python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
 
-Run the following command to test the best pretrained neural network.
+Here is the command to test:
        
-       cd mimic3models/decompensation/
        python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command to train a linear model.
+Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+       
        cd mimic3models/decompensation/logistic/
        python -u main.py
 
 ### Length of stay prediction
 
-Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 15 chunks.
+The best model we got for this task was trained for 15 chunks.
        
        cd mimic3models/length_of_stay/
        python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
 
 Run the following command to test the best pretrained neural network.
        
-       cd mimic3models/length_of_stay/
        python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command to train a linear model.
+Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+       
        cd mimic3models/length_of_stay/logistic/
        python -u main_cf.py
 
 ### Phenotype classification
 
-Run the following command to train a neural network which gives the best result. The best model needs to be trained for about 30 epochs.
+The best model we got for this task was trained for 30 epochs.
        
        cd mimic3models/phenotyping/
        python -u main.py --network lstm_2layer --dim 512 --mode train --batch_size 8 --log_every 30
 
-Run the following command to test the best pretrained neural network.
+Use the following command for testing:
        
-       cd mimic3models/phenotyping/
        python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command to train a linear model.
+Use the following command for logistic regression.
        
        cd mimic3models/phenotyping/logistic/
        python -u main.py
 
-### Multitask
+### Multitask learning
 
-Run the following command to train all the tasks together. The best model needs to be trained for about 12 epochs.
+`fm_C`, `sw_C` and `los_C` coefficients control the relative weight of the tasks in the multitask model. The best model we got was trained for 12 epochs.
        
        cd mimic3models/multitask/
        python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --fm_C 0.02 --sw_C 0.1 --los_C 0.5
 
-Run the following command to test the best pretrained neural network.
+Use the following command for testing:
        
-       cd mimic3models/phenotyping/
        python -u main.py --network lstm --dim 1024 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
        
 ##### More on validating results
