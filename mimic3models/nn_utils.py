@@ -1,3 +1,4 @@
+import os
 import theano
 import theano.tensor as T
 import lasagne
@@ -12,6 +13,9 @@ class BaseNetwork:
     
     
     def save_params(self, file_name, epoch, **kwargs):
+        if not os.path.exists(os.path.dirname(file_name)):
+            os.makedirs(os.path.dirname(file_name))
+        
         with open(file_name, 'w') as save_file:
             pickle.dump(
                 obj = {
