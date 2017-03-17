@@ -70,6 +70,15 @@ Here are the required steps to build the benchmark. It assumes that you already 
 For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
 Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
 
+### Train / validation split
+
+Use the following command to split the training set into new train and validation sets. This step is required if you plan to run the models.
+
+       python mimic3models/split_train_val.py [TASK]
+       
+The `task` argument is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
+
+
 ### In-hospital mortality prediction
 
 Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
@@ -88,7 +97,7 @@ Use the following command to train logistic regression. The best model we got us
 
 ### Decompensation prediction
 
-The best model we got for this task was trained for 110 chunks.
+The best model we got for this task was trained for 110 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
        
        cd mimic3models/decompensation/
        python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
@@ -136,15 +145,26 @@ Use the following command for logistic regression.
 
 ### Multitask learning
 
-`fm_C`, `sw_C` and `los_C` coefficients control the relative weight of the tasks in the multitask model. The best model we got was trained for 12 epochs.
+`ihm_C`, `decomp_C`, `los_C` and `ph_C` coefficients control the relative weight of the tasks in the multitask model. Default is `1.0`. The best model we got was trained for 12 epochs.
        
        cd mimic3models/multitask/
-       python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --fm_C 0.02 --sw_C 0.1 --los_C 0.5
+       python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --ihm_C 0.02 --decomp_C 0.1 --los_C 0.5
 
 Use the following command for testing:
        
        python -u main.py --network lstm --dim 1024 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
        
+
+## General todos:
+
+- Test and debug
+- Add comments and documentation
+- Refactor, where appropriate, to make code more generally useful
+- Expand coverage of variable map and variable range files.
+- Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
+- Write code to process data into final format (numpy arrays? CSVs? JSON?)
+- Get some sanity-checking results with simpler models
+
 ##### More on validating results
 
 Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
@@ -158,15 +178,3 @@ Here are the problems identified by `validate_events.py` on randomly chosen 1000
 | `noicustay` | ICUSTAY_ID is empty | 347768 |
 | `recovered` | empty ICUSTAY_IDs are recovered according to `stays.csv` files (given `HADM_ID`) | 347768 |
 | `couldnotrecover` | empty ICUSTAY_IDs that are not recovered. This should be zero, because the unrecoverable ones are counted in `icustaymissinginstays` | 0 |
-
-
-## General todos:
-
-- Test and debug
-- Add comments and documentation
-- Refactor, where appropriate, to make code more generally useful
-- Expand coverage of variable map and variable range files.
-- Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
-- Write code to process data into final format (numpy arrays? CSVs? JSON?)
-- Get some sanity-checking results with simpler models
-
