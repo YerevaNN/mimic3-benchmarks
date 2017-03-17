@@ -61,7 +61,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
 
        python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
        python scripts/create_decompensation.py data/root/ data/decompensation/
-       python scripts/create_length_of_stay.py data/root/ data/length_of_stay/
+       python scripts/create_length_of_stay.py data/root/ data/length-of-stay/
        python scripts/create_phenotyping.py data/root/ data/phenotyping/
        python scripts/create_multitask.py data/root/ data/multitask/
         
