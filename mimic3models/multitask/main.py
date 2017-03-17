@@ -94,8 +94,8 @@ if args.load_state != "":
 def do_epoch(mode, epoch):
     # mode is 'train' or 'test'
 
-    fm_predictions = []
-    fm_answers = []
+    ihm_predictions = []
+    ihm_answers = []
     
     los_predictions = []
     los_answers = []
@@ -103,8 +103,8 @@ def do_epoch(mode, epoch):
     ph_predictions = []
     ph_answers = []
     
-    sw_predictions = []
-    sw_answers = []
+    decomp_predictions = []
+    decomp_answers = []
     
     avg_loss = 0.0
     sum_loss = 0.0
@@ -115,23 +115,23 @@ def do_epoch(mode, epoch):
     for i in range(0, batches_per_epoch):
         step_data = network.step(mode)
         
-        fm_pred = step_data["fm_prediction"]
+        ihm_pred = step_data["ihm_prediction"]
         los_pred = step_data["los_prediction"]
         ph_pred = step_data["ph_prediction"]
-        sw_pred = step_data["sw_prediction"]
+        decomp_pred = step_data["decomp_prediction"]
         
         current_loss = step_data["loss"]
-        fm_loss = step_data["fm_loss"]
+        ihm_loss = step_data["ihm_loss"]
         los_loss = step_data["los_loss"]
         ph_loss = step_data["ph_loss"]
-        sw_loss = step_data["sw_loss"]
+        decomp_loss = step_data["decomp_loss"]
         reg_loss = step_data["reg_loss"]
         
         data = step_data["data"]
         
-        fm_data = data[1]
-        fm_mask = [x[1] for x in fm_data]
-        fm_label = [x[2] for x in fm_data]
+        ihm_data = data[1]
+        ihm_mask = [x[1] for x in ihm_data]
+        ihm_label = [x[2] for x in ihm_data]
         
         los_data = data[2]
         los_mask = [x[0] for x in los_data]
@@ -140,17 +140,17 @@ def do_epoch(mode, epoch):
         ph_data = data[3]
         ph_label = ph_data
         
-        sw_data = data[4]
-        sw_mask = [x[0] for x in sw_data]
-        sw_label = [x[1] for x in sw_data]
+        decomp_data = data[4]
+        decomp_mask = [x[0] for x in decomp_data]
+        decomp_label = [x[1] for x in decomp_data]
         
         avg_loss += current_loss
         sum_loss += current_loss
         
-        for (x, mask, y) in zip(fm_pred, fm_mask, fm_label):
+        for (x, mask, y) in zip(ihm_pred, ihm_mask, ihm_label):
             if (mask == 1):
-                fm_predictions.append(x)
-                fm_answers.append(y)
+                ihm_predictions.append(x)
+                ihm_answers.append(y)
         
         for (sx, smask, sy) in zip(los_pred, los_mask, los_label):
             for (x, mask, y) in zip(sx, smask, sy):
@@ -162,11 +162,11 @@ def do_epoch(mode, epoch):
             ph_predictions.append(x)
             ph_answers.append(y)
             
-        for (sx, smask, sy) in zip(sw_pred, sw_mask, sw_label):
+        for (sx, smask, sy) in zip(decomp_pred, decomp_mask, decomp_label):
             for (x, mask, y) in zip(sx, smask, sy):
                 if (mask == 1):
-                    sw_predictions.append(x)
-                    sw_answers.append(y)
+                    decomp_predictions.append(x)
+                    decomp_answers.append(y)
         
         if ((i + 1) % args.log_every == 0):
             cur_time = time.time()
@@ -175,8 +175,8 @@ def do_epoch(mode, epoch):
                         mode, epoch, i * args.batch_size,
                         batches_per_epoch * args.batch_size,
                         float(current_loss),
-                        float(fm_loss), float(los_loss), float(ph_loss),
-                        float(sw_loss), float(reg_loss),
+                        float(ihm_loss), float(los_loss), float(ph_loss),
+                        float(decomp_loss), float(reg_loss),
                         float(avg_loss / args.log_every),
                         float(cur_time - prev_time))
             avg_loss = 0
@@ -185,15 +185,15 @@ def do_epoch(mode, epoch):
         if np.isnan(current_loss):
             print "loss: {:6.4f} = {:1.2f} + {:8.2f} + {:1.2f} + {:1.2f} + {:.2f}".format(
                     float(current_loss),
-                    float(fm_loss), float(los_loss), float(ph_loss),
-                    float(sw_loss), float(reg_loss))
+                    float(ihm_loss), float(los_loss), float(ph_loss),
+                    float(decomp_loss), float(reg_loss))
             raise Exception ("current loss IS NaN. This should never happen :)") 
 
     sum_loss /= batches_per_epoch
     print "\n  %s loss = %.5f" % (mode, sum_loss)
     
     print "\n ================= 48h mortality ================"
-    metrics.print_metrics_binary(fm_answers, fm_predictions)
+    metrics.print_metrics_binary(ihm_answers, ihm_predictions)
     
     print "\n ================ length of stay ================"
     if args.partition == 'log':
@@ -205,7 +205,7 @@ def do_epoch(mode, epoch):
     metrics.print_metrics_multilabel(ph_answers, ph_predictions)
     
     print "\n ================ swat mortality ================"
-    metrics.print_metrics_binary(sw_answers, sw_predictions)
+    metrics.print_metrics_binary(decomp_answers, decomp_predictions)
     
     return sum_loss
 
@@ -240,8 +240,8 @@ elif args.mode == 'test':
     
     data_raw_copy = copy.deepcopy(data_raw) # TODO: delete this 
     
-    fm_predictions = []
-    fm_answers = []
+    ihm_predictions = []
+    ihm_answers = []
     
     los_predictions = []
     los_answers = []
@@ -249,8 +249,8 @@ elif args.mode == 'test':
     ph_predictions = []
     ph_answers = []
     
-    sw_predictions = []
-    sw_answers = []
+    decomp_predictions = []
+    decomp_answers = []
     
     avg_loss = 0.0
     sum_loss = 0.0
@@ -276,21 +276,21 @@ elif args.mode == 'test':
                 data_raw_copy[3][start:end],
                 data_raw_copy[4][start:end]) # TODO: delete this
         
-        fm_pred = ret["fm_prediction"]
+        ihm_pred = ret["ihm_prediction"]
         los_pred = ret["los_prediction"]
         ph_pred = ret["ph_prediction"]
-        sw_pred = ret["sw_prediction"]
+        decomp_pred = ret["decomp_prediction"]
         
         current_loss = ret["loss"]
-        fm_loss = ret["fm_loss"]
+        ihm_loss = ret["ihm_loss"]
         los_loss = ret["los_loss"]
         ph_loss = ret["ph_loss"]
-        sw_loss = ret["sw_loss"]
+        decomp_loss = ret["decomp_loss"]
         reg_loss = ret["reg_loss"]
         
-        fm_data = data[1]
-        fm_mask = [x[1] for x in fm_data]
-        fm_label = [x[2] for x in fm_data]
+        ihm_data = data[1]
+        ihm_mask = [x[1] for x in ihm_data]
+        ihm_label = [x[2] for x in ihm_data]
         
         los_data = data[2]
         los_mask = [x[0] for x in los_data]
@@ -299,17 +299,17 @@ elif args.mode == 'test':
         ph_data = data[3]
         ph_label = ph_data
         
-        sw_data = data[4]
-        sw_mask = [x[0] for x in sw_data]
-        sw_label = [x[1] for x in sw_data]
+        decomp_data = data[4]
+        decomp_mask = [x[0] for x in decomp_data]
+        decomp_label = [x[1] for x in decomp_data]
         
         avg_loss += current_loss
         sum_loss += current_loss
         
-        for (x, mask, y) in zip(fm_pred, fm_mask, fm_label):
+        for (x, mask, y) in zip(ihm_pred, ihm_mask, ihm_label):
             if (mask == 1):
-                fm_predictions.append(x)
-                fm_answers.append(y)
+                ihm_predictions.append(x)
+                ihm_answers.append(y)
         
         for (sx, smask, sy) in zip(los_pred, los_mask, los_label):
             for (x, mask, y) in zip(sx, smask, sy):
@@ -321,11 +321,11 @@ elif args.mode == 'test':
             ph_predictions.append(x)
             ph_answers.append(y)
             
-        for (sx, smask, sy) in zip(sw_pred, sw_mask, sw_label):
+        for (sx, smask, sy) in zip(decomp_pred, decomp_mask, decomp_label):
             for (x, mask, y) in zip(sx, smask, sy):
                 if (mask == 1):
-                    sw_predictions.append(x)
-                    sw_answers.append(y)
+                    decomp_predictions.append(x)
+                    decomp_answers.append(y)
         
         if ((i + 1) % args.log_every == 0):
             cur_time = time.time()
@@ -334,8 +334,8 @@ elif args.mode == 'test':
                         args.mode, i * args.batch_size,
                         batches_per_epoch * args.batch_size,
                         float(current_loss),
-                        float(fm_loss), float(los_loss), float(ph_loss),
-                        float(sw_loss), float(reg_loss),
+                        float(ihm_loss), float(los_loss), float(ph_loss),
+                        float(decomp_loss), float(reg_loss),
                         float(avg_loss / args.log_every),
                         float(cur_time - prev_time))
             avg_loss = 0
@@ -344,15 +344,15 @@ elif args.mode == 'test':
         if np.isnan(current_loss):
             print "loss: {:6.4f} = {:1.2f} + {:8.2f} + {:1.2f} + {:1.2f} + {:.2f}".format(
                     float(current_loss),
-                    float(fm_loss), float(los_loss), float(ph_loss),
-                    float(sw_loss), float(reg_loss))
+                    float(ihm_loss), float(los_loss), float(ph_loss),
+                    float(decomp_loss), float(reg_loss))
             raise Exception ("current loss IS NaN. This should never happen :)") 
 
     sum_loss /= batches_per_epoch
     print "\n  %s loss = %.5f" % (args.mode, sum_loss)
     
     print "\n ================= 48h mortality ================"
-    metrics.print_metrics_binary(fm_answers, fm_predictions)
+    metrics.print_metrics_binary(ihm_answers, ihm_predictions)
     
     print "\n ================ length of stay ================"
     if args.partition == 'log':
@@ -363,8 +363,8 @@ elif args.mode == 'test':
     print "\n =================== phenotype =================="
     metrics.print_metrics_multilabel(ph_answers, ph_predictions)
     
-    print "\n ================ swat mortality ================"
-    metrics.print_metrics_binary(sw_answers, sw_predictions)
+    print "\n ================ decompensation ================"
+    metrics.print_metrics_binary(decomp_answers, decomp_predictions)
     
     with open("los_activations.txt", "w") as fout:
         fout.write("prediction, y_true")

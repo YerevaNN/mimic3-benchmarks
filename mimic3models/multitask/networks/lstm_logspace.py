@@ -21,7 +21,7 @@ class Network(nn_utils.BaseNetwork):
     
     def __init__(self, train_raw, test_raw, dim, mode, l2, l1,
                  batch_norm, dropout, batch_size,
-                 fm_C, los_C, ph_C, sw_C,
+                 ihm_C, los_C, ph_C, decomp_C,
                  partition, nbins, **kwargs):
                 
         print "==> not used params in network class:", kwargs.keys()
@@ -35,10 +35,10 @@ class Network(nn_utils.BaseNetwork):
         self.batch_norm = batch_norm
         self.dropout = dropout
         self.batch_size = batch_size
-        self.fm_C = fm_C
+        self.ihm_C = ihm_C
         self.los_C = los_C
         self.ph_C = ph_C
-        self.sw_C = sw_C
+        self.decomp_C = decomp_C
         self.nbins = nbins
         
         if (partition == 'log'):
@@ -55,9 +55,9 @@ class Network(nn_utils.BaseNetwork):
         self.input_var = T.tensor3('X')
         self.input_lens = T.ivector('L')
         
-        self.fm_pos = T.ivector('fm_pos')
-        self.fm_mask = T.ivector('fm_mask')
-        self.fm_label = T.ivector('fm_label')
+        self.ihm_pos = T.ivector('ihm_pos')
+        self.ihm_mask = T.ivector('ihm_mask')
+        self.ihm_label = T.ivector('ihm_label')
         
         self.los_mask = T.imatrix('los_mask')
         self.los_label = T.matrix('los_label') # for regression
@@ -65,8 +65,8 @@ class Network(nn_utils.BaseNetwork):
         
         self.ph_label = T.imatrix('ph_label')
         
-        self.sw_mask = T.imatrix('sw_mask')
-        self.sw_label = T.imatrix('sw_label')
+        self.decomp_mask = T.imatrix('decomp_mask')
+        self.decomp_label = T.imatrix('decomp_label')
         
         print "==> Building neural network"
         
@@ -113,20 +113,20 @@ class Network(nn_utils.BaseNetwork):
         # take 48h outputs for fixed mortality task
         mid_outputs = []
         for index in range(self.batch_size):
-            mid_outputs.append(lstm_output[index, self.fm_pos[index], :])
+            mid_outputs.append(lstm_output[index, self.ihm_pos[index], :])
         mid_outputs = T.stack(mid_outputs)
         
         
-        # fixed mortality related network
-        fm_network = layers.InputLayer((None, dim), input_var=mid_outputs)
-        fm_network = layers.DenseLayer(incoming=fm_network, num_units=2,
+        # in-hospital mortality related network
+        ihm_network = layers.InputLayer((None, dim), input_var=mid_outputs)
+        ihm_network = layers.DenseLayer(incoming=ihm_network, num_units=2,
                                        nonlinearity=softmax)
-        self.fm_prediction = layers.get_output(fm_network)
-        self.fm_det_prediction = layers.get_output(fm_network, deterministic=True)
-        self.params += layers.get_all_params(fm_network, trainable=True)
-        self.reg_params += layers.get_all_params(fm_network, regularizable=True)
-        self.fm_loss = (self.fm_mask * categorical_crossentropy(self.fm_prediction, 
-                                                          self.fm_label)).mean()
+        self.ihm_prediction = layers.get_output(ihm_network)
+        self.ihm_det_prediction = layers.get_output(ihm_network, deterministic=True)
+        self.params += layers.get_all_params(ihm_network, trainable=True)
+        self.reg_params += layers.get_all_params(ihm_network, regularizable=True)
+        self.ihm_loss = (self.ihm_mask * categorical_crossentropy(self.ihm_prediction, 
+                                                          self.ihm_label)).mean()
         
         
         # length of stay related network
@@ -155,19 +155,19 @@ class Network(nn_utils.BaseNetwork):
         self.ph_loss = nn_utils.multilabel_loss(self.ph_prediction, self.ph_label)
                 
         
-        # swat related network
-        sw_network = layers.InputLayer((None, None, dim), input_var=lstm_output)
-        sw_network = layers.ReshapeLayer(sw_network, (-1, dim))
-        sw_network = layers.DenseLayer(incoming=sw_network, num_units=2,
+        # decompensation related network
+        decomp_network = layers.InputLayer((None, None, dim), input_var=lstm_output)
+        decomp_network = layers.ReshapeLayer(decomp_network, (-1, dim))
+        decomp_network = layers.DenseLayer(incoming=decomp_network, num_units=2,
                                        nonlinearity=softmax)
-        sw_network = layers.ReshapeLayer(sw_network, (lstm_output.shape[0], -1, 2))
-        self.sw_prediction = layers.get_output(sw_network)[:, :, 1]
-        self.sw_det_prediction = layers.get_output(sw_network, deterministic=True)[:, :, 1]
-        self.params += layers.get_all_params(sw_network, trainable=True)
-        self.reg_params += layers.get_all_params(sw_network, regularizable=True)
-        self.sw_loss = nn_utils.multilabel_loss_with_mask(self.sw_prediction,
-                                                          self.sw_label,
-                                                          self.sw_mask)
+        decomp_network = layers.ReshapeLayer(decomp_network, (lstm_output.shape[0], -1, 2))
+        self.decomp_prediction = layers.get_output(decomp_network)[:, :, 1]
+        self.decomp_det_prediction = layers.get_output(decomp_network, deterministic=True)[:, :, 1]
+        self.params += layers.get_all_params(decomp_network, trainable=True)
+        self.reg_params += layers.get_all_params(decomp_network, regularizable=True)
+        self.decomp_loss = nn_utils.multilabel_loss_with_mask(self.decomp_prediction,
+                                                          self.decomp_label,
+                                                          self.decomp_mask)
         
         """
         data = next(self.train_batch_gen)
@@ -189,8 +189,8 @@ class Network(nn_utils.BaseNetwork):
         
         self.reg_loss = self.loss_l1 + self.loss_l2
         
-        self.loss = (fm_C * self.fm_loss + los_C * self.los_loss + 
-                     ph_C * self.ph_loss + sw_C * self.sw_loss + 
+        self.loss = (ihm_C * self.ihm_loss + los_C * self.los_loss + 
+                     ph_C * self.ph_loss + decomp_C * self.decomp_loss + 
                      self.reg_loss)
               
         #updates = lasagne.updates.adadelta(self.loss, self.params,
@@ -204,23 +204,23 @@ class Network(nn_utils.BaseNetwork):
         #                                             learning_rate=0.001,
         
         all_inputs = [self.input_var, self.input_lens,
-                      self.fm_pos, self.fm_mask, self.fm_label,
+                      self.ihm_pos, self.ihm_mask, self.ihm_label,
                       self.los_mask, self.los_label,
                       self.ph_label,
-                      self.sw_mask, self.sw_label]
+                      self.decomp_mask, self.decomp_label]
         
-        train_outputs = [self.fm_prediction, self.los_prediction,
-                         self.ph_prediction, self.sw_prediction,
+        train_outputs = [self.ihm_prediction, self.los_prediction,
+                         self.ph_prediction, self.decomp_prediction,
                          self.loss,
-                         self.fm_loss, self.los_loss,
-                         self.ph_loss, self.sw_loss,
+                         self.ihm_loss, self.los_loss,
+                         self.ph_loss, self.decomp_loss,
                          self.reg_loss]
                          
-        test_outputs = [self.fm_det_prediction, self.los_det_prediction,
-                        self.ph_det_prediction, self.sw_det_prediction,
+        test_outputs = [self.ihm_det_prediction, self.los_det_prediction,
+                        self.ph_det_prediction, self.decomp_det_prediction,
                         self.loss,
-                        self.fm_loss, self.los_loss,
-                        self.ph_loss, self.sw_loss,
+                        self.ihm_loss, self.los_loss,
+                        self.ph_loss, self.decomp_loss,
                         self.reg_loss]
         
         ## compiling theano functions
@@ -244,9 +244,9 @@ class Network(nn_utils.BaseNetwork):
         phs = data_raw[3]
         sws = data_raw[4]
         
-        fm_pos = np.array([x[0] for x in fms], dtype=np.int32)
-        fm_mask = np.array([x[1] for x in fms], dtype=np.int32)
-        fm_label = np.array([x[2] for x in fms], dtype=np.int32)
+        ihm_pos = np.array([x[0] for x in fms], dtype=np.int32)
+        ihm_mask = np.array([x[1] for x in fms], dtype=np.int32)
+        ihm_label = np.array([x[2] for x in fms], dtype=np.int32)
         
         los_mask = [np.array(x[0], dtype=np.int32) for x in loss]
         los_mask = nn_utils.pad_zeros(los_mask).astype(np.int32)
@@ -257,17 +257,17 @@ class Network(nn_utils.BaseNetwork):
         ph_label = [np.array(x, dtype=np.int32) for x in phs]
         ph_label = nn_utils.pad_zeros(ph_label).astype(np.int32)
         
-        sw_mask = [np.array(x[0], dtype=np.int32) for x in sws]
-        sw_mask = nn_utils.pad_zeros(sw_mask).astype(np.int32)
+        decomp_mask = [np.array(x[0], dtype=np.int32) for x in sws]
+        decomp_mask = nn_utils.pad_zeros(decomp_mask).astype(np.int32)
         
-        sw_label = [np.array(x[1], dtype=np.int32) for x in sws]
-        sw_label = nn_utils.pad_zeros(sw_label).astype(np.int32)
+        decomp_label = [np.array(x[1], dtype=np.int32) for x in sws]
+        decomp_label = nn_utils.pad_zeros(decomp_label).astype(np.int32)
         
         return (X, lens,
-                fm_pos, fm_mask, fm_label,
+                ihm_pos, ihm_mask, ihm_label,
                 los_mask, los_label,
                 ph_label,
-                sw_mask, sw_label)
+                decomp_mask, decomp_label)
     
     
     def say_name(self):
@@ -278,7 +278,7 @@ class Network(nn_utils.BaseNetwork):
                         self.batch_size,
                         ".L2%f" % self.l2 if self.l2 > 0 else "",
                         ".L1%f" % self.l1 if self.l1 > 0 else "",
-                        self.fm_C, self.los_C, self.ph_C, self.sw_C)
+                        self.ihm_C, self.los_C, self.ph_C, self.decomp_C)
         return network_name
     
     
@@ -366,15 +366,15 @@ class Network(nn_utils.BaseNetwork):
         data, orig_data = next(batch_gen)
         ret = theano_fn(*data)
         
-        return {"fm_prediction": ret[0],
+        return {"ihm_prediction": ret[0],
                 "los_prediction": np.exp(ret[1])-1,
                 "ph_prediction": ret[2],
-                "sw_prediction": ret[3],
+                "decomp_prediction": ret[3],
                 "loss": ret[4],
-                "fm_loss": ret[5],
+                "ihm_loss": ret[5],
                 "los_loss": ret[6],
                 "ph_loss": ret[7],
-                "sw_loss": ret[8],
+                "decomp_loss": ret[8],
                 "reg_loss": ret[9],
                 "log": "",
                 "data": orig_data}
@@ -384,13 +384,13 @@ class Network(nn_utils.BaseNetwork):
         """ data is a pair (X, y) """
         processed = self.process_input(data)
         ret = self.test_fn(*processed)
-        return {"fm_prediction": ret[0],
+        return {"ihm_prediction": ret[0],
                 "los_prediction": np.exp(ret[1])-1,
                 "ph_prediction": ret[2],
-                "sw_prediction": ret[3],
+                "decomp_prediction": ret[3],
                 "loss": ret[4],
-                "fm_loss": ret[5],
+                "ihm_loss": ret[5],
                 "los_loss": ret[6],
                 "ph_loss": ret[7],
-                "sw_loss": ret[8],
+                "decomp_loss": ret[8],
                 "reg_loss": ret[9]}
