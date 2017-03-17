@@ -70,6 +70,15 @@ Here are the required steps to build the benchmark. It assumes that you already 
 For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
 Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
 
+### Train / validation split
+
+Use the following command to split the training set into new train and validation sets. This step is required if you plan to run the models.
+
+       python mimic3models/split_train_val.py [TASK]
+       
+The `task` argument is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
+
+
 ### In-hospital mortality prediction
 
 Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
