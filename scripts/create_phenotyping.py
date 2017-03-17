@@ -9,7 +9,8 @@ random.seed(49297)
 parser = argparse.ArgumentParser(description="Create data for phenotype classification task.")
 parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
 parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-parser.add_argument('phenotype_definitions', type=str, help="YAML file with phenotype definitions.")
+parser.add_argument('--phenotype_definitions', '-p', type=unicode, default='resources/hcup_ccs_2015_definitions.yaml',
+                    help='YAML file with phenotype definitions.')
 args, _ = parser.parse_known_args()
 
 with open(args.phenotype_definitions) as definitions_file:
