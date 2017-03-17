@@ -16,7 +16,7 @@ if args.task in ['phenotyping', 'multitask']:
     has_header = True
 
 header = None
-with open("/home/c9/mimic3-datasets/%s/train/listfile.csv" % args.task) as listfile:
+with open("data/%s/train/listfile.csv" % args.task) as listfile:
     lines = listfile.readlines()
     if has_header:
         header = lines[0]
@@ -34,20 +34,20 @@ train_lines = [x for x in lines if x[:x.find("_")] in train_patients]
 val_lines = [x for x in lines if x[:x.find("_")] in val_patients]
 assert len(train_lines) + len(val_lines) == len(lines)
 
-if not os.path.exists("/home/c9/mimic3-user-datasets/%s/" % args.task):
-    os.makedirs("/home/c9/mimic3-user-datasets/%s/" % args.task)
+if not os.path.exists("data/%s/" % args.task):
+    os.makedirs("data/%s/" % args.task)
 
-with open("/home/c9/mimic3-user-datasets/%s/train_listfile.csv" % args.task, "w") as train_listfile:
+with open("data/%s/train_listfile.csv" % args.task, "w") as train_listfile:
     if has_header:
         train_listfile.write(header)
     for line in train_lines:
         train_listfile.write(line)
 
-with open("/home/c9/mimic3-user-datasets/%s/val_listfile.csv" % args.task, "w") as val_listfile:
+with open("data/%s/val_listfile.csv" % args.task, "w") as val_listfile:
     if has_header:
         val_listfile.write(header)
     for line in val_lines:
         val_listfile.write(line)
 
-shutil.copy("/home/c9/mimic3-datasets/%s/test/listfile.csv" % args.task,
-            "/home/c9/mimic3-user-datasets/%s/test_listfile.csv" % args.task)
+shutil.copy("data/%s/test/listfile.csv" % args.task,
+            "data/%s/test_listfile.csv" % args.task)
