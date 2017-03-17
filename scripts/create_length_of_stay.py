@@ -76,7 +76,11 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0, eps=1e-6)
             print "\rprocessed %d / %d patients" % (patient_index + 1, len(patients)),
 
     print len(xty_triples)
-    random.shuffle(xty_triples)
+    if partition == "train":
+        random.shuffle(xty_triples)
+    if partition == "test":
+        xty_triples = sorted(xty_triples)
+
     with open(os.path.join(output_dir, "listfile.csv"), "w") as listfile:
         for (x, t, y) in xty_triples:
             listfile.write("%s,%.6f,%.6f\n" % (x, t, y))

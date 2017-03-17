@@ -101,8 +101,11 @@ def process_partition(partition, eps=1e-6):
             print "\rprocessed %d / %d patients" % (patient_index + 1, len(patients)),
 
     print "\n", len(xty_triples)
-    random.shuffle(xty_triples)
-    
+    if partition == "train":
+        random.shuffle(xty_triples)
+    if partition == "train":
+        xty_triples = sorted(xty_triples)
+
     codes_in_benchmark = [x for x in id_to_group
                              if definitions[x]['use_in_benchmark']]
     

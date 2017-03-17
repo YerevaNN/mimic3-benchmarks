@@ -176,8 +176,11 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
     def permute(arr, p):
         return [arr[index] for index in p]
     
-    perm = range(len(filenames))
-    random.shuffle(perm)
+    if partition == "train":
+        perm = range(len(filenames))
+        random.shuffle(perm)
+    if partition == "test":
+        perm = list(np.argsort(filenames))
     
     filenames = permute(filenames, perm)
     loses = permute(loses, perm)
