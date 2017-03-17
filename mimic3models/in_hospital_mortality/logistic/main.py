@@ -29,12 +29,12 @@ parser.add_argument('--features', type=str, default="all",
 args = parser.parse_args()
 print args
 
-train_reader = InHospitalMortalityReader(dataset_dir='/home/c9/mimic3-datasets/in-hospital-mortality/train/',
-                    listfile='/home/c9/mimic3-user-datasets/in-hospital-mortality/train_listfile.csv',
+train_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/train/',
+                    listfile='../../../data/in-hospital-mortality/train_listfile.csv',
                     period_length=48.0)
 
-val_reader = InHospitalMortalityReader(dataset_dir='/home/c9/mimic3-datasets/in-hospital-mortality/train/',
-                    listfile='/home/c9/mimic3-user-datasets/in-hospital-mortality/val_listfile.csv',
+val_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/train/',
+                    listfile='../../../data/in-hospital-mortality/val_listfile.csv',
                     period_length=48.0)
 
 
@@ -120,8 +120,8 @@ del val_X
 del train_y
 del val_y
 
-test_reader = InHospitalMortalityReader(dataset_dir='/home/c9/mimic3-datasets/in-hospital-mortality/test/',
-                             listfile='/home/c9/mimic3-user-datasets/in-hospital-mortality/test_listfile.csv',
+test_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/test/',
+                             listfile='../../../data/in-hospital-mortality/test_listfile.csv',
                              period_length=48.0)
 (test_X, test_y) = read_and_extract_features(test_reader)
 test_X = np.array(imputer.transform(test_X), dtype=np.float32)

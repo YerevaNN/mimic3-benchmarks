@@ -41,11 +41,11 @@ parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
-train_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/train/',
-                    listfile='/home/c9/mimic3-user-datasets/length-of-stay/train_listfile.csv')
+train_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                    listfile='../../data/length-of-stay/train_listfile.csv')
 
-val_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/train/',
-                    listfile='/home/c9/mimic3-user-datasets/length-of-stay/val_listfile.csv')
+val_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                    listfile='../../data/length-of-stay/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -177,8 +177,8 @@ elif args.mode == 'test':
     del train_reader
     del val_reader 
     
-    test_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/test/',
-            listfile='/home/c9/mimic3-user-datasets/length-of-stay/test_listfile.csv')
+    test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
+            listfile='../../data/length-of-stay/test_listfile.csv')
     
     n_batches = test_reader.get_number_of_examples() // args.batch_size
     y_true = []

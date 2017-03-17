@@ -40,11 +40,11 @@ parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
-train_reader = DecompensationReader(dataset_dir='/home/c9/mimic3-datasets/decompensation/train/',
-                    listfile='/home/c9/mimic3-user-datasets/decompensation/train_listfile.csv')
+train_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
+                    listfile='../../data/decompensation/train_listfile.csv')
 
-val_reader = DecompensationReader(dataset_dir='/home/c9/mimic3-datasets/decompensation/train/',
-                    listfile='/home/c9/mimic3-user-datasets/decompensation/val_listfile.csv')
+val_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
+                    listfile='../../data/decompensation/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -170,8 +170,8 @@ elif args.mode == 'test':
     del train_reader
     del val_reader 
     
-    test_reader = DecompensationReader(dataset_dir='/home/c9/mimic3-datasets/decompensation/test/',
-            listfile='/home/c9/mimic3-user-datasets/decompensation/test_listfile.csv')
+    test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
+            listfile='../../data/decompensation/test_listfile.csv')
     
     n_batches = test_reader.get_number_of_examples() // args.batch_size
     y_true = []

@@ -44,11 +44,11 @@ parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
-train_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/train/',
-                                        listfile='/home/c9/mimic3-user-datasets/phenotyping/train_listfile.csv')
+train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
+                                        listfile='../../data/phenotyping/train_listfile.csv')
 
-val_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/train/',
-                                      listfile='/home/c9/mimic3-user-datasets/phenotyping/val_listfile.csv')
+val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
+                                      listfile='../../data/phenotyping/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -151,8 +151,8 @@ elif args.mode == 'test':
     del train_reader
     del val_reader 
     
-    test_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/test/',
-                    listfile='/home/c9/mimic3-user-datasets/phenotyping/test_listfile.csv')
+    test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
+                    listfile='../../data/phenotyping/test_listfile.csv')
     
     data_raw = utils.load_phenotypes(test_reader, discretizer, normalizer, args.small_part)
     

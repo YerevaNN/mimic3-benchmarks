@@ -23,11 +23,11 @@ parser.add_argument('--features', type=str, default="all",
 args = parser.parse_args()
 print args
 
-train_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/train/',
-                    listfile='/home/c9/mimic3-user-datasets/length-of-stay/train_listfile.csv')
+train_reader = LengthOfStayReader(dataset_dir='../../../data/length-of-stay/train/',
+                    listfile='../../../data/length-of-stay/train_listfile.csv')
 
-val_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/train/',
-                    listfile='/home/c9/mimic3-user-datasets/length-of-stay/val_listfile.csv')
+val_reader = LengthOfStayReader(dataset_dir='../../../data/length-of-stay/train/',
+                    listfile='../../../data/length-of-stay/val_listfile.csv')
 
 
 def read_and_extract_features(reader, count):
@@ -107,8 +107,8 @@ del val_X
 del train_y
 del val_y
 
-test_reader = LengthOfStayReader(dataset_dir='/home/c9/mimic3-datasets/length-of-stay/test/',
-                             listfile='/home/c9/mimic3-user-datasets/length-of-stay/test_listfile.csv')
+test_reader = LengthOfStayReader(dataset_dir='../../../data/length-of-stay/test/',
+                             listfile='../../../data/length-of-stay/test_listfile.csv')
 (test_X, test_y) = read_and_extract_features(test_reader, chunk_size)
 test_X = np.array(imputer.transform(test_X), dtype=np.float32)
 test_X = scaler.transform(test_X)

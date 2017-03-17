@@ -54,11 +54,11 @@ parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
-train_reader = MultitaskReader(dataset_dir='/home/c9/mimic3-datasets/multitask/train/',
-                                  listfile='/home/c9/mimic3-user-datasets/multitask/train_listfile.csv')
+train_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
+                                  listfile='../../data/multitask/train_listfile.csv')
 
-val_reader = MultitaskReader(dataset_dir='/home/c9/mimic3-datasets/multitask/train/',
-                                 listfile='/home/c9/mimic3-user-datasets/multitask/val_listfile.csv')
+val_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
+                                 listfile='../../data/multitask/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -234,8 +234,8 @@ elif args.mode == 'test':
     del train_reader
     del val_reader 
     
-    test_reader = MultitaskReader(dataset_dir='/home/c9/mimic3-datasets/multitask/test/',
-                                      listfile='/home/c9/mimic3-user-datasets/multitask/test_listfile.csv')
+    test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
+                                      listfile='../../data/multitask/test_listfile.csv')
     data_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
     
     data_raw_copy = copy.deepcopy(data_raw) # TODO: delete this 

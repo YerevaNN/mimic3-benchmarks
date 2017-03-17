@@ -26,14 +26,14 @@ Cs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
 args = parser.parse_args()
 print args
 
-train_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/train/',
-                    listfile='/home/c9/mimic3-user-datasets/phenotyping/train_listfile.csv')
+train_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/train/',
+                    listfile='../../../data/phenotyping/train_listfile.csv')
 
-val_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/train/',
-                    listfile='/home/c9/mimic3-user-datasets/phenotyping/val_listfile.csv')
+val_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/train/',
+                    listfile='../../../data/phenotyping/val_listfile.csv')
 
-test_reader = PhenotypingReader(dataset_dir='/home/c9/mimic3-datasets/phenotyping/test/',
-                             listfile='/home/c9/mimic3-user-datasets/phenotyping/test_listfile.csv')
+test_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/test/',
+                             listfile='../../../data/phenotyping/test_listfile.csv')
                              
 def read_and_extract_features(reader):
     (chunk, ts, y, header) = utils.read_chunk(reader, reader.get_number_of_examples())
