@@ -29,6 +29,8 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 - numpy
 - pandas
 
+For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use Theano/[Lasagne](http://lasagne.readthedocs.io/en/latest/).
+
 ## Building a benchmark
 
 Here are the required steps to build the benchmark. It assumes that you already have MIMIC-III dataset (lots of CSV files) on the disk.
@@ -37,7 +39,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
        git clone https://github.com/YerevaNN/mimic3-benchmarks/
        cd mimic3-benchmarks/
     
-2. Add the path to the `PYTHONPATH`.
+2. Add the path to the `PYTHONPATH` (sorry for this).
  
        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
 
@@ -72,11 +74,11 @@ Please note that running linear models can take hours because of extensive grid 
 
 ### Train / validation split
 
-Use the following command to split the training set into new train and validation sets. This step is required if you plan to run the models.
+Use the following command to extract validation set from the traning set. This step is required for running the baseline models.
 
        python mimic3models/split_train_val.py [TASK]
        
-The `task` argument is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
+`[TASK]` is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
 
 
 ### In-hospital mortality prediction
@@ -138,7 +140,7 @@ Use the following command for testing:
        
        python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command for logistic regression.
+Use the following command for logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
        
        cd mimic3models/phenotyping/logistic/
        python -u main.py
@@ -162,10 +164,8 @@ Use the following command for testing:
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
-- Write code to process data into final format (numpy arrays? CSVs? JSON?)
-- Get some sanity-checking results with simpler models
 
-##### More on validating results
+## More on validating results
 
 Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
 
