@@ -1,10 +1,14 @@
-* These benchmarks are currently works-in-progress and undergoing rapid development. We expect to do our first official "release" no later March 1, 2017. In the meantime, we invite the community to experiment with it, to provide feedback, and most especially to send pull requests, but we reserve the right to make changes that are not backward compatible until the first release.
-
-* If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. Under review for SIGKDD 2017.* A preprint of this manuscript will be available on arXiv no later than March 1, 2017. **Be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
-
 MIMIC-III Benchmarks
 =========================
 Python suite to construct benchmark machine learning datasets from the MIMIC-III clinical database. Currently, we are focused on building a multitask learning benchmark dataset that includes four key inpatient clinical prediction tasks that map onto core machine learning problems: prediction of mortality from early admission data (classification), real-time detection of decompensation (time series classification), forecasting length of stay (regression), and phenotype classification (multilabel sequence classification).
+
+## News
+
+* 2017 March 23: We are pleased to announce the first official release of these benchmarks. We expect to release a revision within the coming months that will add at least ~50 additional input variables. We are likewise pleased to announce that the manuscript associated with these benchmarks is now [available on arXiv](https://arxiv.org/abs/1703.07771).
+
+## Citation
+
+If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). This paper is currently under review for SIGKDD and if accepted, the citation will change. **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 ## Motivation
 
@@ -20,7 +24,7 @@ Here we present four public benchmarks for machine learning researchers interest
 * identification of high cost patients, i.e. length of stay forecasting
 * characterization of complex, multi-system diseases, i.e., acute care phenotyping
 
-In Harutyunyan, Khachatrian, Kale, and Galstyan 2017 (under review for SIGKDD 2017, arXiv manuscript forthcoming), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
+In [Harutyunyan, Khachatrian, Kale, and Galstyan 2017](https://arxiv.org/abs/1703.07771), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
 
 ## Requirements
 
@@ -28,6 +32,8 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 
 - numpy
 - pandas
+
+For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use Theano/[Lasagne](http://lasagne.readthedocs.io/en/latest/).
 
 ## Building a benchmark
 
@@ -37,7 +43,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
        git clone https://github.com/YerevaNN/mimic3-benchmarks/
        cd mimic3-benchmarks/
     
-2. Add the path to the `PYTHONPATH`.
+2. Add the path to the `PYTHONPATH` (sorry for this).
  
        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
 
@@ -59,74 +65,6 @@ Here are the required steps to build the benchmark. It assumes that you already 
 	
 7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
 
-       python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
-       python scripts/create_decompensation.py data/root/ data/decompensation/
-       python scripts/create_length_of_stay.py data/root/ data/length_of_stay/
-       python scripts/create_phenotyping.py data/root/ data/phenotyping/
-       python scripts/create_multitask.py data/root/ data/multitask/
-        
-## Working with baseline models
-
-For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
-Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
-
-### Train / validation split
-
-Use the following command to split the training set into new train and validation sets. This step is required if you plan to run the models.
-
-       python mimic3models/split_train_val.py [TASK]
-       
-The `task` argument is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
-
-
-### In-hospital mortality prediction
-
-Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
-       
-       cd mimic3models/in_hospital_mortality/
-       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
-
-To test the model use the following:
-       
-       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
-Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
-       
-       cd mimic3models/in_hospital_mortality/logistic/
-       python -u main.py --l2 --C 0.001
-
-### Decompensation prediction
-
-The best model we got for this task was trained for 110 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
-       
-       cd mimic3models/decompensation/
-       python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
-
-Here is the command to test:
-       
-       python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
-Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
-       
-       cd mimic3models/decompensation/logistic/
-       python -u main.py
-
-### Length of stay prediction
-
-The best model we got for this task was trained for 15 chunks.
-       
-       cd mimic3models/length_of_stay/
-       python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
-
-Run the following command to test the best pretrained neural network.
-       
-       python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
-Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
-       
-       cd mimic3models/length_of_stay/logistic/
-       python -u main_cf.py
-
 ### Phenotype classification
 
 The best model we got for this task was trained for 30 epochs.
@@ -138,7 +76,7 @@ Use the following command for testing:
        
        python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
 
-Use the following command for logistic regression.
+Use the following command for logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
        
        cd mimic3models/phenotyping/logistic/
        python -u main.py
@@ -162,10 +100,8 @@ Use the following command for testing:
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
-- Write code to process data into final format (numpy arrays? CSVs? JSON?)
-- Get some sanity-checking results with simpler models
 
-##### More on validating results
+## More on validating results
 
 Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
 
