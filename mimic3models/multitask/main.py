@@ -192,20 +192,25 @@ def do_epoch(mode, epoch):
     sum_loss /= batches_per_epoch
     print "\n  %s loss = %.5f" % (mode, sum_loss)
     
-    print "\n ================= 48h mortality ================"
-    metrics.print_metrics_binary(ihm_answers, ihm_predictions)
+    eps = 1e-13
+    if args.ihm_C > eps:
+        print "\n ================= 48h mortality ================"
+        metrics.print_metrics_binary(ihm_answers, ihm_predictions)
     
-    print "\n ================ length of stay ================"
-    if args.partition == 'log':
-        metrics.print_metrics_log_bins(los_answers, los_predictions)
-    else:
-        metrics.print_metrics_custom_bins(los_answers, los_predictions)
-        
-    print "\n =================== phenotype =================="
-    metrics.print_metrics_multilabel(ph_answers, ph_predictions)
+    if args.los_C > eps:
+        print "\n ================ length of stay ================"
+        if args.partition == 'log':
+            metrics.print_metrics_log_bins(los_answers, los_predictions)
+        else:
+            metrics.print_metrics_custom_bins(los_answers, los_predictions)
     
-    print "\n ================ swat mortality ================"
-    metrics.print_metrics_binary(decomp_answers, decomp_predictions)
+    if args.ph_C > eps:    
+        print "\n =================== phenotype =================="
+        metrics.print_metrics_multilabel(ph_answers, ph_predictions)
+    
+    if args.decomp_C > eps:
+        print "\n ================ decompensation ================"
+        metrics.print_metrics_binary(decomp_answers, decomp_predictions)
     
     return sum_loss
 
@@ -351,20 +356,25 @@ elif args.mode == 'test':
     sum_loss /= batches_per_epoch
     print "\n  %s loss = %.5f" % (args.mode, sum_loss)
     
-    print "\n ================= 48h mortality ================"
-    metrics.print_metrics_binary(ihm_answers, ihm_predictions)
+    eps = 1e-13
+    if args.ihm_C > eps:
+        print "\n ================= 48h mortality ================"
+        metrics.print_metrics_binary(ihm_answers, ihm_predictions)
     
-    print "\n ================ length of stay ================"
-    if args.partition == 'log':
-        metrics.print_metrics_log_bins(los_answers, los_predictions)
-    else:
-        metrics.print_metrics_custom_bins(los_answers, los_predictions)
+    if args.los_C > eps:
+        print "\n ================ length of stay ================"
+        if args.partition == 'log':
+            metrics.print_metrics_log_bins(los_answers, los_predictions)
+        else:
+            metrics.print_metrics_custom_bins(los_answers, los_predictions)
+
+    if args.ph_C > eps:
+        print "\n =================== phenotype =================="
+        metrics.print_metrics_multilabel(ph_answers, ph_predictions)
     
-    print "\n =================== phenotype =================="
-    metrics.print_metrics_multilabel(ph_answers, ph_predictions)
-    
-    print "\n ================ decompensation ================"
-    metrics.print_metrics_binary(decomp_answers, decomp_predictions)
+    if args.decomp_C > eps:
+        print "\n ================ decompensation ================"
+        metrics.print_metrics_binary(decomp_answers, decomp_predictions)
     
     with open("los_activations.txt", "w") as fout:
         fout.write("prediction, y_true")
