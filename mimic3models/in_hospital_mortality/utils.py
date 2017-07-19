@@ -1,3 +1,5 @@
+import numpy as np
+
 def read_chunk(reader, chunk_size):
     data = []
     mortalities = []
@@ -19,4 +21,4 @@ def load_mortalities(reader, discretizer, normalizer, small_part=False):
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
     if (normalizer is not None):
         data = [normalizer.transform(X) for X in data]
-    return (data, mortalities)
+    return (np.array(data), mortalities)

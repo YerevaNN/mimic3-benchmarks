@@ -58,6 +58,7 @@ normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
 normalizer.load_params('decomp_ts0.8.input_str:previous.n1e5.start_time:zero.normalizer')
 
 args_dict = dict(args._get_kwargs())
+args_dict['header'] = discretizer_header
 
 # init class
 print "==> using network %s" % args.network

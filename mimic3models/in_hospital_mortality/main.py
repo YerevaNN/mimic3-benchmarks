@@ -72,6 +72,7 @@ test_raw = utils.load_mortalities(val_reader, discretizer, normalizer, args.smal
 args_dict = dict(args._get_kwargs())
 args_dict['train_raw'] = train_raw
 args_dict['test_raw'] = test_raw
+args_dict['header'] = discretizer_header
 
 # init class
 print "==> using network %s" % args.network
