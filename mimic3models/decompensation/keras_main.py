@@ -108,7 +108,7 @@ if args.load_state != "":
 
 # Set number of batches in one epoch
 train_nbatches = 2000
-val_nbatches = 500
+val_nbatches = 1000
 
 if (args.small_part):
     train_nbatches = 20

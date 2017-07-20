@@ -94,4 +94,5 @@ ENV/
 .ropeproject
 
 # States of models
+keras_states/
 states/

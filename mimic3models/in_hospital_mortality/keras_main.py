@@ -105,12 +105,14 @@ model.summary()
 n_trained_chunks = 0
 if args.load_state != "":
     model.load_weights(args.load_state)
-    n_trained_chunks = 1 + int(re.match(".*chunk([0-9]+).*", args.load_state).group(1))
+    n_trained_chunks = 1 + int(re.match(".*epoch([0-9]+).*", args.load_state).group(1))
 
 
 # Read data
 train_raw = utils.load_mortalities(train_reader, discretizer, normalizer, args.small_part)
 val_raw = utils.load_mortalities(val_reader, discretizer, normalizer, args.small_part)
+if args.small_part:
+    args.save_every = 2**30
 
 
 if args.mode == 'train':
@@ -118,7 +120,7 @@ if args.mode == 'train':
     # Prepare training
     print "==> training"
     # TODO: write callback for model save
-    path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
+    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
     
     metrics_binary = keras_utils.MetricsBinaryFromData(train_raw,
                                                        val_raw,

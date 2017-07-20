@@ -114,6 +114,9 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
                         
                         
 class CollectAttetion(Layer):
+    """ Collect attention on 3D tensor with softmax and summation
+        Masking is disabled after this layer
+    """
     def __init__(self, **kwargs):
         self.supports_masking = True
         super(CollectAttetion, self).__init__(**kwargs)
@@ -140,3 +143,21 @@ class CollectAttetion(Layer):
 
     def compute_mask(self, input, input_mask=None):
         return None
+
+
+class Slice(Layer):
+    """ Slice 3D tensor by taking x[:, :, indices]
+    """
+    def __init__(self, indices, **kwargs):
+        self.supports_masking = True
+        self.indices = indices
+        super(Slice, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        return x[:, :, self.indices]
+    
+    def compute_output_shape(self, input_shape):
+        return input_shape[0], input_shape[1], len(self.indices)
+
+    def compute_mask(self, input, input_mask=None):
+        return input_mask
