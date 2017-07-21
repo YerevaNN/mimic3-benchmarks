@@ -5,8 +5,8 @@ import os
 import imp
 import re
 
-from mimic3models.decompensation import utils
-from mimic3benchmark.readers import DecompensationReader
+from mimic3models.length_of_stay import utils
+from mimic3benchmark.readers import LengthOfStayReader
 
 from mimic3models.preprocessing import Discretizer, Normalizer
 from mimic3models import metrics
@@ -45,20 +45,18 @@ parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--beta_1', type=float, default=0.9,
                     help='beta_1 param for Adam optimizer')
-parser.add_argument('--no-shuffle', dest='shuffle', action='store_false',
-                    help="shuffles the training set")
-parser.set_defaults(shuffle=True)
+parser.add_argument('--partition', type=str, default='custom',
+                    help="log, custom, none")
 parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
-
 # Build readers, discretizers, normalizers
-train_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/train_listfile.csv')
+train_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                    listfile='../../data/length-of-stay/train_listfile.csv')
 
-val_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/val_listfile.csv')
+val_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                    listfile='../../data/length-of-stay/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -69,11 +67,12 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].s
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
-normalizer.load_params('decomp_ts0.8.input_str:previous.n1e5.start_time:zero.normalizer')
+normalizer.load_params('los_ts0.8.input_str:previous.start_time:zero.n5e4.normalizer')
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
-args_dict['task'] = 'decomp'
+args_dict['task'] = 'los'
+args_dict['num_classes'] = (1 if args.imputation == 'none' else 10)
 
 
 # Build the model
@@ -95,8 +94,15 @@ optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
 
+if args.partition == 'none':
+    loss_function = 'mean_squared_error'
+else:
+    loss_function = 'sparse_categorical_crossentropy'
+# NOTE: categorical_crossentropy needs one-hot vectors
+#       that's why we use sparse_categorical_crossentropy
+
 model.compile(optimizer=optimizer_config,
-              loss='binary_crossentropy',
+              loss=loss_function,
               metrics=['accuracy'])
 
 ## print model summary
@@ -120,13 +126,21 @@ if (args.small_part):
 
 
 # Build data generators
-train_data_gen = utils.BatchGen(train_reader, discretizer,
-                                normalizer, args.batch_size, train_nbatches)
-val_data_gen = utils.BatchGen(val_reader, discretizer,
-                              normalizer, args.batch_size, val_nbatches)
-#train_data_gen.steps = train_reader.get_number_of_examples() / args.batch_size
-#val_data_gen.steps = val_reader.get_number_of_examples() / args.batch_size
-
+train_data_gen = utils.BatchGen(reader=train_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                partition=args.partition,
+                                batch_size=args.batch_size,
+                                steps=train_nbatches)
+#train_data_gen.steps = train_reader.get_number_of_examples() // args.batch_size
+                                      
+val_data_gen = utils.BatchGen(reader=val_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                partition=args.partition,
+                                batch_size=args.batch_size,
+                                steps=val_nbatches)
+#val_data_gen.steps = val_reader.get_number_of_examples() // args.batch_size
 
 
 if args.mode == 'train':
@@ -134,9 +148,10 @@ if args.mode == 'train':
     # Prepare training
     path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
     
-    metrics_callback = keras_utils.MetricsBinaryFromGenerator(train_data_gen,
-                                                            val_data_gen,
-                                                            args.batch_size)
+    metrics_callback = keras_utils.MetricsLOS(train_data_gen,
+                                            val_data_gen,
+                                            args.partition,
+                                            args.batch_size)
 
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
     
@@ -157,29 +172,41 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
     
-    test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
-            listfile='../../data/decompensation/test_listfile.csv')
+    test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
+            listfile='../../data/length-of-stay/test_listfile.csv')
     
     test_nbatches = test_reader.get_number_of_examples() // args.batch_size
     test_nbatches = 10000
-    test_data_gen = utils.BatchGen(test_reader, discretizer,
-                                    normalizer, args.batch_size,
-                                    test_nbatches)
+    test_data_gen = utils.BatchGen(reader=test_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                partition=args.partition,
+                                batch_size=args.batch_size,
+                                steps=test_nbatches)
+    
     labels = []
     predictions = []
     for i in range(test_nbatches):
         print "\rpredicting {} / {}".format(i, test_nbatches),
         x, y = next(test_data_gen)
         x = np.array(x)
-        pred = model.predict_on_batch(x)[:, 0]
+        pred = model.predict_on_batch(x)
         predictions += list(pred)
         labels += list(y)
     
-    metrics.print_metrics_binary(labels, predictions)
+    if args.partition == 'log':
+        predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
+        metrics.print_metrics_log_bins(labels, predictions)
+    if args.partition == 'custom':
+        predictions = [metrics.get_estimate_custom(x, 10) for x in predictions]
+        metrics.print_metrics_custom_bins(labels, predictions)
+    if args.partition == 'none':
+        metrics.print_metrics_regression(labels, predictions)
+    
     with open("activations.txt", "w") as fout:
-        fout.write("predictions, labels\n")
+        fout.write("prediction, y_true")
         for (x, y) in zip(predictions, labels):
-            fout.write("%.6f, %d\n" % (x, y))
+            fout.write("%.6f, %.6f\n" % (x, y))
 
 else:
     raise ValueError("Wrong value for args.mode")

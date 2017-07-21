@@ -5,8 +5,8 @@ import os
 import imp
 import re
 
-from mimic3models.in_hospital_mortality import utils
-from mimic3benchmark.readers import InHospitalMortalityReader
+from mimic3models.phenotyping import utils
+from mimic3benchmark.readers import PhenotypingReader
 
 from mimic3models.preprocessing import Discretizer, Normalizer
 from mimic3models import metrics
@@ -51,13 +51,11 @@ print args
 
 
 # Build readers, discretizers, normalizers
-train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                        listfile='../../data/in-hospital-mortality/train_listfile.csv',
-                                        period_length=48.0)
+train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
+                                        listfile='../../data/phenotyping/train_listfile.csv')
 
-val_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                      listfile='../../data/in-hospital-mortality/val_listfile.csv',
-                                      period_length=48.0)
+val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
+                                      listfile='../../data/phenotyping/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -68,11 +66,12 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].s
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
-normalizer.load_params('ihm_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
+normalizer.load_params('ph_ts%s.input_str:previous.start_time:zero.normalizer' % args.timestep)
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
-args_dict['task'] = 'ihm'
+args_dict['task'] = 'ph'
+args_dict['num_classes'] = 25
 
 # Build the model
 print "==> using model {}".format(args.network)
@@ -94,7 +93,7 @@ optimizer_config = {'class_name': args.optimizer,
                                'beta_1': args.beta_1}}
 
 model.compile(optimizer=optimizer_config,
-              loss='binary_crossentropy',
+              loss='binary_crossentropy', # this works for 1 or more binary labels
               metrics=['accuracy'])
 
 ## print model summary
@@ -107,9 +106,12 @@ if args.load_state != "":
     n_trained_chunks = 1 + int(re.match(".*epoch([0-9]+).*", args.load_state).group(1))
 
 
-# Read data
-train_raw = utils.load_data(train_reader, discretizer, normalizer, args.small_part)
-val_raw = utils.load_data(val_reader, discretizer, normalizer, args.small_part)
+# Build data generators
+train_data_gen = utils.BatchGen(train_reader, discretizer,
+                                normalizer, args.batch_size, args.small_part)
+val_data_gen = utils.BatchGen(val_reader, discretizer,
+                              normalizer, args.batch_size, args.small_part)
+
 if args.small_part:
     args.save_every = 2**30
 
@@ -119,47 +121,65 @@ if args.mode == 'train':
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
     
-    metrics_callback = keras_utils.MetricsBinaryFromData(train_raw,
-                                                       val_raw,
-                                                       args.batch_size)
+    metrics_callback = keras_utils.MetricsMultilabel(train_data_gen,
+                                                   val_data_gen,
+                                                   args.batch_size)
     
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
-
+    
     print "==> training"
-    model.fit(x=train_raw[0],
-              y=train_raw[1],
-              validation_data=val_raw,
-              epochs=args.epochs,
-              initial_epoch=n_trained_chunks,
-              callbacks=[metrics_callback, saver],
-              shuffle=True)
-
+    model.fit_generator(generator=train_data_gen,
+                        steps_per_epoch=train_data_gen.steps,
+                        validation_data=val_data_gen,
+                        validation_steps=val_data_gen.steps,
+                        epochs=args.epochs,
+                        initial_epoch=n_trained_chunks,
+                        callbacks=[metrics_callback, saver])
 
 elif args.mode == 'test':
 
     # ensure that the code uses test_reader
     del train_reader
     del val_reader
-    del train_raw
-    del val_raw
+    del train_data_gen
+    del val_data_gen
     
-    test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
-                    listfile='../../data/in-hospital-mortality/test_listfile.csv',
-                    period_length=48.0)
-    test_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
+    test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
+                    listfile='../../data/phenotyping/test_listfile.csv')
     
-    data = np.array(test_raw[0])
-    labels = test_raw[1]
-    predictions = model.predict(data,
-                                batch_size=args.batch_size,
-                                verbose=1)
-    predictions = np.array(predictions)[:, 0]
+    test_data_gen = utils.BatchGen(test_reader, discretizer,
+                                    normalizer, args.batch_size,
+                                    args.small_part)
+    test_nbatches = test_data_gen.steps
+    #test_nbatches = 2
 
-    metrics.print_metrics_binary(labels, predictions)
-    with open("activations.txt", "w") as fout:
-        fout.write("predictions, labels\n")
-        for (x, y) in zip(predictions, labels):
-            fout.write("%.6f, %d\n" % (x, y))
+    labels = []
+    predictions = []
+    for i in range(test_nbatches):
+        print "\rpredicting {} / {}".format(i, test_nbatches),
+        x, y = next(test_data_gen)
+        x = np.array(x)
+        pred = model.predict_on_batch(x)
+        predictions += list(pred)
+        labels += list(y)
+
+    ret = metrics.print_metrics_multilabel(labels, predictions)
+    
+    with open("results.txt", "w") as resfile:
+        header = "ave_prec_micro,ave_prec_macro,ave_prec_weighted,"
+        header += "ave_recall_micro,ave_recall_macro,ave_recall_weighted,"
+        header += "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
+        header += ','.join(["auc_%d" % i for i in range(args_dict['num_classes'])])
+        resfile.write(header + "\n")
+        
+        resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f," % (
+            ret['ave_prec_micro'], ret['ave_prec_macro'], ret['ave_prec_weighted'],
+            ret['ave_recall_micro'], ret['ave_recall_macro'], ret['ave_recall_weighted'],
+            ret['ave_auc_micro'], ret['ave_auc_macro'], ret['ave_auc_weighted']))
+        resfile.write(",".join(["%.6f" % x for x in ret['auc_scores']]) + "\n")
+    
+    np.savetxt("activations.csv", predictions, delimiter=',')
+    np.savetxt("answer.csv", np.array(labels, dtype=np.int32), delimiter=',')
 
 else:
     raise ValueError("Wrong value for args.mode")
