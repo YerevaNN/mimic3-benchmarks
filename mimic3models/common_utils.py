@@ -76,7 +76,9 @@ def add_common_arguments(parser):
                         help='save state every x epoch')
     parser.add_argument('--prefix', type=str, default="",
                         help='optional prefix of network name')
-    parser.add_argument('--dropout', type=float, default=0.0, help='dropout rate')
+    parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--rec_dropout', type=float, default=0.0,
+                        help="dropout rate for recurrent connections")
     parser.add_argument('--batch_norm', type=bool, default=False,
                         help='batch normalization')
     parser.add_argument('--timestep', type=float, default=0.8,

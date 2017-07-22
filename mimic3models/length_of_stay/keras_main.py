@@ -124,7 +124,11 @@ if args.mode == 'train':
                                             val_data_gen,
                                             args.partition,
                                             args.batch_size)
-
+    
+    # make sure save directory exists
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
     
     print "==> training"
