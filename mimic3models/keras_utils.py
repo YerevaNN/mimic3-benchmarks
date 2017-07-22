@@ -19,7 +19,7 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         self.train_history = []
         self.val_history = []
     
-    def calc_metrics(self, data_gen, history):
+    def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
@@ -31,13 +31,15 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
+        for k, v in ret.iteritems():
+            logs[dataset + '_' + k] = v
         history.append(ret)
     
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
-        self.calc_metrics(self.train_data_gen, self.train_history)
+        self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
         print "\n==>predicting on validation"
-        self.calc_metrics(self.val_data_gen, self.val_history)
+        self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
 
 class MetricsBinaryFromData(keras.callbacks.Callback):
@@ -51,7 +53,7 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         self.train_history = []
         self.val_history = []
     
-    def calc_metrics(self, data, history):
+    def calc_metrics(self, data, history, dataset, logs):
         y_true = []
         predictions = []
         num_examples = len(data[0])
@@ -64,13 +66,15 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
+        for k, v in ret.iteritems():
+            logs[dataset + '_' + k] = v
         history.append(ret)
-    
+        
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
-        self.calc_metrics(self.train_data, self.train_history)
+        self.calc_metrics(self.train_data, self.train_history, 'train', logs)
         print "\n==>predicting on validation"
-        self.calc_metrics(self.val_data, self.val_history)
+        self.calc_metrics(self.val_data, self.val_history, 'val', logs)
                         
 
 class MetricsMultilabel(keras.callbacks.Callback):
@@ -84,7 +88,7 @@ class MetricsMultilabel(keras.callbacks.Callback):
         self.train_history = []
         self.val_history = []
     
-    def calc_metrics(self, data_gen, history):
+    def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
@@ -95,13 +99,15 @@ class MetricsMultilabel(keras.callbacks.Callback):
         print "\n"
         predictions = np.array(predictions)
         ret = metrics.print_metrics_multilabel(y_true, predictions)
+        for k, v in ret.iteritems():
+            logs[dataset + '_' + k] = v
         history.append(ret)
     
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
-        self.calc_metrics(self.train_data_gen, self.train_history)
+        self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
         print "\n==>predicting on validation"
-        self.calc_metrics(self.val_data_gen, self.val_history)
+        self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
 
 class MetricsLOS(keras.callbacks.Callback):
@@ -116,7 +122,7 @@ class MetricsLOS(keras.callbacks.Callback):
         self.train_history = []
         self.val_history = []
     
-    def calc_metrics(self, data_gen, history):
+    def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
@@ -135,14 +141,15 @@ class MetricsLOS(keras.callbacks.Callback):
             ret = metrics.print_metrics_custom_bins(y_true, predictions)
         if self.partition == 'none':
             ret = metrics.print_metrics_regression(y_true, predictions)
-        
+        for k, v in ret.iteritems():
+            logs[dataset + '_' + k] = v
         history.append(ret)
     
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
-        self.calc_metrics(self.train_data_gen, self.train_history)
+        self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
         print "\n==>predicting on validation"
-        self.calc_metrics(self.val_data_gen, self.val_history)
+        self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
 
 # ===================== LAYERS ===================== #                        

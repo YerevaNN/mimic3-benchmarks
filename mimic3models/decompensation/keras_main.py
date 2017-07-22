@@ -13,7 +13,7 @@ from mimic3models import metrics
 from mimic3models import keras_utils
 from mimic3models import common_utils
 
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, CSVLogger
 
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
@@ -111,6 +111,11 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
     
+    if not os.path.exists('keras_logs'):
+        os.makedirs('keras_logs')
+    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+                           append=True, separator=';')
+    
     print "==> training"
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
@@ -118,7 +123,7 @@ if args.mode == 'train':
                         validation_steps=val_data_gen.steps,
                         epochs=args.epochs,
                         initial_epoch=n_trained_chunks,
-                        callbacks=[metrics_callback, saver])
+                        callbacks=[metrics_callback, saver, csv_logger])
 
 elif args.mode == 'test':
 

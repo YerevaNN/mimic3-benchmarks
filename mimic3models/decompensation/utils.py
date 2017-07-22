@@ -1,6 +1,6 @@
 from mimic3models import nn_utils
 from mimic3models import common_utils
-
+import threading
 
 def read_chunk(reader, chunk_size):
     data = []
@@ -33,6 +33,7 @@ class BatchGen(object):
         self.batch_size = batch_size
         self.steps = steps
         self.chunk_size = min(10000, steps * batch_size)
+        self.lock = threading.Lock()
         self.generator = self._generator()
 
     def _generator(self):
@@ -52,7 +53,8 @@ class BatchGen(object):
         return self.generator
 
     def next(self):
-        return self.generator.next()
+        with self.lock:
+            return self.generator.next()
 
     def __next__(self):
         return self.generator.__next__()
