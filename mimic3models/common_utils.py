@@ -91,5 +91,5 @@ def add_common_arguments(parser):
     parser.add_argument('--beta_1', type=float, default=0.9,
                         help='beta_1 param for Adam optimizer')
     parser.add_argument('--verbose', type=int, default=2)
-    parser.add_argument('--size_coef', type=float, defualt=4.0)
+    parser.add_argument('--size_coef', type=float, default=4.0)
     parser.set_defaults(small_part=False)
