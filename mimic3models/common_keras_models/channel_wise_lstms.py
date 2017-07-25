@@ -11,7 +11,7 @@ class Network(Model):
     
     def __init__(self, dim, batch_norm, dropout, rec_dropout, batch_size,
                 header, task, num_classes=1, depth=1,
-                input_dim=76, **kwargs):
+                input_dim=76, size_coef=4, **kwargs):
         
         # TODO: recurrent batch normalization
         
@@ -20,6 +20,7 @@ class Network(Model):
         self.dropout = dropout
         self.rec_dropout = rec_dropout
         self.depth = depth
+        self.size_coef = size_coef
         
         if task in ['decomp', 'ihm', 'ph']:
             final_activation = 'sigmoid'
@@ -74,7 +75,7 @@ class Network(Model):
         Z = Concatenate(axis=2)(pX)
         
         for i in range(depth-1):
-            Z = Bidirectional(LSTM(units=4*dim//2,
+            Z = Bidirectional(LSTM(units=size_coef*dim//2,
                             activation='tanh',
                             return_sequences=True,
                             dropout=dropout,
@@ -97,8 +98,9 @@ class Network(Model):
     
     def say_name(self):
         self.network_class_name = "k_channel_wise_lstms"
-        return "{}.n{}{}{}{}.dep{}".format(self.network_class_name,
+        return "{}.n{}szc{}{}{}{}.dep{}".format(self.network_class_name,
                     self.dim,
+                    self.size_coef,
                     ".bn" if self.batch_norm else "",
                     ".d{}".format(self.dropout) if self.dropout > 0 else "",
                     ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
