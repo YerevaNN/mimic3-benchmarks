@@ -75,13 +75,13 @@ class Network(Model):
         Z = Concatenate(axis=2)(pX)
         
         for i in range(depth-1):
-            Z = Bidirectional(LSTM(units=size_coef*dim//2,
+            Z = Bidirectional(LSTM(units=int(size_coef*dim)//2,
                             activation='tanh',
                             return_sequences=True,
                             dropout=dropout,
                             recurrent_dropout=rec_dropout))(Z)
         
-        L = LSTM(units=self.size_coef*dim,
+        L = LSTM(units=self.int(size_coef*dim),
                  activation='tanh',
                  return_sequences=False,
                  dropout=dropout,
