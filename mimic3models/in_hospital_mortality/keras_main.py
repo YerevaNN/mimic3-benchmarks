@@ -92,7 +92,8 @@ if args.mode == 'train':
     
     metrics_callback = keras_utils.MetricsBinaryFromData(train_raw,
                                                        val_raw,
-                                                       args.batch_size)
+                                                       args.batch_size,
+                                                       args.verbose)
     
     # make sure save directory exists
     dirname = os.path.dirname(path)
@@ -112,7 +113,8 @@ if args.mode == 'train':
               epochs=args.epochs,
               initial_epoch=n_trained_chunks,
               callbacks=[metrics_callback, saver, csv_logger],
-              shuffle=True)
+              shuffle=True,
+              verbose=args.verbose)
 
 
 elif args.mode == 'test':

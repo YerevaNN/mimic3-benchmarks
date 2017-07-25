@@ -94,7 +94,8 @@ if args.mode == 'train':
     
     metrics_callback = keras_utils.MetricsMultilabel(train_data_gen,
                                                    val_data_gen,
-                                                   args.batch_size)
+                                                   args.batch_size,
+                                                   args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -113,7 +114,8 @@ if args.mode == 'train':
                         validation_steps=val_data_gen.steps,
                         epochs=args.epochs,
                         initial_epoch=n_trained_chunks,
-                        callbacks=[metrics_callback, saver, csv_logger])
+                        callbacks=[metrics_callback, saver, csv_logger],
+                        verbose=args.verbose)
 
 elif args.mode == 'test':
 

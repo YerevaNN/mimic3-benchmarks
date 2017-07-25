@@ -61,7 +61,7 @@ def add_common_arguments(parser):
     parser.add_argument('--network', type=str, required=True)
     parser.add_argument('--dim', type=int, default=256,
                         help='number of hidden units')
-    parser.add_argument('--depth', type=int, default=0,
+    parser.add_argument('--depth', type=int, default=1,
                         help='number of bi-LSTMs')
     parser.add_argument('--epochs', type=int, default=100,
                         help='number of chunks to train')
@@ -90,4 +90,5 @@ def add_common_arguments(parser):
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--beta_1', type=float, default=0.9,
                         help='beta_1 param for Adam optimizer')
+    parser.add_argument('--verbose', type=int, default=2)
     parser.set_defaults(small_part=False)

@@ -3,17 +3,18 @@ import metrics
 
 import keras
 import keras.backend as K
-from keras.layers import Layer
-
+from keras.layers import Layer, LSTM
+from keras.layers.recurrent import _time_distributed_dense
 
 # ===================== METRICS ===================== #                        
 
 class MetricsBinaryFromGenerator(keras.callbacks.Callback):
     
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32):
+    def __init__(self, train_data_gen, val_data_gen, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
+        self.verbose = verbose
     
     def on_train_begin(self, logs={}):
         self.train_history = []
@@ -23,7 +24,8 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
-            print "\r\tdone {}/{}".format(i, data_gen.steps),
+            if self.verbose == 1:
+                print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x,y) = next(data_gen)
             y_true += list(y)
             predictions += list(self.model.predict(x, batch_size=self.batch_size))
@@ -44,10 +46,11 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
 
 class MetricsBinaryFromData(keras.callbacks.Callback):
     
-    def __init__(self, train_data, val_data, batch_size=32):
+    def __init__(self, train_data, val_data, batch_size=32, verbose=2):
         self.train_data = train_data
         self.val_data = val_data
         self.batch_size = batch_size
+        self.verbose = verbose
     
     def on_train_begin(self, logs={}):
         self.train_history = []
@@ -58,7 +61,8 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         predictions = []
         num_examples = len(data[0])
         for i in range(0, num_examples, self.batch_size):
-            print "\r\tdone {}/{}".format(i, num_examples),
+            if self.verbose == 1:
+                print "\r\tdone {}/{}".format(i, num_examples),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
             y_true += list(y)
             predictions += list(self.model.predict(x, batch_size=self.batch_size))
@@ -79,10 +83,11 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
 
 class MetricsMultilabel(keras.callbacks.Callback):
     
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32):
+    def __init__(self, train_data_gen, val_data_gen, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
+        self.verbose = verbose
     
     def on_train_begin(self, logs={}):
         self.train_history = []
@@ -92,7 +97,8 @@ class MetricsMultilabel(keras.callbacks.Callback):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
-            print "\r\tdone {}/{}".format(i, data_gen.steps),
+            if self.verbose == 1:
+                print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x, y) = next(data_gen)
             y_true += list(y)
             predictions += list(self.model.predict(x, batch_size=self.batch_size))
@@ -112,11 +118,12 @@ class MetricsMultilabel(keras.callbacks.Callback):
 
 class MetricsLOS(keras.callbacks.Callback):
     
-    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32):
+    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
+        self.verbose = verbose
     
     def on_train_begin(self, logs={}):
         self.train_history = []
@@ -126,7 +133,8 @@ class MetricsLOS(keras.callbacks.Callback):
         y_true = []
         predictions = []
         for i in range(data_gen.steps):
-            print "\r\tdone {}/{}".format(i, data_gen.steps),
+            if self.verbose == 1:
+                print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x,y) = next(data_gen)
             y_true += list(y)
             predictions += list(self.model.predict(x, batch_size=self.batch_size))
@@ -154,6 +162,20 @@ class MetricsLOS(keras.callbacks.Callback):
 
 # ===================== LAYERS ===================== #                        
 
+def _collect_attention(x, a, mask):
+    # softmax attention
+    if mask is not None:
+        # 2 masks coming from incoming layers, both are the same
+        # each mask is 2D (batch_size, timestep)
+        a = a * K.expand_dims(mask[0], axis=2)
+    a = K.squeeze(a, axis=2)
+    a = K.softmax(a)
+    a = K.expand_dims(a, axis=2)
+
+    # collect xs
+    return K.sum(x * a, axis=1)
+
+
 class CollectAttetion(Layer):
     """ Collect attention on 3D tensor with softmax and summation
         Masking is disabled after this layer
@@ -165,19 +187,7 @@ class CollectAttetion(Layer):
     def call(self, inputs, mask=None):
         x = inputs[0]
         a = inputs[1]
-        
-        # softmax attention
-        if mask is not None:
-            # 2 masks coming from incoming layers, both are the same
-            # each mask is 2D (batch_size, timestep)
-            a = a * K.expand_dims(mask[0], axis=2)
-        
-        a = K.squeeze(a, axis=2)
-        a = K.softmax(a)
-        a = K.expand_dims(a, axis=2)
-
-        # collect xs
-        return K.sum(x * a, axis=1)
+        return _collect_attention(x, a, mask)
     
     def compute_output_shape(self, input_shape):
         return input_shape[0][0], input_shape[0][2]
