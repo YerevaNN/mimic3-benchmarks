@@ -81,7 +81,7 @@ class Network(Model):
                             dropout=dropout,
                             recurrent_dropout=rec_dropout))(Z)
         
-        L = LSTM(units=self.int(size_coef*dim),
+        L = LSTM(units=int(size_coef*dim),
                  activation='tanh',
                  return_sequences=False,
                  dropout=dropout,
