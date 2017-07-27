@@ -162,18 +162,30 @@ class MetricsLOS(keras.callbacks.Callback):
 
 # ===================== LAYERS ===================== #                        
 
-def _collect_attention(x, a, mask):
-    # softmax attention
-    if mask is not None:
-        # 2 masks coming from incoming layers, both are the same
-        # each mask is 2D (batch_size, timestep)
-        a = a * K.expand_dims(mask[0], axis=2)
-    a = K.squeeze(a, axis=2)
-    a = K.softmax(a)
-    a = K.expand_dims(a, axis=2)
+def softmax(x, axis, mask=None):
+    if mask is None:
+        mask = K.constant(True)
+    mask = K.cast(mask, K.floatx())
+    if K.ndim(x) is K.ndim(mask) + 1:
+        mask = K.expand_dims(mask)
 
-    # collect xs
-    return K.sum(x * a, axis=1)
+    m = K.max(x, axis=axis, keepdims=True)
+    e = K.exp(x - m) * mask
+    s = K.sum(e, axis=axis, keepdims=True)
+    s += K.cast(K.cast(s < K.epsilon(), K.floatx()) * K.epsilon(), K.floatx())
+    return e / s
+
+
+def _collect_attention(x, a, mask):
+    """
+    x is (B, T, D)
+    a is (B, T, 1) or (B, T)
+    mask is (B, T)
+    """
+    if K.ndim(a) == 2:
+        a = K.expand_dims(a)
+    a = softmax(a, axis=1, mask=mask) # (B, T, 1)
+    return K.sum(x * a, axis=1) # (B, D)
 
 
 class CollectAttetion(Layer):
@@ -187,7 +199,8 @@ class CollectAttetion(Layer):
     def call(self, inputs, mask=None):
         x = inputs[0]
         a = inputs[1]
-        return _collect_attention(x, a, mask)
+        # mask has 2 components, both are the same
+        return _collect_attention(x, a, mask[0])
     
     def compute_output_shape(self, input_shape):
         return input_shape[0][0], input_shape[0][2]

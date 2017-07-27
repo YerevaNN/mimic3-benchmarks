@@ -98,7 +98,7 @@ class Network(Model):
     
     def say_name(self):
         self.network_class_name = "k_channel_wise_lstms"
-        return "{}.n{}szc{}{}{}{}.dep{}".format(self.network_class_name,
+        return "{}.n{}.szc{}{}{}{}.dep{}".format(self.network_class_name,
                     self.dim,
                     self.size_coef,
                     ".bn" if self.batch_norm else "",
