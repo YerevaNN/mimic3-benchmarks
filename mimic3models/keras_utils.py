@@ -3,6 +3,10 @@ import metrics
 
 import keras
 import keras.backend as K
+
+if K.backend() == 'tensorflow':
+    import tensorflow as tf
+
 from keras.layers import Layer, LSTM
 from keras.layers.recurrent import _time_distributed_dense
 
@@ -218,8 +222,12 @@ class Slice(Layer):
         super(Slice, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
+        if K.backend() == 'tensorflow':
+            xt = tf.transpose(x, perm=(2, 0 ,1))
+            gt = tf.gather(xt, self.indices)
+            return tf.transpose(gt, perm=(1, 2, 0))
         return x[:, :, self.indices]
-    
+
     def compute_output_shape(self, input_shape):
         return input_shape[0], input_shape[1], len(self.indices)
 
