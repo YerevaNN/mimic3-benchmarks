@@ -34,9 +34,10 @@ def load_data(reader, discretizer, normalizer, small_part=False, pad=False):
 class BatchGen(object):
 
     def __init__(self, reader, discretizer, normalizer,
-                 batch_size, small_part):
+                 batch_size, small_part, target_repl):
         self.data = load_data(reader, discretizer, normalizer, small_part)
         self.batch_size = batch_size
+        self.target_repl = target_repl
         self.steps = len(self.data[0]) // batch_size
         self.lock = threading.Lock()
         self.generator = self._generator()
@@ -49,7 +50,16 @@ class BatchGen(object):
             for i in range(0, len(self.data[0]), B):
                 x = self.data[0][i:i+B]
                 y = self.data[1][i:i+B]
-                yield (nn_utils.pad_zeros(x), y)
+
+                x = nn_utils.pad_zeros(x)
+                y = np.array(y) # (B, 25)
+
+                if self.target_repl:
+                    T = x.shape[1]
+                    y_rep = np.expand_dims(y, axis=1).repeat(T, axis=1) # (B, T, 25)
+                    yield (x, [y, y_rep])
+                else:
+                    yield (x, y)
 
     def __iter__(self):
         return self.generator

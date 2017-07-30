@@ -17,9 +17,12 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
+parser.add_argument('--target_repl', type=float, default=0.0)
 args = parser.parse_args()
 print args
 
+if args.mode == 'test' and args.target_repl > 0:
+    raise ValueError("Disable target replication in test mode.")
 
 # Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
@@ -64,9 +67,16 @@ optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
 
+if args.target_repl > 0:
+    loss = ['binary_crossentropy', keras_utils.bce_target_replication]
+    loss_weights = [1 - args.target_repl, args.target_repl]
+else:
+    loss = 'binary_crossentropy'
+    loss_weights = None
+
 model.compile(optimizer=optimizer_config,
-              loss='binary_crossentropy',
-              metrics=['accuracy'])
+              loss=loss,
+              loss_weights=loss_weights)
 
 ## print model summary
 model.summary()
@@ -81,6 +91,21 @@ if args.load_state != "":
 # Read data
 train_raw = utils.load_data(train_reader, discretizer, normalizer, args.small_part)
 val_raw = utils.load_data(val_reader, discretizer, normalizer, args.small_part)
+
+if args.target_repl > 0:
+    T = train_raw[0][0].shape[0]
+
+    def extend_labels(data):
+        data = list(data)
+        labels = np.array(data[1]) # (B,)
+        data[1] = [labels, None]
+        data[1][1] = np.expand_dims(labels, axis=-1).repeat(T, axis=1) # (B, T)
+        data[1][1] = np.expand_dims(data[1][1], axis=-1) # (B, T, 1)
+        return data
+
+    train_raw = extend_labels(train_raw)
+    val_raw = extend_labels(val_raw)
+
 if args.small_part:
     args.save_every = 2**30
 
@@ -114,7 +139,8 @@ if args.mode == 'train':
               initial_epoch=n_trained_chunks,
               callbacks=[metrics_callback, saver, csv_logger],
               shuffle=True,
-              verbose=args.verbose)
+              verbose=args.verbose,
+              batch_size=args.batch_size)
 
 
 elif args.mode == 'test':

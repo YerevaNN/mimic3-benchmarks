@@ -68,8 +68,15 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, num_examples),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
-            y_true += list(y)
-            predictions += list(self.model.predict(x, batch_size=self.batch_size))
+            if len(y) == 2:
+                y_true += list(y[0])
+            else:
+                y_true += list(y)
+            outputs = self.model.predict(x, batch_size=self.batch_size)
+            if len(outputs) == 2:
+                predictions += list(outputs[0])
+            else:
+                predictions += list(outputs)
         print "\n"
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
@@ -104,8 +111,15 @@ class MetricsMultilabel(keras.callbacks.Callback):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x, y) = next(data_gen)
-            y_true += list(y)
-            predictions += list(self.model.predict(x, batch_size=self.batch_size))
+            if len(y) == 2:
+                y_true += list(y[0])
+            else:
+                y_true += list(y)
+            outputs = self.model.predict(x, batch_size=self.batch_size)
+            if len(outputs) == 2:
+                predictions += list(outputs[0])
+            else:
+                predictions += list(outputs)
         print "\n"
         predictions = np.array(predictions)
         ret = metrics.print_metrics_multilabel(y_true, predictions)
@@ -163,6 +177,15 @@ class MetricsLOS(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
+# ===================== LOSSES ===================== #
+
+def bce_target_replication(y_true, y_pred):
+    """
+    y_true - (B, T, C)
+    y_pred - (B, T, C)
+    """
+    ret = K.binary_crossentropy(y_true, y_pred) # (B, T, C)
+    return K.mean(ret, axis=-1) # (B, T)
 
 # ===================== LAYERS ===================== #                        
 
@@ -229,7 +252,29 @@ class Slice(Layer):
         return x[:, :, self.indices]
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0], input_shape[1], len(self.indices)
+        return (input_shape[0], input_shape[1], len(self.indices))
 
     def compute_mask(self, input, input_mask=None):
         return input_mask
+
+    def get_config(self):
+        config = {'indices': self.indices}
+        base_config = super(Layer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+class LastTimestep(Layer):
+    """ Takes 3D tensor and returns x[:, -1, :]
+    """
+    def __init__(self, **kwargs):
+        self.supports_masking = True
+        super(LastTimestep, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        # TODO: test on tensorflow
+        return x[:, -1, :]
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[2])
+
+    def compute_mask(self, input, input_mask=None):
+        return None

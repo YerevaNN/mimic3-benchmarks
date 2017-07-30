@@ -17,9 +17,12 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
+parser.add_argument('--target_repl', type=float, default=0.0)
 args = parser.parse_args()
 print args
 
+if args.mode == 'test' and args.target_repl > 0:
+    raise ValueError("Disable target replication in test mode.")
 
 # Build readers, discretizers, normalizers
 train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
@@ -63,9 +66,16 @@ optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
 
+if args.target_repl > 0:
+    loss = ['binary_crossentropy', keras_utils.bce_target_replication]
+    loss_weights = [1 - args.target_repl, args.target_repl]
+else:
+    loss = 'binary_crossentropy'
+    loss_weights = None
+
 model.compile(optimizer=optimizer_config,
-              loss='binary_crossentropy', # this works for 1 or more binary labels
-              metrics=['accuracy'])
+              loss=loss,
+              loss_weights=loss_weights)
 
 ## print model summary
 model.summary()
@@ -79,9 +89,11 @@ if args.load_state != "":
 
 # Build data generators
 train_data_gen = utils.BatchGen(train_reader, discretizer,
-                                normalizer, args.batch_size, args.small_part)
+                                normalizer, args.batch_size,
+                                args.small_part, args.target_repl > 0)
 val_data_gen = utils.BatchGen(val_reader, discretizer,
-                              normalizer, args.batch_size, args.small_part)
+                              normalizer, args.batch_size,
+                              args.small_part, args.target_repl > 0)
 
 if args.small_part:
     args.save_every = 2**30
@@ -130,7 +142,7 @@ elif args.mode == 'test':
     
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                     normalizer, args.batch_size,
-                                    args.small_part)
+                                    args.small_part, args.target_repl > 0)
     test_nbatches = test_data_gen.steps
     #test_nbatches = 2
 
