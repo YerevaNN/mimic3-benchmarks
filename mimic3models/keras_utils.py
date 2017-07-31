@@ -258,9 +258,8 @@ class Slice(Layer):
         return input_mask
 
     def get_config(self):
-        config = {'indices': self.indices}
-        base_config = super(Layer, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {'indices': self.indices}
+
 
 class LastTimestep(Layer):
     """ Takes 3D tensor and returns x[:, -1, :]
