@@ -96,6 +96,9 @@ class BatchGenDeepSupervisoin(object):
                 mask[get_bin(pos)] = 1
                 y[get_bin(pos)] = z
             X = discretizer.transform(X, end=T)[0]
+            if (normalizer is not None):
+                X = normalizer.transform(X)
+
             Xs.append(X)
             masks.append(np.array(mask))
             ys.append(np.array(y))
