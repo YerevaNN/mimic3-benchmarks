@@ -32,7 +32,7 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x,y) = next(data_gen)
             pred = self.model.predict(x, batch_size=self.batch_size)
-            
+
             if isinstance(x, list) and len(x) == 2: # deep supervision
                 masks = x[1]
                 for smask, sy, spred in zip(masks, y, pred): # examples
@@ -41,9 +41,10 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
                             y_true.append(np.int(ty))
                             predictions.append(np.float(tp))
             else:
-                y_true += list(y)
-                predictions += list(pred)
+                y_true += list(y.flatten())
+                predictions += list(pred.flatten())
         print "\n"
+        
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
@@ -79,14 +80,14 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
                 print "\r\tdone {}/{}".format(i, num_examples),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
             if len(y) == 2: # target replication
-                y_true += list(y[0])
+                y_true += list(y[0].flatten())
             else:
-                y_true += list(y)
+                y_true += list(y.flatten())
             outputs = self.model.predict(x, batch_size=self.batch_size)
             if len(outputs) == 2:
-                predictions += list(outputs[0])
+                predictions += list(outputs[0].flatten())
             else:
-                predictions += list(outputs)
+                predictions += list(outputs.flatten())
         print "\n"
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
@@ -100,7 +101,7 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         self.calc_metrics(self.train_data, self.train_history, 'train', logs)
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data, self.val_history, 'val', logs)
-                        
+
 
 class MetricsMultilabel(keras.callbacks.Callback):
     
@@ -178,8 +179,12 @@ class MetricsLOS(keras.callbacks.Callback):
                             else: # custom or log
                                 predictions.append(tp)
             else:
-                y_true += list(y)
-                predictions += list(pred)
+                if y.shape[-1] == 1:
+                    y_true += list(y.flatten())
+                    predictions += list(pred.flatten())
+                else:
+                    y_true += list(y)
+                    predictions += list(pred)
         print "\n"
 
         if self.partition == 'log':
@@ -193,7 +198,7 @@ class MetricsLOS(keras.callbacks.Callback):
         for k, v in ret.iteritems():
             logs[dataset + '_' + k] = v
         history.append(ret)
-    
+
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
@@ -275,7 +280,6 @@ class Slice(Layer):
         return {'indices': self.indices}
 
 
-
 class LastTimestep(Layer):
     """ Takes 3D tensor and returns x[:, -1, :]
     """
@@ -292,6 +296,25 @@ class LastTimestep(Layer):
 
     def compute_mask(self, input, input_mask=None):
         return None
+
+
+class ExtendMask(Layer):
+    """ Inputs:      [X, M]
+        Output:      X
+        Output_mask: M.mask
+    """
+    def __init__(self, **kwargs):
+        self.supports_masking = True
+        super(ExtendMask, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        return x[0]
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0]
+
+    def compute_mask(self, input, input_mask=None):
+        return input_mask[1]
 
 
 # ===================== LOSSES ===================== #

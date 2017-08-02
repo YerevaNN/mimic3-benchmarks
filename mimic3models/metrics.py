@@ -182,8 +182,9 @@ def get_bin_custom(x, nbins):
         # [a, b)
         if (x > a - CustomBins.eps and x < b - CustomBins.eps):
             return i
+    print "===== x = {} =====".format(x) # TODO: remove this
     assert False
-    return 0
+    return None
 
 
 def get_estimate_custom(prediction, nbins):

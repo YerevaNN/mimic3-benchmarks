@@ -4,7 +4,8 @@ from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
 from keras.layers.wrappers import Bidirectional, TimeDistributed
 from mimic3models.keras_utils import Slice, LastTimestep
-from keras.layers.merge import Concatenate, Multiply
+from keras.layers.merge import Concatenate
+from mimic3models.keras_utils import ExtendMask
 
 
 class Network(Model):
@@ -12,8 +13,6 @@ class Network(Model):
     def __init__(self, dim, batch_norm, dropout, rec_dropout, batch_size,
                 header, task, mode, target_repl=0.0, deep_supervision=False,
                 num_classes=1, depth=1, input_dim=76, size_coef=4, **kwargs):
-
-        # TODO: recurrent batch normalization
 
         self.dim = dim
         self.batch_norm = batch_norm
@@ -27,7 +26,7 @@ class Network(Model):
             final_activation = 'sigmoid'
         elif task in ['los']:
             if num_classes == 1:
-                final_activation = 'relu' # NOTE: what if it is regression but in log-space
+                final_activation = 'relu'
             else:
                 final_activation = 'softmax'
         else:
@@ -132,7 +131,7 @@ class Network(Model):
             outputs = [y_last, y]
         elif deep_supervision and mode == 'train':
             y = TimeDistributed(Dense(num_classes, activation=final_activation))(L)
-            y = Multiply()([y, M]) # this way we extend mask of y to M
+            y = ExtendMask()([y, M]) # this way we extend mask of y to M
             outputs = [y]
         else:
             y = Dense(num_classes, activation=final_activation)(L)

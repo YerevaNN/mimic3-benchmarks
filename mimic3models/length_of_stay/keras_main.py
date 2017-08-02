@@ -22,7 +22,6 @@ parser.add_argument('--deep_supervision', dest='deep_supervision', action='store
 parser.set_defaults(deep_supervision=False)
 parser.add_argument('--partition', type=str, default='custom',
                     help="log, custom, none")
-parser.set_defaults(small_part=False)
 args = parser.parse_args()
 print args
 
