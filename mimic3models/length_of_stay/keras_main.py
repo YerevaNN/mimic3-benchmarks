@@ -89,10 +89,7 @@ if args.partition == 'none':
     #loss_function = 'mean_absolute_percentage_error'
     loss_function = 'mean_squared_logarithmic_error'
 else:
-    if args.deep_supervision:
-        loss_function = keras_utils.sparse_ce_multiple_timesteps
-    else:
-        loss_function = 'sparse_categorical_crossentropy'
+    loss_function = 'sparse_categorical_crossentropy'
 # NOTE: categorical_crossentropy needs one-hot vectors
 #       that's why we use sparse_categorical_crossentropy
 
