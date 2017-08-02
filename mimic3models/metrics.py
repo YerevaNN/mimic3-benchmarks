@@ -141,12 +141,17 @@ class LogBins:
              81.816438, 182.303159, 393.334856, 810.964040, 1715.702848]
 
     
-def get_bin_log(x, nbins):
+def get_bin_log(x, nbins, one_hot=False):
     binid = int(np.log(x + 1) / 8.0 * nbins)
     if (binid < 0):
         binid = 0
     if (binid >= nbins):
         binid = nbins - 1
+    
+    if one_hot:
+        ret = np.zeros((LogBins.nbins,))
+        ret[binid] = 1
+        return ret
     return binid
 
 
@@ -175,12 +180,16 @@ class CustomBins:
             131.579534, 155.643957, 179.660558, 254.306624, 585.325890]
 
 
-def get_bin_custom(x, nbins):
+def get_bin_custom(x, nbins, one_hot=False):
     for i in range(nbins):
         a = CustomBins.bins[i][0] * 24.0
         b = CustomBins.bins[i][1] * 24.0
         # [a, b)
         if (x > a - CustomBins.eps and x < b - CustomBins.eps):
+            if one_hot:
+                ret = np.zeros((CustomBins.nbins,))
+                ret[i] = 1
+                return ret
             return i
     print "===== x = {} =====".format(x) # TODO: remove this
     assert False
