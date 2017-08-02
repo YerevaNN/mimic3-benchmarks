@@ -111,22 +111,24 @@ def print_metrics_regression(y_true, predictions):
     predictions = np.array(predictions)
     predictions = np.maximum(predictions, 0)
     y_true = np.array(y_true)
-    
+
     y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]
     prediction_bins = [get_bin_custom(x, CustomBins.nbins) for x in predictions]
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    
+    print "Custom bins confusion matrix:"
+    print cf
+
     kappa = metrics.cohen_kappa_score(y_true_bins, prediction_bins,
                                       weights='linear')
     mad = metrics.mean_absolute_error(y_true, predictions)
     mse = metrics.mean_squared_error(y_true, predictions)
     mape = mean_absolute_percentage_error(y_true, predictions)
-    
+
     print "Mean absolute deviation (MAD) =", mad
     print "Mean squared error (MSE) =", mse
     print "Mean absolute percentage error (MAPE) =", mape
     print "Cohen kappa score =", kappa
-    
+
     return {"mad": mad,
             "mse": mse,
             "mape": mape,
@@ -148,6 +150,8 @@ def get_bin_log(x, nbins):
     return binid
 
 
+# TODO: think about fix print_metrics_log_bins and print_metrics_custom_bins
+
 def get_estimate_log(prediction, nbins):
     binid = np.argmax(prediction)
     return LogBins.means[binid]
@@ -156,11 +160,9 @@ def get_estimate_log(prediction, nbins):
 def print_metrics_log_bins(y_true, predictions):
     y_true_bins = [get_bin_log(x, LogBins.nbins) for x in y_true]
     prediction_bins = [get_bin_log(x, LogBins.nbins) for x in predictions]
-    
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "confusion matrix:"
+    print "LogBins confusion matrix:"
     print cf
-    
     return print_metrics_regression(y_true, predictions)
 
 
@@ -191,11 +193,4 @@ def get_estimate_custom(prediction, nbins):
 
 
 def print_metrics_custom_bins(y_true, predictions):
-    y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]
-    prediction_bins = [get_bin_custom(x, CustomBins.nbins) for x in predictions]
-    
-    cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "confusion matrix:"
-    print cf
-    
     return print_metrics_regression(y_true, predictions)

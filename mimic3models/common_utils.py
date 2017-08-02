@@ -26,11 +26,13 @@ def extract_features_from_rawdata(chunk, header, period, features):
 
 
 def sort_and_shuffle(data, batch_size):
-    """ Sort data by length, then make batches and shuffle them
-        data is tuple (X, y)
+    """ Sort data by the length and then make batches and shuffle them.
+        data is tuple (X1, X2, ..., Xn) all of them have the same length.
+        Usually data = (X, y).
     """
-    assert(len(data) == 2)
+    assert len(data) >= 2
     data = zip(*data)
+
     random.shuffle(data)
 
     old_size = len(data)
@@ -93,3 +95,66 @@ def add_common_arguments(parser):
     parser.add_argument('--verbose', type=int, default=2)
     parser.add_argument('--size_coef', type=float, default=4.0)
     parser.set_defaults(small_part=False)
+
+
+class DeepSupervisionDataLoader:
+    r"""
+    Data loader for decompensation and length of stay task.
+    Reads all the data for one patient at once.
+    NOTE: this should be used for training/validation not testing.
+
+    Parameters
+    ----------
+    dataset_dir : str
+        Directory where timeseries files are stored.
+    listilfe : str
+        Path to a listfile. If this parameter is left `None` then
+        `dataset_dir/listfile.csv` will be used.
+    """
+    def __init__(self, dataset_dir, listfile=None, small_part=False):
+
+        self._dataset_dir = dataset_dir
+        if listfile is None:
+            listfile_path = os.path.join(dataset_dir, "listfile.csv")
+        else:
+            listfile_path = listfile
+        with open(listfile_path, "r") as lfile:
+            self._data = lfile.readlines()
+
+        self._data = [line.split(',') for line in self._data]
+        self._data = [(x, float(t), y) for (x, t, y) in self._data]
+        self._data = sorted(self._data)
+
+        mas = []
+        i = 0
+        while i < len(self._data):
+            j = i
+            cur_stay = self._data[i][0]
+            cur_positions = []
+            cur_labels = []
+            while j < len(self._data) and self._data[j][0] == cur_stay:
+                cur_positions.append(self._data[j][1])
+                cur_labels.append(self._data[j][2])
+                j += 1
+            i = j
+            mas.append([cur_stay, cur_positions, cur_labels])
+        self._data = mas
+
+        if small_part:
+            self._data = self._data[:256]
+
+        mas = []
+        for (stay, positions, labels) in self._data:
+            X, header = self._read_timeseries(stay)
+            mas.append([X, positions, labels])
+        self._data = mas
+
+    def _read_timeseries(self, ts_filename):
+        ret = []
+        with open(os.path.join(self._dataset_dir, ts_filename), "r") as tsfile:
+            header = tsfile.readline().strip().split(',')
+            assert header[0] == "Hours"
+            for line in tsfile:
+                mas = line.strip().split(',')
+                ret.append(np.array(mas))
+        return (np.stack(ret), header)

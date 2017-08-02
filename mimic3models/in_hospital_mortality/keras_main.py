@@ -21,8 +21,6 @@ parser.add_argument('--target_repl', type=float, default=0.0)
 args = parser.parse_args()
 print args
 
-if args.mode == 'test' and args.target_repl > 0:
-    raise ValueError("Disable target replication in test mode.")
 
 # Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
@@ -67,8 +65,11 @@ optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
 
+# NOTE: one can use binary_crossentropy even for (B, T, C) shape.
+#       It will calculate binary_crossentropies for each class
+#       and then take the mean over axis=-1. Tre results is (B, T).
 if args.target_repl > 0:
-    loss = ['binary_crossentropy', keras_utils.bce_target_replication]
+    loss = ['binary_crossentropy'] * 2
     loss_weights = [1 - args.target_repl, args.target_repl]
 else:
     loss = 'binary_crossentropy'

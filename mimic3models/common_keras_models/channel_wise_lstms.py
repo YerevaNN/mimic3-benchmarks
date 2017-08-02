@@ -4,14 +4,14 @@ from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
 from keras.layers.wrappers import Bidirectional, TimeDistributed
 from mimic3models.keras_utils import Slice, LastTimestep
-from keras.layers.merge import Concatenate
+from keras.layers.merge import Concatenate, Multiply
 
 
 class Network(Model):
 
     def __init__(self, dim, batch_norm, dropout, rec_dropout, batch_size,
-                header, task, target_repl, num_classes=1, depth=1,
-                input_dim=76, size_coef=4, **kwargs):
+                header, task, mode, target_repl=0.0, deep_supervision=False,
+                num_classes=1, depth=1, input_dim=76, size_coef=4, **kwargs):
 
         # TODO: recurrent batch normalization
 
@@ -54,55 +54,93 @@ class Network(Model):
             indices = filter(lambda i: header[i].find(ch) != -1, indices)
             channels.append(indices)
 
+        # Input layers and masking
         X = Input(shape=(None, input_dim), name='X')
+        inputs = [X]
         mX = Masking()(X)
 
-        cX = [] # channel X
+        if deep_supervision and mode == 'train':
+            M = Input(shape=(None, 1), name='M')
+            inputs.append(M)
+            M = Masking()(M)
+
+        # Configurations
+        is_bidirectional = True
+        if deep_supervision:
+            is_bidirectional = False
+
+        # Preprocess each channel
+        cX = []
         for ch in channels:
             cX.append(Slice(ch)(mX))
-
         pX = [] # LSTM processed version of cX
         for x in cX:
             p = x
             for i in range(depth):
-                p = Bidirectional(LSTM(units=dim//2,
-                                   activation='tanh',
-                                   return_sequences=True,
-                                   dropout=dropout,
-                                   recurrent_dropout=rec_dropout))(p)
-            pX.append(p)
+                num_units = dim
+                if is_bidirectional:
+                    num_units = num_units // 2
 
-        # Concatenate
-        Z = Concatenate(axis=2)(pX)
-
-        for i in range(depth-1):
-            Z = Bidirectional(LSTM(units=int(size_coef*dim)//2,
+                lstm = LSTM(units=num_units,
                             activation='tanh',
                             return_sequences=True,
                             dropout=dropout,
-                            recurrent_dropout=rec_dropout))(Z)
+                            recurrent_dropout=rec_dropout)
 
+                if is_bidirectional:
+                    p = Bidirectional(lstm)(p)
+                else:
+                    p = lstm(p)
+            pX.append(p)
+
+        # Concatenate processed channels
+        Z = Concatenate(axis=2)(pX)
+
+        # Main part of the network
+        for i in range(depth-1):
+            num_units = int(size_coef*dim)
+            if is_bidirectional:
+                num_units = num_units // 2
+
+            lstm = LSTM(units=num_units,
+                        activation='tanh',
+                        return_sequences=True,
+                        dropout=dropout,
+                        recurrent_dropout=rec_dropout)
+
+            if bidirectional:
+                Z = Bidirectional(lstm)(Z)
+            else:
+                Z = lstm(Z)
+
+        # Output module of the network
+        return_sequences = (self.target_repl > 0 or deep_supervision)
+        return_sequences = return_sequences and (mode == 'train')
         L = LSTM(units=int(size_coef*dim),
                  activation='tanh',
-                 return_sequences=(self.target_repl > 0),
+                 return_sequences=return_sequences,
                  dropout=dropout,
                  recurrent_dropout=rec_dropout)(Z)
 
         if dropout > 0:
             L = Dropout(dropout)(L)
 
-        if self.target_repl > 0:
+        if self.target_repl > 0 and mode == 'train':
             y = TimeDistributed(Dense(num_classes, activation=final_activation),
                                 name='seq')(L)
             y_last = LastTimestep(name='single')(y)
             outputs = [y_last, y]
+        elif deep_supervision and mode == 'train':
+            y = TimeDistributed(Dense(num_classes, activation=final_activation))(L)
+            y = Multiply()([y, M]) # this way we extend mask of y to M
+            outputs = [y]
         else:
-            y = Dense(num_classes, activation=final_activation, name='single')(L)
+            y = Dense(num_classes, activation=final_activation)(L)
             outputs = [y]
 
-        return super(Network, self).__init__(inputs=[X],
+        return super(Network, self).__init__(inputs=inputs,
                                              outputs=outputs)
-    
+
     def say_name(self):
         self.network_class_name = "k_channel_wise_lstms"
         return "{}.n{}.szc{}{}{}{}.dep{}{}".format(self.network_class_name,

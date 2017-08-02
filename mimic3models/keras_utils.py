@@ -31,8 +31,18 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x,y) = next(data_gen)
-            y_true += list(y)
-            predictions += list(self.model.predict(x, batch_size=self.batch_size))
+            pred = self.model.predict(x, batch_size=self.batch_size)
+            
+            if isinstance(x, list) and len(x) == 2: # deep supervision
+                masks = x[1]
+                for smask, sy, spred in zip(masks, y, pred): # examples
+                    for tm, ty, tp in zip(smask, sy, spred): # timesteps
+                        if np.int(tm) == 1:
+                            y_true.append(np.int(ty))
+                            predictions.append(np.float(tp))
+            else:
+                y_true += list(y)
+                predictions += list(pred)
         print "\n"
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
@@ -40,7 +50,7 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         for k, v in ret.iteritems():
             logs[dataset + '_' + k] = v
         history.append(ret)
-    
+
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
@@ -68,7 +78,7 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, num_examples),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
-            if len(y) == 2:
+            if len(y) == 2: # target replication
                 y_true += list(y[0])
             else:
                 y_true += list(y)
@@ -153,12 +163,25 @@ class MetricsLOS(keras.callbacks.Callback):
         for i in range(data_gen.steps):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
-            (x,y) = next(data_gen)
-            y_true += list(y)
-            predictions += list(self.model.predict(x, batch_size=self.batch_size))
+            (x, y_processed) = next(data_gen)
+            y = data_gen.last_y_true # true length of stays (not bins !)
+            pred = self.model.predict(x, batch_size=self.batch_size)
+
+            if isinstance(x, list) and len(x) == 2: # deep supervision
+                masks = x[1]
+                for smask, sy, spred in zip(masks, y, pred): # examples
+                    for tm, ty, tp in zip(smask, sy, spred): # timesteps
+                        if np.int(tm) == 1:
+                            y_true.append(np.float(ty))
+                            if len(tp) == 1: # none
+                                predictions.append(np.float(tp))
+                            else: # custom or log
+                                predictions.append(tp)
+            else:
+                y_true += list(y)
+                predictions += list(pred)
         print "\n"
-        predictions = np.array(predictions)
-        
+
         if self.partition == 'log':
             predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
             ret = metrics.print_metrics_log_bins(y_true, predictions)
@@ -177,15 +200,6 @@ class MetricsLOS(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
-# ===================== LOSSES ===================== #
-
-def bce_target_replication(y_true, y_pred):
-    """
-    y_true - (B, T, C)
-    y_pred - (B, T, C)
-    """
-    ret = K.binary_crossentropy(y_true, y_pred) # (B, T, C)
-    return K.mean(ret, axis=-1) # (B, T)
 
 # ===================== LAYERS ===================== #                        
 
@@ -261,6 +275,7 @@ class Slice(Layer):
         return {'indices': self.indices}
 
 
+
 class LastTimestep(Layer):
     """ Takes 3D tensor and returns x[:, -1, :]
     """
@@ -277,3 +292,18 @@ class LastTimestep(Layer):
 
     def compute_mask(self, input, input_mask=None):
         return None
+
+
+# ===================== LOSSES ===================== #
+
+def sparse_ce_multiple_timesteps(y_true, y_pred):
+    """
+    y_true (B, T, 1) - class number
+    y_pred (B, T, C) - softmax predictions
+    """
+    (T, C) = K.shape(y_pred)[1:]
+    y_true = K.reshape(y_true, (-1, 1))
+    y_pred = K.reshape(y_pred, (-1, C))
+    ret = keras.losses.sparse_categorical_crossentropy(y_true, y_pred)
+    ret = K.reshape(ret, (-1, T)) # (B, T)
+    return ret
