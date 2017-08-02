@@ -301,7 +301,7 @@ class LastTimestep(Layer):
 class ExtendMask(Layer):
     """ Inputs:      [X, M]
         Output:      X
-        Output_mask: M.mask
+        Output_mask: M
     """
     def __init__(self, **kwargs):
         self.supports_masking = True
@@ -314,19 +314,4 @@ class ExtendMask(Layer):
         return input_shape[0]
 
     def compute_mask(self, input, input_mask=None):
-        return input_mask[1]
-
-
-# ===================== LOSSES ===================== #
-
-def sparse_ce_multiple_timesteps(y_true, y_pred):
-    """
-    y_true (B, T, 1) - class number
-    y_pred (B, T, C) - softmax predictions
-    """
-    (T, C) = K.shape(y_pred)[1:]
-    y_true = K.reshape(y_true, (-1, 1))
-    y_pred = K.reshape(y_pred, (-1, C))
-    ret = keras.losses.sparse_categorical_crossentropy(y_true, y_pred)
-    ret = K.reshape(ret, (-1, T)) # (B, T)
-    return ret
+        return K.squeeze(input[1], axis=-1)

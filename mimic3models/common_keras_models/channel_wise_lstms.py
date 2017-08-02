@@ -61,7 +61,7 @@ class Network(Model):
         if deep_supervision and mode == 'train':
             M = Input(shape=(None, 1), name='M')
             inputs.append(M)
-            M = Masking()(M)
+            #M = Masking()(M)
 
         # Configurations
         is_bidirectional = True
