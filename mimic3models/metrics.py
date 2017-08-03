@@ -173,7 +173,6 @@ def print_metrics_log_bins(y_true, predictions):
 
 class CustomBins:
     inf = 1e18
-    eps = 1e-6
     bins = [(-inf, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 14), (14, +inf)]
     nbins = len(bins)
     means = [11.450379, 35.070846, 59.206531, 83.382723, 107.487817,
@@ -184,15 +183,12 @@ def get_bin_custom(x, nbins, one_hot=False):
     for i in range(nbins):
         a = CustomBins.bins[i][0] * 24.0
         b = CustomBins.bins[i][1] * 24.0
-        # [a, b)
-        if (x > a - CustomBins.eps and x < b - CustomBins.eps):
+        if (x >= a and x < b):
             if one_hot:
                 ret = np.zeros((CustomBins.nbins,))
                 ret[i] = 1
                 return ret
             return i
-    print "===== x = {} =====".format(x) # TODO: remove this
-    assert False
     return None
 
 
