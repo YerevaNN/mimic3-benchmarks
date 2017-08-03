@@ -43,8 +43,7 @@ def sort_and_shuffle(data, batch_size):
 
     head.sort(key=(lambda x: x[0].shape[0]))
 
-    size = len(head)
-    mas = [head[i : i+batch_size] for i in range(0, size, batch_size)]
+    mas = [head[i : i+batch_size] for i in range(0, len(head), batch_size)]
     random.shuffle(mas)
 
     for x in mas:

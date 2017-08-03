@@ -164,8 +164,7 @@ class MetricsLOS(keras.callbacks.Callback):
         for i in range(data_gen.steps):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
-            (x, y_processed) = next(data_gen)
-            y = data_gen.last_y_true # true length of stays (not bins !)
+            (x, y_processed, y) = data_gen.next(return_y_true=True)
             pred = self.model.predict(x, batch_size=self.batch_size)
 
             if isinstance(x, list) and len(x) == 2: # deep supervision
@@ -314,4 +313,4 @@ class ExtendMask(Layer):
         return input_shape[0]
 
     def compute_mask(self, input, input_mask=None):
-        return K.squeeze(input[1], axis=-1)
+        return input[1]

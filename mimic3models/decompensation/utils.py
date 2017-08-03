@@ -122,8 +122,7 @@ class BatchGenDeepSupervisoin(object):
                 mask = self.data[0][1][i:i+B]
                 y = self.data[1][i:i+B]
                 X = nn_utils.pad_zeros(X) # (B, T, D)
-                mask = nn_utils.pad_zeros(mask)
-                mask = np.expand_dims(mask, axis=-1) # (B, T, 1)
+                mask = nn_utils.pad_zeros(mask) # (B, T)
                 y = nn_utils.pad_zeros(y)
                 y = np.expand_dims(y, axis=-1) # (B, T, 1)
                 yield ([X, mask], y)

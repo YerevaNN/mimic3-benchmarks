@@ -136,9 +136,9 @@ class BatchGenDeepSupervisoin(object):
                 mask = self.data[0][1][i:i+B]
                 y = self.data[1][i:i+B]
 
-                self.last_y_true = [np.array(x) for x in y]
-                self.last_y_true = nn_utils.pad_zeros(self.last_y_true)
-                self.last_y_true = np.expand_dims(self.last_y_true, axis=-1)
+                y_true = [np.array(x) for x in y]
+                y_true = nn_utils.pad_zeros(y_true)
+                y_true = np.expand_dims(y_true, axis=-1)
 
                 if self.partition == 'log':
                     y = [np.array([metrics.get_bin_log(x, 10) for x in z]) for z in y]
@@ -146,17 +146,21 @@ class BatchGenDeepSupervisoin(object):
                     y = [np.array([metrics.get_bin_custom(x, 10) for x in z]) for z in y]
 
                 X = nn_utils.pad_zeros(X) # (B, T, D)
-                mask = nn_utils.pad_zeros(mask)
-                mask = np.expand_dims(mask, axis=-1) # (B, T, 1)
+                mask = nn_utils.pad_zeros(mask) # (B, T)
                 y = nn_utils.pad_zeros(y)
                 y = np.expand_dims(y, axis=-1)
-                yield ([X, mask], y)
+
+                if self.return_y_true:
+                    yield ([X, mask], y, y_true)
+                else:
+                    yield ([X, mask], y)
 
     def __iter__(self):
         return self.generator
 
-    def next(self):
+    def next(self, return_y_true=False):
         with self.lock:
+            self.return_y_true = return_y_true
             return self.generator.next()
 
     def __next__(self):

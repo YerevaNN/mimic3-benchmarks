@@ -1,6 +1,5 @@
 import numpy as np
 import argparse
-import time
 import os
 import imp
 import re
@@ -67,7 +66,6 @@ args_dict['num_classes'] = (1 if args.partition == 'none' else 10)
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
-network = model # alias
 suffix = "{}.bs{}{}{}.ts{}.partition={}".format("" if not args.deep_supervision else ".dsup",
                                                 args.batch_size,
                                                 ".L1{}".format(args.l1) if args.l1 > 0 else "",
@@ -92,6 +90,7 @@ else:
     loss_function = 'sparse_categorical_crossentropy'
 # NOTE: categorical_crossentropy needs one-hot vectors
 #       that's why we use sparse_categorical_crossentropy
+# NOTE: it is ok to use keras.losses even for (B, T, D) shapes
 
 model.compile(optimizer=optimizer_config,
               loss=loss_function)
@@ -137,7 +136,7 @@ else:
 
 
 if args.mode == 'train':
-    
+
     # Prepare training
     path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
     
