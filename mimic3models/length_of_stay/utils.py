@@ -53,20 +53,26 @@ class BatchGen(object):
             for i in range(0, self.chunk_size, B):
                 X = nn_utils.pad_zeros(data[0][i:i+B])
                 y = data[1][i:i+B]
-                self.last_y_true = np.array(y)
+                y_true = np.array(y)
 
                 if self.partition == 'log':
                     y = [metrics.get_bin_log(x, 10) for x in y]
                 if self.partition == 'custom':
                     y = [metrics.get_bin_custom(x, 10) for x in y]
 
-                yield (X, np.array(y))
+                y = np.array(y)
+
+                if self.return_y_true:
+                    yield (X, y, y_true)
+                else:
+                    yield (X, y)
 
     def __iter__(self):
         return self.generator
 
-    def next(self):
+    def next(self, return_y_true=False):
         with self.lock:
+            self.return_y_true = return_y_true
             return self.generator.next()
 
     def __next__(self):

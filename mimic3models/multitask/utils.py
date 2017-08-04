@@ -147,7 +147,7 @@ class BatchGen(object):
                 ihm_y = np.array(self.data['ihm_y'][i:i+B])
                 ihm_y = np.expand_dims(ihm_y, axis=-1) # (B, 1)
                 outputs.append(ihm_y)
-                if self.target_repl > 0:
+                if self.target_repl:
                     ihm_seq = np.expand_dims(ihm_y, axis=-1).repeat(T, axis=1) # (B, T, 1)
                     outputs.append(ihm_seq)
 
@@ -180,7 +180,7 @@ class BatchGen(object):
                 ## pheno
                 pheno_y = np.array(self.data['pheno_y'][i:i+B])
                 outputs.append(pheno_y)
-                if self.target_repl > 0:
+                if self.target_repl:
                     pheno_seq = np.expand_dims(pheno_y, axis=1).repeat(T, axis=1) # (B, T, 25)
                     outputs.append(pheno_seq)
 

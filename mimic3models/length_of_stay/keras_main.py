@@ -172,7 +172,7 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
 
-    if deep_supervision:
+    if args.deep_supervision:
         del train_data_loader
         del val_data_loader
     else:
@@ -194,7 +194,7 @@ elif args.mode == 'test':
     predictions = []
     for i in range(test_nbatches):
         print "\rpredicting {} / {}".format(i, test_nbatches),
-        x, y = next(test_data_gen)
+        x, y_processed, y = test_data_gen.next(return_y_true=True)
         x = np.array(x)
         pred = model.predict_on_batch(x)
         predictions += list(pred)

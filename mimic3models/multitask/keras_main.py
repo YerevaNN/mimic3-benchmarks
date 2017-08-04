@@ -17,18 +17,20 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
-parser.add_argument('--target_repl', type=float, default=0.0)
+parser.add_argument('--target_repl_coef', type=float, default=0.0)
 parser.add_argument('--partition', type=str, default='custom',
                     help="log, custom, none")
 parser.add_argument('--ihm_C', type=float, default=1.0)
 parser.add_argument('--los_C', type=float, default=1.0)
-parser.add_argument('--ph_C', type=float, default=1.0)
+parser.add_argument('--pheno_C', type=float, default=1.0)
 parser.add_argument('--decomp_C', type=float, default=1.0)
 args = parser.parse_args()
 print args
 
 if args.small_part:
     args.save_every = 2**30
+
+target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
 train_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
@@ -51,23 +53,24 @@ normalizer.load_params('mult_ts%s.input_str:%s.start_time:zero.normalizer' % (ar
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
 args_dict['ihm_pos'] = int(48.0 / args.timestep - 1e-6)
+args_dict['target_repl'] = target_repl
 
 # Build the model
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 network = model # alias
-suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_ph={}".format(
+suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_pheno={}".format(
                                     args.batch_size,
                                     ".L1{}".format(args.l1) if args.l1 > 0 else "",
                                     ".L2{}".format(args.l2) if args.l2 > 0 else "",
                                     args.timestep,
-                                    ".trc{}".format(args.target_repl) if args.target_repl > 0 else "",
+                                    ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "",
                                     args.partition,
                                     args.ihm_C,
                                     args.decomp_C,
                                     args.los_C,
-                                    args.ph_C)
+                                    args.pheno_C)
 model.final_name = args.prefix + model.say_name() + suffix                              
 print "==> model.final_name:", model.final_name
 
@@ -84,11 +87,11 @@ loss_dict = {}
 loss_weights = {}
 
 ## ihm
-if args.target_repl > 0:
+if target_repl:
     loss_dict['ihm_single'] = 'binary_crossentropy'
     loss_dict['ihm_seq'] = 'binary_crossentropy'
-    loss_weights['ihm_single'] = args.ihm_C * (1 - args.target_repl)
-    loss_weights['ihm_seq'] = args.ihm_C * args.target_repl
+    loss_weights['ihm_single'] = args.ihm_C * (1 - args.target_repl_coef)
+    loss_weights['ihm_seq'] = args.ihm_C * args.target_repl_coef
 else:
     loss_dict['ihm'] = 'binary_crossentropy'
     loss_weights['ihm'] = args.ihm_C
@@ -106,14 +109,14 @@ else:
 loss_weights['los'] = args.los_C
 
 ## pheno
-if args.target_repl > 0:
+if target_repl:
     loss_dict['pheno_single'] = 'binary_crossentropy'
     loss_dict['pheno_seq'] = 'binary_crossentropy'
-    loss_weights['pheno_single'] = args.ph_C * (1 - args.target_repl)
-    loss_weights['pheno_seq'] = args.ph_C * args.target_repl
+    loss_weights['pheno_single'] = args.pheno_C * (1 - args.target_repl_coef)
+    loss_weights['pheno_seq'] = args.pheno_C * args.target_repl_coef
 else:
     loss_dict['pheno'] = 'binary_crossentropy'
-    loss_weights['pheno'] = args.ph_C
+    loss_weights['pheno'] = args.pheno_C
 
 model.compile(optimizer=optimizer_config,
               loss=loss_dict,
@@ -135,7 +138,7 @@ train_data_gen = utils.BatchGen(reader=train_reader,
                                 normalizer=normalizer,
                                 ihm_pos=args_dict['ihm_pos'],
                                 partition=args.partition,
-                                target_repl=args.target_repl,
+                                target_repl=target_repl,
                                 batch_size=args.batch_size,
                                 small_part=args.small_part)
 val_data_gen = utils.BatchGen(reader=val_reader,
@@ -143,7 +146,7 @@ val_data_gen = utils.BatchGen(reader=val_reader,
                                 normalizer=normalizer,
                                 ihm_pos=args_dict['ihm_pos'],
                                 partition=args.partition,
-                                target_repl=args.target_repl,
+                                target_repl=target_repl,
                                 batch_size=args.batch_size,
                                 small_part=args.small_part)
 
@@ -152,7 +155,7 @@ if args.mode == 'train':
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
 
-    metrics_callback = keras_utils.MetricsMultilabel(train_data_gen,
+    metrics_callback = keras_utils.MetricsMultitask(train_data_gen,
                                         val_data_gen,
                                         args.partition,
                                         args.batch_size,
@@ -179,8 +182,6 @@ if args.mode == 'train':
                         verbose=args.verbose)
 
 elif args.mode == 'test':
-    # TOOD: write this part
-
     # ensure that the code uses test_reader
     del train_reader
     del val_reader
@@ -190,39 +191,101 @@ elif args.mode == 'test':
     test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
                               listfile='../../data/multitask/test_listfile.csv')
     
-    test_data_gen = utils.BatchGen(test_reader, discretizer,
-                                    normalizer, args.batch_size,
-                                    args.small_part)
-    test_nbatches = test_data_gen.steps
-    #test_nbatches = 2
+    test_data_gen = utils.BatchGen(reader=test_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                ihm_pos=args_dict['ihm_pos'],
+                                partition=args.partition,
+                                target_repl=target_repl,
+                                batch_size=args.batch_size,
+                                small_part=args.small_part)
+    ihm_y_true = []
+    decomp_y_true = []
+    los_y_true = []
+    pheno_y_true = []
 
-    labels = []
-    predictions = []
-    for i in range(test_nbatches):
-        print "\rpredicting {} / {}".format(i, test_nbatches),
-        x, y = next(test_data_gen)
-        x = np.array(x)
-        pred = model.predict_on_batch(x)
-        predictions += list(pred)
-        labels += list(y)
+    ihm_pred = []
+    decomp_pred = []
+    los_pred = []
+    pheno_pred = []
 
-    ret = metrics.print_metrics_multilabel(labels, predictions)
-    
-    with open("results.txt", "w") as resfile:
-        header = "ave_prec_micro,ave_prec_macro,ave_prec_weighted,"
-        header += "ave_recall_micro,ave_recall_macro,ave_recall_weighted,"
-        header += "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
-        header += ','.join(["auc_%d" % i for i in range(args_dict['num_classes'])])
-        resfile.write(header + "\n")
-        
-        resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f," % (
-            ret['ave_prec_micro'], ret['ave_prec_macro'], ret['ave_prec_weighted'],
-            ret['ave_recall_micro'], ret['ave_recall_macro'], ret['ave_recall_weighted'],
-            ret['ave_auc_micro'], ret['ave_auc_macro'], ret['ave_auc_weighted']))
-        resfile.write(",".join(["%.6f" % x for x in ret['auc_scores']]) + "\n")
-    
-    np.savetxt("activations.csv", predictions, delimiter=',')
-    np.savetxt("answer.csv", np.array(labels, dtype=np.int32), delimiter=',')
+    for i in range(test_data_gen.steps):
+        print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+        (X, y, los_y_reg) = test_data_gen.next(return_y_true=True)
+        outputs = model.predict(X, batch_size=args.batch_size)
 
+        ihm_M = X[1]
+        decomp_M = X[2]
+        los_M = X[3]
+
+        assert len(outputs) == 4 # no target replication
+        (ihm_p, decomp_p, los_p, pheno_p) = outputs
+        (ihm_t, decomp_t, los_t, pheno_t) = y
+
+        los_t = los_y_reg # real value not the label
+
+        ## ihm
+        for (m, t, p) in zip(ihm_M.flatten(), ihm_t.flatten(), ihm_p.flatten()):
+            if np.equal(m, 1):
+                ihm_y_true.append(t)
+                ihm_pred.append(p)
+
+        ## decomp
+        for (m, t, p) in zip(decomp_M.flatten(), decomp_t.flatten(), decomp_p.flatten()):
+            if np.equal(m, 1):
+                decomp_y_true.append(t)
+                decomp_pred.append(p)
+
+        ## los
+        if los_p.shape[-1] == 1: # regression
+            for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.flatten()):
+                if np.equal(m, 1):
+                    los_y_true.append(t)
+                    los_pred.append(p)
+        else: # classification
+            for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.reshape((-1, 10))):
+                if np.equal(m, 1):
+                    los_y_true.append(t)
+                    los_pred.append(p)
+
+        ## pheno
+        for (t, p) in zip(pheno_t.reshape((-1, 25)), pheno_p.reshape((-1, 25))):
+            pheno_y_true.append(t)
+            pheno_pred.append(p)
+    print "\n"
+
+    ## ihm
+    if args.ihm_C > 0:
+        print "\n ================= 48h mortality ================"
+        ihm_pred = np.array(ihm_pred)
+        ihm_pred = np.stack([1-ihm_pred, ihm_pred], axis=1)
+        ihm_ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
+
+    ## decomp
+    if args.decomp_C > 0:
+        print "\n ================ decompensation ================"
+        decomp_pred = np.array(decomp_pred)
+        decomp_pred = np.stack([1-decomp_pred, decomp_pred], axis=1)
+        decomp_ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
+
+    ## los
+    if args.los_C > 0:
+        print "\n ================ length of stay ================"
+        if args.partition == 'log':
+            los_pred = [metrics.get_estimate_log(x, 10) for x in los_pred]
+            los_ret = metrics.print_metrics_log_bins(los_y_true, los_pred)
+        if args.partition == 'custom':
+            los_pred = [metrics.get_estimate_custom(x, 10) for x in los_pred]
+            los_ret = metrics.print_metrics_custom_bins(los_y_true, los_pred)
+        if args.partition == 'none':
+            los_ret = metrics.print_metrics_regression(los_y_true, los_pred)
+
+    ## pheno
+    if args.pheno_C > 0:
+        print "\n =================== phenotype =================="
+        pheno_pred = np.array(pheno_pred)
+        pheno_ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
+
+    # TODO: save activations if needed
 else:
     raise ValueError("Wrong value for args.mode")

@@ -32,14 +32,11 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x,y) = next(data_gen)
             pred = self.model.predict(x, batch_size=self.batch_size)
-
             if isinstance(x, list) and len(x) == 2: # deep supervision
-                masks = x[1]
-                for smask, sy, spred in zip(masks, y, pred): # examples
-                    for tm, ty, tp in zip(smask, sy, spred): # timesteps
-                        if np.int(tm) == 1:
-                            y_true.append(np.int(ty))
-                            predictions.append(np.float(tp))
+                for m, t, p in zip(x[1].flatten(), y.flatten(), pred.flatten()):
+                    if np.equal(m, 1):
+                        y_true.append(t)
+                        predictions.append(p)
             else:
                 y_true += list(y.flatten())
                 predictions += list(pred.flatten())
@@ -74,15 +71,14 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
     def calc_metrics(self, data, history, dataset, logs):
         y_true = []
         predictions = []
-        num_examples = len(data[0])
-        for i in range(0, num_examples, self.batch_size):
+        for i in range(0, len(data[0]), self.batch_size):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, num_examples),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
             if len(y) == 2: # target replication
                 y_true += list(y[0].flatten())
             else:
-                y_true += list(y.flatten())
+                y_true += list(np.array(y).flatten())
             outputs = self.model.predict(x, batch_size=self.batch_size)
             if len(outputs) == 2:
                 predictions += list(outputs[0].flatten())
@@ -166,19 +162,17 @@ class MetricsLOS(keras.callbacks.Callback):
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x, y_processed, y) = data_gen.next(return_y_true=True)
             pred = self.model.predict(x, batch_size=self.batch_size)
-
             if isinstance(x, list) and len(x) == 2: # deep supervision
-                masks = x[1]
-                for smask, sy, spred in zip(masks, y, pred): # examples
-                    for tm, ty, tp in zip(smask, sy, spred): # timesteps
-                        if np.int(tm) == 1:
-                            y_true.append(np.float(ty))
-                            if len(tp) == 1: # none
-                                predictions.append(np.float(tp))
-                            else: # custom or log
-                                predictions.append(tp)
+                if pred.shape[-1] == 1: # regression
+                    pred_flatten = pred.flatten()
+                else: # classification
+                    pred_flatten = pred.reshape((-1, 10))
+                for m, t, p in zip(x[1].flatten(), y.flatten(), pred_flatten):
+                    if np.equal(m, 1):
+                        y_true.append(t)
+                        predictions.append(p)
             else:
-                if y.shape[-1] == 1:
+                if pred.shape[-1] == 1:
                     y_true += list(y.flatten())
                     predictions += list(pred.flatten())
                 else:
@@ -205,7 +199,7 @@ class MetricsLOS(keras.callbacks.Callback):
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
 
-class MetricsMultilabel(keras.callbacks.Callback):
+class MetricsMultitask(keras.callbacks.Callback):
 
     def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
@@ -243,7 +237,7 @@ class MetricsMultilabel(keras.callbacks.Callback):
                 (ihm_p, decomp_p, los_p, pheno_p) = outputs
                 (ihm_t, decomp_t, los_t, pheno_t) = y
             else: # target replication
-                (ihm_p, _, decomp_p, los_P, pheno_p, _) = outputs
+                (ihm_p, _, decomp_p, los_p, pheno_p, _) = outputs
                 (ihm_t, _, decomp_t, los_t, pheno_t, _) = y
         
             los_t = los_y_reg # real value not the label

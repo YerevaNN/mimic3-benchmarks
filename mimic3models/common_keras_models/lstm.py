@@ -10,7 +10,7 @@ from mimic3models.keras_utils import ExtendMask
 class Network(Model):
     
     def __init__(self, dim, batch_norm, dropout, rec_dropout, task, mode,
-                target_repl=0.0, deep_supervision=False, num_classes=1,
+                target_repl=False, deep_supervision=False, num_classes=1,
                 depth=1, input_dim=76, **kwargs):
 
         print "==> not used params in network class:", kwargs.keys()
@@ -63,7 +63,7 @@ class Network(Model):
                 mX = Bidirectional(lstm)(mX)
 
         # Output module of the network
-        return_sequences = (target_repl > 0 or deep_supervision)
+        return_sequences = (target_repl or deep_supervision)
         return_sequences = return_sequences and (mode == 'train')
         L = LSTM(units=dim,
                  activation='tanh',
@@ -74,7 +74,7 @@ class Network(Model):
         if dropout > 0:
             L = Dropout(dropout)(L)
 
-        if target_repl > 0 and mode == 'train':
+        if target_repl:
             y = TimeDistributed(Dense(num_classes, activation=final_activation),
                                 name='seq')(L)
             y_last = LastTimestep(name='single')(y)

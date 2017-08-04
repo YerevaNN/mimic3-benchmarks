@@ -154,7 +154,7 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
     
-    if deep_supervision:
+    if args.deep_supervision:
         del train_data_loader
         del val_data_loader
     else:

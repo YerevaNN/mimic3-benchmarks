@@ -17,19 +17,21 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
-parser.add_argument('--target_repl', type=float, default=0.0)
+parser.add_argument('--target_repl_coef', type=float, default=0.0)
 args = parser.parse_args()
 print args
 
 if args.small_part:
     args.save_every = 2**30
 
+target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
+
 # Build readers, discretizers, normalizers
 train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                        listfile='../../data/phenotyping/train_listfile.csv')
+                        listfile='../../data/phenotyping/train_listfile.csv')
 
 val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                      listfile='../../data/phenotyping/val_listfile.csv')
+                        listfile='../../data/phenotyping/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -46,6 +48,7 @@ args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
 args_dict['task'] = 'ph'
 args_dict['num_classes'] = 25
+args_dict['target_repl'] = target_repl
 
 # Build the model
 print "==> using model {}".format(args.network)
@@ -56,7 +59,7 @@ suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
                                    ".L1{}".format(args.l1) if args.l1 > 0 else "",
                                    ".L2{}".format(args.l2) if args.l2 > 0 else "",
                                    args.timestep,
-                                   ".trc{}".format(args.target_repl) if args.target_repl > 0 else "")
+                                   ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
 model.final_name = args.prefix + model.say_name() + suffix                              
 print "==> model.final_name:", model.final_name
 
@@ -70,9 +73,9 @@ optimizer_config = {'class_name': args.optimizer,
 # NOTE: one can use binary_crossentropy even for (B, T, C) shape.
 #       It will calculate binary_crossentropies for each class
 #       and then take the mean over axis=-1. Tre results is (B, T).
-if args.target_repl > 0:
+if target_repl:
     loss = ['binary_crossentropy'] * 2
-    loss_weights = [1 - args.target_repl, args.target_repl]
+    loss_weights = [1 - args.target_repl_coef, args.target_repl_coef]
 else:
     loss = 'binary_crossentropy'
     loss_weights = None
@@ -94,10 +97,10 @@ if args.load_state != "":
 # Build data generators
 train_data_gen = utils.BatchGen(train_reader, discretizer,
                                 normalizer, args.batch_size,
-                                args.small_part, args.target_repl > 0)
+                                args.small_part, target_repl)
 val_data_gen = utils.BatchGen(val_reader, discretizer,
                               normalizer, args.batch_size,
-                              args.small_part, args.target_repl > 0)
+                              args.small_part, target_repl)
 
 if args.mode == 'train':
     
@@ -142,7 +145,7 @@ elif args.mode == 'test':
     
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                     normalizer, args.batch_size,
-                                    args.small_part, args.target_repl > 0)
+                                    args.small_part, target_repl)
     test_nbatches = test_data_gen.steps
     #test_nbatches = 2
 

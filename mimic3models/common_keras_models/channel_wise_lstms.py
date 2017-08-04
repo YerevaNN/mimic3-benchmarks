@@ -11,7 +11,7 @@ from mimic3models.keras_utils import ExtendMask
 class Network(Model):
 
     def __init__(self, dim, batch_norm, dropout, rec_dropout, header, task,
-                mode, target_repl=0.0, deep_supervision=False, num_classes=1,
+                mode, target_repl=False, deep_supervision=False, num_classes=1,
                 depth=1, input_dim=76, size_coef=4, **kwargs):
 
         self.dim = dim
@@ -111,7 +111,7 @@ class Network(Model):
                 Z = lstm(Z)
 
         # Output module of the network
-        return_sequences = (target_repl > 0 or deep_supervision)
+        return_sequences = (target_repl or deep_supervision)
         return_sequences = return_sequences and (mode == 'train')
         L = LSTM(units=int(size_coef*dim),
                  activation='tanh',
@@ -122,7 +122,7 @@ class Network(Model):
         if dropout > 0:
             L = Dropout(dropout)(L)
 
-        if target_repl > 0 and mode == 'train':
+        if target_repl:
             y = TimeDistributed(Dense(num_classes, activation=final_activation),
                                 name='seq')(L)
             y_last = LastTimestep(name='single')(y)

@@ -10,7 +10,7 @@ from keras.layers.merge import Concatenate, Multiply
 class Network(Model):
 
     def __init__(self, dim, batch_norm, dropout, rec_dropout, header, mode,
-                partition, ihm_pos, target_repl=0.0, depth=1, input_dim=76,
+                partition, ihm_pos, target_repl=False, depth=1, input_dim=76,
                 size_coef=4, **kwargs):
 
         print "==> not used params in network class:", kwargs.keys()
@@ -91,7 +91,7 @@ class Network(Model):
         #   if ihm_M = 1 then we will calculate an error term
         #   if ihm_M = 0, our prediction will be 0 and as the label
         #   will also be 0 then error_term will be 0.
-        if target_repl > 0 and mode == 'train':
+        if target_repl:
             ihm_seq = TimeDistributed(Dense(1, activation='sigmoid'), name='ihm_seq')(L)
             ihm_y = GetTimestep(ihm_pos)(ihm_seq)
             ihm_y = Multiply(name='ihm_single')([ihm_y, ihm_M])
@@ -116,7 +116,7 @@ class Network(Model):
         outputs += [los_y]
 
         ## pheno output
-        if target_repl > 0 and mode == 'train':
+        if target_repl:
             pheno_seq = TimeDistributed(Dense(25, activation='sigmoid'), name='pheno_seq')(L)
             pheno_y = LastTimestep(name='pheno_single')(pheno_seq)
             outputs += [pheno_y, pheno_seq]
