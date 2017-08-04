@@ -27,7 +27,6 @@ print args
 if args.small_part:
     args.save_every = 2**30
 
-
 # Build readers, discretizers, normalizers
 if args.deep_supervision:
     train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/train/',
@@ -83,8 +82,7 @@ optimizer_config = {'class_name': args.optimizer,
                                'beta_1': args.beta_1}}
 
 if args.partition == 'none':
-    #loss_function = 'mean_squared_error'
-    #loss_function = 'mean_absolute_percentage_error'
+    # other options are: 'mean_squared_error', 'mean_absolute_percentage_error'
     loss_function = 'mean_squared_logarithmic_error'
 else:
     loss_function = 'sparse_categorical_crossentropy'

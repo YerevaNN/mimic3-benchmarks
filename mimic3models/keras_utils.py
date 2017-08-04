@@ -205,6 +205,124 @@ class MetricsLOS(keras.callbacks.Callback):
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
 
+class MetricsMultilabel(keras.callbacks.Callback):
+
+    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
+        self.train_data_gen = train_data_gen
+        self.val_data_gen = val_data_gen
+        self.batch_size = batch_size
+        self.partition = partition
+        self.verbose = verbose
+
+    def on_train_begin(self, logs={}):
+        self.train_history = []
+        self.val_history = []
+
+    def calc_metrics(self, data_gen, history, dataset, logs):
+        ihm_y_true = []
+        decomp_y_true = []
+        los_y_true = []
+        pheno_y_true = []
+
+        ihm_pred = []
+        decomp_pred = []
+        los_pred = []
+        pheno_pred = []
+
+        for i in range(data_gen.steps):
+            if self.verbose == 1:
+                print "\r\tdone {}/{}".format(i, data_gen.steps),
+            (X, y, los_y_reg) = data_gen.next(return_y_true=True)
+            outputs = self.model.predict(X, batch_size=self.batch_size)
+
+            ihm_M = X[1]
+            decomp_M = X[2]
+            los_M = X[3]
+
+            if len(outputs) == 4: # no target replication
+                (ihm_p, decomp_p, los_p, pheno_p) = outputs
+                (ihm_t, decomp_t, los_t, pheno_t) = y
+            else: # target replication
+                (ihm_p, _, decomp_p, los_P, pheno_p, _) = outputs
+                (ihm_t, _, decomp_t, los_t, pheno_t, _) = y
+        
+            los_t = los_y_reg # real value not the label
+
+            ## ihm
+            for (m, t, p) in zip(ihm_M.flatten(), ihm_t.flatten(), ihm_p.flatten()):
+                if np.equal(m, 1):
+                    ihm_y_true.append(t)
+                    ihm_pred.append(p)
+
+            ## decomp
+            for (m, t, p) in zip(decomp_M.flatten(), decomp_t.flatten(), decomp_p.flatten()):
+                if np.equal(m, 1):
+                    decomp_y_true.append(t)
+                    decomp_pred.append(p)
+
+            ## los
+            if los_p.shape[-1] == 1: # regression
+                for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.flatten()):
+                    if np.equal(m, 1):
+                        los_y_true.append(t)
+                        los_pred.append(p)
+            else: # classification
+                for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.reshape((-1, 10))):
+                    if np.equal(m, 1):
+                        los_y_true.append(t)
+                        los_pred.append(p)
+
+            ## pheno
+            for (t, p) in zip(pheno_t.reshape((-1, 25)), pheno_p.reshape((-1, 25))):
+                pheno_y_true.append(t)
+                pheno_pred.append(p)
+        print "\n"
+
+        ## ihm
+        print "\n ================= 48h mortality ================"
+        ihm_pred = np.array(ihm_pred)
+        ihm_pred = np.stack([1-ihm_pred, ihm_pred], axis=1)
+        ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
+        for k, v in ret.iteritems():
+            logs[dataset + '_ihm_' + k] = v
+
+        ## decomp
+        print "\n ================ decompensation ================"
+        decomp_pred = np.array(decomp_pred)
+        decomp_pred = np.stack([1-decomp_pred, decomp_pred], axis=1)
+        ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
+        for k, v in ret.iteritems():
+            logs[dataset + '_decomp_' + k] = v
+
+        ## los
+        print "\n ================ length of stay ================"
+        if self.partition == 'log':
+            los_pred = [metrics.get_estimate_log(x, 10) for x in los_pred]
+            ret = metrics.print_metrics_log_bins(los_y_true, los_pred)
+        if self.partition == 'custom':
+            los_pred = [metrics.get_estimate_custom(x, 10) for x in los_pred]
+            ret = metrics.print_metrics_custom_bins(los_y_true, los_pred)
+        if self.partition == 'none':
+            ret = metrics.print_metrics_regression(los_y_true, los_pred)
+        for k, v in ret.iteritems():
+            logs[dataset + '_los_' + k] = v
+
+        ## pheno
+        print "\n =================== phenotype =================="
+        pheno_pred = np.array(pheno_pred)
+        ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
+        for k, v in ret.iteritems():
+            logs[dataset + '_pheno_' + k] = v
+
+        history.append(logs)
+
+    def on_epoch_end(self, epoch, logs={}):
+        print "\n==>predicting on train"
+        self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
+        print "\n==>predicting on validation"
+        self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
+
+
 # ===================== LAYERS ===================== #                        
 
 def softmax(x, axis, mask=None):
@@ -279,22 +397,28 @@ class Slice(Layer):
         return {'indices': self.indices}
 
 
-class LastTimestep(Layer):
-    """ Takes 3D tensor and returns x[:, -1, :]
+class GetTimestep(Layer):
+    """ Takes 3D tensor and returns x[:, pos, :]
     """
-    def __init__(self, **kwargs):
+    def __init__(self, pos=-1, **kwargs):
+        self.pos = pos
         self.supports_masking = True
         super(LastTimestep, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
         # TODO: test on tensorflow
-        return x[:, -1, :]
+        return x[:, self.pos, :]
 
     def compute_output_shape(self, input_shape):
         return (input_shape[0], input_shape[2])
 
     def compute_mask(self, input, input_mask=None):
         return None
+
+    def get_config(self):
+        return {'pos': self.pos}
+
+LastTimestep = GetTimestep
 
 
 class ExtendMask(Layer):

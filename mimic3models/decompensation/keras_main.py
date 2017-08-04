@@ -26,7 +26,6 @@ print args
 if args.small_part:
     args.save_every = 2**30
 
-
 # Build readers, discretizers, normalizers
 if args.deep_supervision:
     train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/train/',

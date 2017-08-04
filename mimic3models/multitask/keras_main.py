@@ -5,8 +5,8 @@ import os
 import imp
 import re
 
-from mimic3models.phenotyping import utils
-from mimic3benchmark.readers import PhenotypingReader
+from mimic3models.multitask import utils
+from mimic3benchmark.readers import MultitaskReader
 
 from mimic3models.preprocessing import Discretizer, Normalizer
 from mimic3models import metrics
@@ -18,6 +18,12 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--target_repl', type=float, default=0.0)
+parser.add_argument('--partition', type=str, default='custom',
+                    help="log, custom, none")
+parser.add_argument('--ihm_C', type=float, default=1.0)
+parser.add_argument('--los_C', type=float, default=1.0)
+parser.add_argument('--ph_C', type=float, default=1.0)
+parser.add_argument('--decomp_C', type=float, default=1.0)
 args = parser.parse_args()
 print args
 
@@ -25,13 +31,13 @@ if args.small_part:
     args.save_every = 2**30
 
 # Build readers, discretizers, normalizers
-train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                        listfile='../../data/phenotyping/train_listfile.csv')
+train_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
+                            listfile='../../data/multitask/train_listfile.csv')
 
-val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                      listfile='../../data/phenotyping/val_listfile.csv')
+val_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
+                            listfile='../../data/multitask/val_listfile.csv')
 
-discretizer = Discretizer(timestep=float(args.timestep),
+discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
                           imput_strategy='previous',
                           start_time='zero')
@@ -40,23 +46,28 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].s
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
-normalizer.load_params('ph_ts%s.input_str:previous.start_time:zero.normalizer' % args.timestep)
+normalizer.load_params('mult_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
-args_dict['task'] = 'ph'
-args_dict['num_classes'] = 25
+args_dict['ihm_pos'] = int(48.0 / args.timestep - 1e-6)
 
 # Build the model
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 network = model # alias
-suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
-                                   ".L1{}".format(args.l1) if args.l1 > 0 else "",
-                                   ".L2{}".format(args.l2) if args.l2 > 0 else "",
-                                   args.timestep,
-                                   ".trc{}".format(args.target_repl) if args.target_repl > 0 else "")
+suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_ph={}".format(
+                                    args.batch_size,
+                                    ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                                    ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                                    args.timestep,
+                                    ".trc{}".format(args.target_repl) if args.target_repl > 0 else "",
+                                    args.partition,
+                                    args.ihm_C,
+                                    args.decomp_C,
+                                    args.los_C,
+                                    args.ph_C)
 model.final_name = args.prefix + model.say_name() + suffix                              
 print "==> model.final_name:", model.final_name
 
@@ -67,18 +78,45 @@ optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
 
-# NOTE: one can use binary_crossentropy even for (B, T, C) shape.
-#       It will calculate binary_crossentropies for each class
-#       and then take the mean over axis=-1. Tre results is (B, T).
+# Define loss functions
+
+loss_dict = {}
+loss_weights = {}
+
+## ihm
 if args.target_repl > 0:
-    loss = ['binary_crossentropy'] * 2
-    loss_weights = [1 - args.target_repl, args.target_repl]
+    loss_dict['ihm_single'] = 'binary_crossentropy'
+    loss_dict['ihm_seq'] = 'binary_crossentropy'
+    loss_weights['ihm_single'] = args.ihm_C * (1 - args.target_repl)
+    loss_weights['ihm_seq'] = args.ihm_C * args.target_repl
 else:
-    loss = 'binary_crossentropy'
-    loss_weights = None
+    loss_dict['ihm'] = 'binary_crossentropy'
+    loss_weights['ihm'] = args.ihm_C
+
+## decomp
+loss_dict['decomp'] = 'binary_crossentropy'
+loss_weights['decomp'] = args.decomp_C
+
+## los
+if args.partition == 'none':
+    # other options are: 'mean_squared_error', 'mean_absolute_percentage_error'
+    loss_dict['los'] = 'mean_squared_logarithmic_error'
+else:
+    loss_dict['los'] = 'sparse_categorical_crossentropy'
+loss_weights['los'] = args.los_C
+
+## pheno
+if args.target_repl > 0:
+    loss_dict['pheno_single'] = 'binary_crossentropy'
+    loss_dict['pheno_seq'] = 'binary_crossentropy'
+    loss_weights['pheno_single'] = args.ph_C * (1 - args.target_repl)
+    loss_weights['pheno_seq'] = args.ph_C * args.target_repl
+else:
+    loss_dict['pheno'] = 'binary_crossentropy'
+    loss_weights['pheno'] = args.ph_C
 
 model.compile(optimizer=optimizer_config,
-              loss=loss,
+              loss=loss_dict,
               loss_weights=loss_weights)
 
 ## print model summary
@@ -92,22 +130,33 @@ if args.load_state != "":
 
 
 # Build data generators
-train_data_gen = utils.BatchGen(train_reader, discretizer,
-                                normalizer, args.batch_size,
-                                args.small_part, args.target_repl > 0)
-val_data_gen = utils.BatchGen(val_reader, discretizer,
-                              normalizer, args.batch_size,
-                              args.small_part, args.target_repl > 0)
+train_data_gen = utils.BatchGen(reader=train_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                ihm_pos=args_dict['ihm_pos'],
+                                partition=args.partition,
+                                target_repl=args.target_repl,
+                                batch_size=args.batch_size,
+                                small_part=args.small_part)
+val_data_gen = utils.BatchGen(reader=val_reader,
+                                discretizer=discretizer,
+                                normalizer=normalizer,
+                                ihm_pos=args_dict['ihm_pos'],
+                                partition=args.partition,
+                                target_repl=args.target_repl,
+                                batch_size=args.batch_size,
+                                small_part=args.small_part)
 
 if args.mode == 'train':
     
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
-    
+
     metrics_callback = keras_utils.MetricsMultilabel(train_data_gen,
-                                                   val_data_gen,
-                                                   args.batch_size,
-                                                   args.verbose)
+                                        val_data_gen,
+                                        args.partition,
+                                        args.batch_size,
+                                        args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -130,6 +179,7 @@ if args.mode == 'train':
                         verbose=args.verbose)
 
 elif args.mode == 'test':
+    # TOOD: write this part
 
     # ensure that the code uses test_reader
     del train_reader
@@ -137,12 +187,12 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
     
-    test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
-                    listfile='../../data/phenotyping/test_listfile.csv')
+    test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
+                              listfile='../../data/multitask/test_listfile.csv')
     
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                     normalizer, args.batch_size,
-                                    args.small_part, args.target_repl > 0)
+                                    args.small_part)
     test_nbatches = test_data_gen.steps
     #test_nbatches = 2
 

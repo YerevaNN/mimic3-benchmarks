@@ -21,6 +21,8 @@ parser.add_argument('--target_repl', type=float, default=0.0)
 args = parser.parse_args()
 print args
 
+if args.small_part:
+    args.save_every = 2**30
 
 # Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
@@ -51,10 +53,11 @@ print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 network = model # alias
-suffix = ".bs{}{}{}.ts{}".format(args.batch_size,
-                                   ".L1{}".format(args.l1) if args.l1 > 0 else "",
-                                   ".L2{}".format(args.l2) if args.l2 > 0 else "",
-                                   args.timestep)
+suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
+                               ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                               ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                               args.timestep,
+                               ".trc{}".format(args.target_repl) if args.target_repl > 0 else "")
 model.final_name = args.prefix + model.say_name() + suffix                              
 print "==> model.final_name:", model.final_name
 
@@ -86,7 +89,7 @@ model.summary()
 n_trained_chunks = 0
 if args.load_state != "":
     model.load_weights(args.load_state)
-    n_trained_chunks = 1 + int(re.match(".*epoch([0-9]+).*", args.load_state).group(1))
+    n_trained_chunks = int(re.match(".*epoch([0-9]+).*", args.load_state).group(1))
 
 
 # Read data
@@ -106,9 +109,6 @@ if args.target_repl > 0:
 
     train_raw = extend_labels(train_raw)
     val_raw = extend_labels(val_raw)
-
-if args.small_part:
-    args.save_every = 2**30
 
 
 if args.mode == 'train':

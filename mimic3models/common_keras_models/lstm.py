@@ -20,7 +20,6 @@ class Network(Model):
         self.dropout = dropout
         self.rec_dropout = rec_dropout
         self.depth = depth
-        self.target_repl = target_repl
 
         if task in ['decomp', 'ihm', 'ph']:
             final_activation = 'sigmoid'
@@ -64,7 +63,7 @@ class Network(Model):
                 mX = Bidirectional(lstm)(mX)
 
         # Output module of the network
-        return_sequences = (self.target_repl > 0 or deep_supervision)
+        return_sequences = (target_repl > 0 or deep_supervision)
         return_sequences = return_sequences and (mode == 'train')
         L = LSTM(units=dim,
                  activation='tanh',
@@ -75,7 +74,7 @@ class Network(Model):
         if dropout > 0:
             L = Dropout(dropout)(L)
 
-        if self.target_repl > 0 and mode == 'train':
+        if target_repl > 0 and mode == 'train':
             y = TimeDistributed(Dense(num_classes, activation=final_activation),
                                 name='seq')(L)
             y_last = LastTimestep(name='single')(y)
@@ -93,10 +92,9 @@ class Network(Model):
 
     def say_name(self):
         self.network_class_name = "k_lstm"
-        return "{}.n{}{}{}{}.dep{}{}".format(self.network_class_name,
+        return "{}.n{}{}{}{}.dep{}".format(self.network_class_name,
                     self.dim,
                     ".bn" if self.batch_norm else "",
                     ".d{}".format(self.dropout) if self.dropout > 0 else "",
                     ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
-                    self.depth,
-                    ".trc{}".format(self.target_repl) if self.target_repl > 0 else "")
+                    self.depth)
