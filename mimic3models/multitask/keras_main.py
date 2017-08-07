@@ -187,10 +187,10 @@ elif args.mode == 'test':
     del val_reader
     del train_data_gen
     del val_data_gen
-    
+
     test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
                               listfile='../../data/multitask/test_listfile.csv')
-    
+
     test_data_gen = utils.BatchGen(reader=test_reader,
                                 discretizer=discretizer,
                                 normalizer=normalizer,
@@ -287,5 +287,48 @@ elif args.mode == 'test':
         pheno_ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
 
     # TODO: save activations if needed
+
+elif args.mode == 'test_single':
+    # ensure that the code uses test_reader
+    del train_reader
+    del val_reader
+    del train_data_gen
+    del val_data_gen
+
+    # Testing ihm
+    from mimic3benchmark.readers import InHospitalMortalityReader
+    from mimic3models.in_hospital_mortality.utils import read_chunk
+    from mimic3models import nn_utils
+
+    test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
+                    listfile='../../data/in-hospital-mortality/test_listfile.csv',
+                    period_length=48.0)
+
+    ihm_y_true = []
+    ihm_pred = []
+
+    nsteps = test_reader.get_number_of_examples() // args.batch_size
+    for iteration in range(nsteps):
+        (X, ts, labels, header) = read_chunk(test_reader, args.batch_size)
+
+        for i in range(args.batch_size):
+            X[i] = discretizer.transform(X[i], end=48.0)[0]
+            X[i] = normalizer.transform(X[i])
+
+        X = nn_utils.pad_zeros(X, min_length=args_dict['ihm_pos']+1)
+        T = X.shape[1]
+        ihm_M = np.ones(shape=(args.batch_size,1))
+        decomp_M = np.ones(shape=(args.batch_size, T))
+        los_M = np.ones(shape=(args.batch_size, T))
+
+        pred = model.predict([X, ihm_M, decomp_M, los_M])[0]
+        ihm_y_true += labels
+        ihm_pred += list(pred.flatten())
+
+    print "\n ================= 48h mortality ================"
+    ihm_pred = np.array(ihm_pred)
+    ihm_pred = np.stack([1-ihm_pred, ihm_pred], axis=1)
+    ihm_ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
+
 else:
     raise ValueError("Wrong value for args.mode")

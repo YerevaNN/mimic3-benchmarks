@@ -400,7 +400,6 @@ class GetTimestep(Layer):
         super(LastTimestep, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
-        # TODO: test on tensorflow
         return x[:, self.pos, :]
 
     def compute_output_shape(self, input_shape):
@@ -420,8 +419,9 @@ class ExtendMask(Layer):
         Output:      X
         Output_mask: M
     """
-    def __init__(self, **kwargs):
+    def __init__(self, add_epsilon=False, **kwargs):
         self.supports_masking = True
+        self.add_epsilon = add_epsilon
         super(ExtendMask, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
@@ -431,4 +431,9 @@ class ExtendMask(Layer):
         return input_shape[0]
 
     def compute_mask(self, input, input_mask=None):
+        if self.add_epsilon:
+            return input[1] + K.epsilon()
         return input[1]
+
+    def get_config(self):
+        return {'add_epsilon': self.add_epsilon}

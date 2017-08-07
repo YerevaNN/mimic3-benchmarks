@@ -65,7 +65,7 @@ class Network(Model):
 
         ## decomp output
         decomp_y = TimeDistributed(Dense(1, activation='sigmoid'))(L)
-        decomp_y = ExtendMask(name='decomp')([decomp_y, decomp_M])
+        decomp_y = ExtendMask(name='decomp', add_epsilon=True)([decomp_y, decomp_M])
         outputs += [decomp_y]
 
         ## los output
@@ -73,7 +73,7 @@ class Network(Model):
             los_y = TimeDistributed(Dense(1, activation='relu'))(L)
         else:
             los_y = TimeDistributed(Dense(10, activation='softmax'))(L)
-        los_y = ExtendMask(name='los')([los_y, los_M])
+        los_y = ExtendMask(name='los', add_epsilon=True)([los_y, los_M])
         outputs += [los_y]
 
         ## pheno output

@@ -158,16 +158,12 @@ class BatchGen(object):
                 decomp_y = nn_utils.pad_zeros(decomp_y, min_length=self.ihm_pos+1)
                 decomp_y = np.expand_dims(decomp_y, axis=-1) # (B, T, 1)
                 outputs.append(decomp_y)
-                if np.sum(decomp_M) == 0:
-                    continue
 
                 ## los
                 los_M = self.data['los_M'][i:i+B]
                 los_M = nn_utils.pad_zeros(los_M, min_length=self.ihm_pos+1)
                 los_y = self.data['los_y'][i:i+B]
                 los_y_true = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
-                if np.sum(los_M) == 0:
-                    continue
 
                 if self.partition == 'log':
                     los_y = [np.array([metrics.get_bin_log(x, 10) for x in z]) for z in los_y]
