@@ -105,7 +105,7 @@ class Network(Model):
                         dropout=dropout,
                         recurrent_dropout=rec_dropout)
 
-            if bidirectional:
+            if is_idirectional:
                 Z = Bidirectional(lstm)(Z)
             else:
                 Z = lstm(Z)
