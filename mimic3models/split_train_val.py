@@ -1,8 +1,7 @@
 import os
 import shutil
 import argparse
-import random
-random.seed(47297)
+
 
 parser = argparse.ArgumentParser(description="Split train data into train and validation sets.")
 parser.add_argument('task', type=str, help="Possible values are: decompensation, "\
@@ -10,6 +9,13 @@ parser.add_argument('task', type=str, help="Possible values are: decompensation,
 args, _ = parser.parse_known_args()
 assert args.task in ['decompensation', 'in-hospital-mortality', 'length-of-stay',
                      'phenotyping', 'multitask']
+
+val_patients = set()
+with open("mimic3models/valset.csv", "r") as valset_file:
+    for line in valset_file:
+        x, y = line.split(',')
+        if int(y) == 1:
+            val_patients.add(x)
 
 has_header = False
 if args.task in ['phenotyping', 'multitask']:
@@ -22,20 +28,10 @@ with open("data/%s/train/listfile.csv" % args.task) as listfile:
         header = lines[0]
         lines = lines[1:]
 
-patients = list(set([x[:x.find('_')] for x in lines]))
-
-random.shuffle(patients)
-train_cnt = int(0.82 * len(patients)) # this will became 70% of all data
-train_patients = set(patients[:train_cnt])
-val_patients = set(patients[train_cnt:])
-assert len(train_patients & val_patients) == 0
-
-train_lines = [x for x in lines if x[:x.find("_")] in train_patients]
+train_lines = [x for x in lines if x[:x.find("_")] not in val_patients]
 val_lines = [x for x in lines if x[:x.find("_")] in val_patients]
 assert len(train_lines) + len(val_lines) == len(lines)
 
-if not os.path.exists("data/%s/" % args.task):
-    os.makedirs("data/%s/" % args.task)
 
 with open("data/%s/train_listfile.csv" % args.task, "w") as train_listfile:
     if has_header:
