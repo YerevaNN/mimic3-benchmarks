@@ -28,10 +28,10 @@ target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
 train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                        listfile='../../data/phenotyping/train_listfile.csv')
+                                listfile='../../data/phenotyping/train_listfile.csv')
 
 val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                        listfile='../../data/phenotyping/val_listfile.csv')
+                                listfile='../../data/phenotyping/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,

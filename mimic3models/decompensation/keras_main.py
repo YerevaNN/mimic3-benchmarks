@@ -52,7 +52,7 @@ else:
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
-normalizer.load_params('decomp_ts0.8.input_str:previous.n1e5.start_time:zero.normalizer')
+normalizer.load_params('decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
