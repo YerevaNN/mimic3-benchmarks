@@ -19,11 +19,11 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.verbose = verbose
-    
+
     def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
-    
+
     def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
@@ -41,7 +41,6 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
                 y_true += list(y.flatten())
                 predictions += list(pred.flatten())
         print "\n"
-        
         predictions = np.array(predictions)
         predictions = np.stack([1-predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
@@ -57,23 +56,23 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
 
 
 class MetricsBinaryFromData(keras.callbacks.Callback):
-    
+
     def __init__(self, train_data, val_data, batch_size=32, verbose=2):
         self.train_data = train_data
         self.val_data = val_data
         self.batch_size = batch_size
         self.verbose = verbose
-    
+
     def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
-    
+
     def calc_metrics(self, data, history, dataset, logs):
         y_true = []
         predictions = []
         for i in range(0, len(data[0]), self.batch_size):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, num_examples),
+                print "\r\tdone {}/{}".format(i, len(data[0])),
             (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
             if len(y) == 2: # target replication
                 y_true += list(y[0].flatten())
@@ -91,7 +90,7 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         for k, v in ret.iteritems():
             logs[dataset + '_' + k] = v
         history.append(ret)
-        
+
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
         self.calc_metrics(self.train_data, self.train_history, 'train', logs)
@@ -100,17 +99,17 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
 
 
 class MetricsMultilabel(keras.callbacks.Callback):
-    
+
     def __init__(self, train_data_gen, val_data_gen, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.verbose = verbose
-    
+
     def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
-    
+
     def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
@@ -133,7 +132,7 @@ class MetricsMultilabel(keras.callbacks.Callback):
         for k, v in ret.iteritems():
             logs[dataset + '_' + k] = v
         history.append(ret)
-    
+
     def on_epoch_end(self, epoch, logs={}):
         print "\n==>predicting on train"
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
@@ -142,18 +141,18 @@ class MetricsMultilabel(keras.callbacks.Callback):
 
 
 class MetricsLOS(keras.callbacks.Callback):
-    
+
     def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
         self.verbose = verbose
-    
+
     def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
-    
+
     def calc_metrics(self, data_gen, history, dataset, logs):
         y_true = []
         predictions = []
@@ -179,7 +178,6 @@ class MetricsLOS(keras.callbacks.Callback):
                     y_true += list(y)
                     predictions += list(pred)
         print "\n"
-
         if self.partition == 'log':
             predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
             ret = metrics.print_metrics_log_bins(y_true, predictions)
