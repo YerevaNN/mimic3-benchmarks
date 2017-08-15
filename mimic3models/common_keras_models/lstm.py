@@ -58,9 +58,9 @@ class Network(Model):
                        dropout=dropout)
 
             if is_bidirectional:
-                mX = lstm(mX)
-            else:
                 mX = Bidirectional(lstm)(mX)
+            else:
+                mX = lstm(mX)
 
         # Output module of the network
         return_sequences = (target_repl or deep_supervision)
