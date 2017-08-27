@@ -1,5 +1,7 @@
 MIMIC-III Benchmarks
 =========================
+
+[![Join the chat at https://gitter.im/YerevaNN/mimic3-benchmarks](https://badges.gitter.im/YerevaNN/mimic3-benchmarks.svg)](https://gitter.im/YerevaNN/mimic3-benchmarks?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Python suite to construct benchmark machine learning datasets from the MIMIC-III clinical database. Currently, we are focused on building a multitask learning benchmark dataset that includes four key inpatient clinical prediction tasks that map onto core machine learning problems: prediction of mortality from early admission data (classification), real-time detection of decompensation (time series classification), forecasting length of stay (regression), and phenotype classification (multilabel sequence classification).
 
 ## News
@@ -64,6 +66,74 @@ Here are the required steps to build the benchmark. It assumes that you already 
        python scripts/split_train_and_test.py data/root/
 	
 7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
+
+       python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
+       python scripts/create_decompensation.py data/root/ data/decompensation/
+       python scripts/create_length_of_stay.py data/root/ data/length-of-stay/
+       python scripts/create_phenotyping.py data/root/ data/phenotyping/
+       python scripts/create_multitask.py data/root/ data/multitask/
+        
+## Working with baseline models
+
+For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
+Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
+
+### Train / validation split
+
+Use the following command to extract validation set from the traning set. This step is required for running the baseline models.
+
+       python mimic3models/split_train_val.py [TASK]
+       
+`[TASK]` is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
+
+
+### In-hospital mortality prediction
+
+Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
+       
+       cd mimic3models/in_hospital_mortality/
+       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
+
+To test the model use the following:
+       
+       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
+       
+       cd mimic3models/in_hospital_mortality/logistic/
+       python -u main.py --l2 --C 0.001
+
+### Decompensation prediction
+
+The best model we got for this task was trained for 110 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
+       
+       cd mimic3models/decompensation/
+       python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
+
+Here is the command to test:
+       
+       python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+       
+       cd mimic3models/decompensation/logistic/
+       python -u main.py
+
+### Length of stay prediction
+
+The best model we got for this task was trained for 15 chunks.
+       
+       cd mimic3models/length_of_stay/
+       python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
+
+Run the following command to test the best pretrained neural network.
+       
+       python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+
+Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+       
+       cd mimic3models/length_of_stay/logistic/
+       python -u main_cf.py
 
 ### Phenotype classification
 
