@@ -15,6 +15,18 @@ def parse_task(log):
 		return'ihm'
 	return None
 
+def get_loss(log, lossname):
+	""" Options for lossname: 'loss', 'ihm_loss', 'decomp_loss', 'pheno_loss', 'los_loss'
+	"""
+	train = re.findall('[^_]{}: ([0-9.]+)'.format(lossname), log)
+	train = map(float, train)
+	val = re.findall('val_{}: ([0-9.]+)'.format(lossname), log)
+	val = map(float, val)
+	if len(train) > len(val):
+		assert len(train) - 1 == len(val)
+		train = train[:-1]
+	return (train, val)
+
 def parse_metrics(metric, log):
 	ret = re.findall('{} = (.*)\n'.format(metric), log)
 	ret = map(float, ret)
