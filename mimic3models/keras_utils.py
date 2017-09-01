@@ -14,10 +14,11 @@ from keras.layers.recurrent import _time_distributed_dense
 
 class MetricsBinaryFromGenerator(keras.callbacks.Callback):
     
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32, verbose=2):
+    def __init__(self, train_data_gen, val_data_gen, batch_size=32, early_stopping=True, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
+        self.early_stopping = early_stopping
         self.verbose = verbose
 
     def on_train_begin(self, logs={}):
@@ -54,13 +55,20 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
+        if self.early_stopping:
+            max_auc = np.max([x["auroc"] for x in self.val_history])
+            cur_auc = self.val_history[-1]["auroc"]
+            if max_auc > 0.88 and cur_auc < 0.86:
+                self.model.stop_training = True
+
 
 class MetricsBinaryFromData(keras.callbacks.Callback):
 
-    def __init__(self, train_data, val_data, batch_size=32, verbose=2):
+    def __init__(self, train_data, val_data, batch_size=32, early_stopping=True, verbose=2):
         self.train_data = train_data
         self.val_data = val_data
         self.batch_size = batch_size
+        self.early_stopping = early_stopping
         self.verbose = verbose
 
     def on_train_begin(self, logs={}):
@@ -97,13 +105,20 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data, self.val_history, 'val', logs)
 
+        if self.early_stopping:
+            max_auc = np.max([x["auroc"] for x in self.val_history])
+            cur_auc = self.val_history[-1]["auroc"]
+            if max_auc > 0.85 and cur_auc < 0.83:
+                self.model.stop_training = True
+
 
 class MetricsMultilabel(keras.callbacks.Callback):
 
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32, verbose=2):
+    def __init__(self, train_data_gen, val_data_gen, batch_size=32, early_stopping=True, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
+        self.early_stopping = early_stopping
         self.verbose = verbose
 
     def on_train_begin(self, logs={}):
@@ -139,14 +154,21 @@ class MetricsMultilabel(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
+        if self.early_stopping:
+            max_auc = np.max([x["ave_auc_macro"] for x in self.val_history])
+            cur_auc = self.val_history[-1]["ave_auc_macro"]
+            if max_auc > 0.75 and cur_auc < 0.73:
+                self.model.stop_training = True
+
 
 class MetricsLOS(keras.callbacks.Callback):
 
-    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
+    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, early_stopping=True, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
+        self.early_stopping = early_stopping
         self.verbose = verbose
 
     def on_train_begin(self, logs={}):
@@ -196,14 +218,21 @@ class MetricsLOS(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
+        if self.early_stopping:
+            max_kappa = np.max([x["kappa"] for x in self.val_history])
+            cur_kappa = self.val_history[-1]["kappa"]
+            max_train_kappa = np.max([x["kappa"] for x in self.train_history])
+            if max_kappa > 0.38 and cur_kappa < 0.35 and max_train_kappa > 0.47:
+                self.model.stop_training = True
 
 class MetricsMultitask(keras.callbacks.Callback):
 
-    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, verbose=2):
+    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, early_stopping=True, verbose=2):
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
+        self.early_stopping = early_stopping
         self.verbose = verbose
 
     def on_train_begin(self, logs={}):
@@ -314,6 +343,13 @@ class MetricsMultitask(keras.callbacks.Callback):
         print "\n==>predicting on validation"
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
+        if self.early_stopping:
+            ihm_max_auc = np.max([x["val_ihm_auroc"] for x in self.val_history])
+            ihm_cur_auc = self.val_history[-1]["val_ihm_auroc"]
+            pheno_max_auc = np.max([x["val_pheno_ave_auc_macro"] for x in self.val_history])
+            pheno_cur_auc = self.val_history[-1]["val_pheno_ave_auc_macro"]
+            if (pheno_max_auc > 0.75 and pheno_cur_auc < 0.73) and (ihm_max_auc > 0.85 and ihm_cur_auc < 0.83):
+                self.model.stop_training = True
 
 # ===================== LAYERS ===================== #                        
 
