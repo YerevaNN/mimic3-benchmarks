@@ -78,7 +78,7 @@ def process_single(filename, verbose):
         print("Last state is not parsed: {}".format(filename))
         return None
 
-    n_epochs = parse_utils.get_epoch(last_state)
+    n_epochs = parse_utils.parse_epoch(last_state)
 
     if verbose:
         print("\tlast state = {}".format(last_state))
