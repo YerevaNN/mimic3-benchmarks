@@ -1,6 +1,7 @@
 from __future__ import print_function
 import argparse
 from mimic3models import parse_utils
+import json
 
 
 def process_single(filename, verbose):
@@ -136,7 +137,12 @@ def process_single(filename, verbose):
         command += ' --target_repl_coef {}'.format(target_repl_coef)
 
     return {"command": command,
-            "val_metric": last_val,
+            "train_max": np.max(train_metrics),
+            "train_max_pos": np.argmax(train_metrics),
+            "val_max": np.max(val_metrics),
+            "val_max_pos": np.argmax(val_metrics),
+            "last_train": last_train,
+            "last_val": last_val,
             "n_epochs": n_epochs}
 
 
@@ -155,12 +161,12 @@ def main():
         ret = process_single(log, args.verbose)
         if ret:
             rerun += [ret]
+    rerun = sorted(rerun, key=lambda x: x["last_val"], reverse=True)
 
     print("Need to rerun {} / {} models".format(len(rerun), len(args.logs)))
-    print("Saving the results in rerun_output.sh")
-    with open("rerun_output.sh", 'w') as fout:
-        for command in rerun:
-            fout.write(command + '\n')
+    print("Saving the results in rerun_output.json")
+    with open("rerun_output.json", 'w') as fout:
+        json.dump(rerun, fout)
 
 if __name__ == '__main__':
     main()
