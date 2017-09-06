@@ -2,7 +2,7 @@ from __future__ import print_function
 import argparse
 from mimic3models import parse_utils
 import json
-
+import numpy as np
 
 def process_single(filename, verbose):
     if verbose:
