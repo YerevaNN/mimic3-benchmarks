@@ -171,5 +171,16 @@ def main():
     with open("rerun_output.json", 'w') as fout:
         json.dump(rerun, fout)
 
+    print("Saving commands in rerun_commands.sh")
+    with open("rerun.sh", 'w') as fout:
+        for a in rerun:
+            fout.write(a['command'] + '\n')
+
+    print("Saving filenames in rerun_filenames.txt")
+    with open("rerun_filenames.txt", 'w') as fout:
+        for a in rerun:
+            fout.write(a['filename'] + '\n')
+
+
 if __name__ == '__main__':
     main()
