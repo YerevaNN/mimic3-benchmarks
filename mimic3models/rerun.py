@@ -143,7 +143,8 @@ def process_single(filename, verbose):
             "val_max_pos": np.argmax(val_metrics),
             "last_train": last_train,
             "last_val": last_val,
-            "n_epochs": n_epochs}
+            "n_epochs": n_epochs,
+            "filename": filename}
 
 
 # TODO: mark in the file that the file is reruned already
@@ -158,6 +159,8 @@ def main():
 
     rerun = []
     for log in args.logs:
+        if log.find(".log") == -1:  # not a log file or is a not renamed log file
+            continue
         ret = process_single(log, args.verbose)
         if ret:
             rerun += [ret]
