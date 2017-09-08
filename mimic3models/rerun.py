@@ -4,6 +4,18 @@ from mimic3models import parse_utils
 import json
 import numpy as np
 
+
+def check_decreasing(a, k, eps):
+    if k >= len(a):
+        return False
+    pos = len(a) - 1
+    for i in range(k):
+        if a[pos] > a[pos - 1] + eps:
+            return False
+        pos -= 1
+    return True
+
+
 def process_single(filename, verbose):
     if verbose:
         print("Processing log file: {}".format(filename))
@@ -65,6 +77,25 @@ def process_single(filename, verbose):
             rerun = False
     else:
         assert False
+
+    # check if val_metrics is decreasing
+    if task in ['ihm', 'decomp', 'pheno', 'multitask']:
+        n_decreases = 3
+    else:  # 'los'
+        n_decreases = 5
+
+    if check_decreasing(val_metrics, n_decreases, 0.001):
+        rerun = False
+
+    # check if maximum value for validation was very early
+    if task in ['ihm', 'decomp', 'pheno', 'multitask']:
+        tol = 0.01
+    else:  # 'los'
+        tol = 0.03
+    val_max = max(val_metrics)
+    val_max_pos = np.argmax(val_metrics)
+    if len(val_metrics) - val_max_pos >= 8 and val_max - last_val > tol:
+        rerun = False
 
     if verbose:
         print("\trerun = {}".format(rerun))
