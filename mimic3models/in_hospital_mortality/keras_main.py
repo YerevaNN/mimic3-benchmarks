@@ -139,7 +139,7 @@ if args.mode == 'train':
     model.fit(x=train_raw[0],
               y=train_raw[1],
               validation_data=val_raw,
-              epochs=args.epochs,
+              epochs=n_trained_chunks + args.epochs,
               initial_epoch=n_trained_chunks,
               callbacks=[metrics_callback, saver, csv_logger],
               shuffle=True,

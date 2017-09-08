@@ -159,7 +159,7 @@ if args.mode == 'train':
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
                         validation_steps=val_data_gen.steps,
-                        epochs=args.epochs,
+                        epochs=n_trained_chunks + args.epochs,
                         initial_epoch=n_trained_chunks,
                         callbacks=[metrics_callback, saver, csv_logger],
                         verbose=args.verbose)
