@@ -1,0 +1,177 @@
+import numpy as np
+import argparse
+import time
+import os
+import imp
+import re
+
+from mimic3models.in_hospital_mortality import utils
+from mimic3benchmark.readers import InHospitalMortalityReader
+
+from mimic3models.preprocessing import Discretizer, Normalizer
+from mimic3models import metrics
+from mimic3models import keras_utils
+from mimic3models import common_utils
+
+from keras.callbacks import ModelCheckpoint, CSVLogger
+
+parser = argparse.ArgumentParser()
+common_utils.add_common_arguments(parser)
+parser.add_argument('--target_repl_coef', type=float, default=0.0)
+args = parser.parse_args()
+print args
+
+if args.small_part:
+    args.save_every = 2**30
+
+target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
+
+# Build readers, discretizers, normalizers
+train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
+                                        listfile='../../data/in-hospital-mortality/train_listfile.csv',
+                                        period_length=48.0)
+
+val_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
+                                      listfile='../../data/in-hospital-mortality/val_listfile.csv',
+                                      period_length=48.0)
+
+discretizer = Discretizer(timestep=float(args.timestep),
+                          store_masks=True,
+                          imput_strategy='previous',
+                          start_time='zero')
+
+discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
+
+normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
+normalizer.load_params('ihm_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
+
+args_dict = dict(args._get_kwargs())
+args_dict['header'] = discretizer_header
+args_dict['task'] = 'ihm'
+args_dict['target_repl'] = target_repl
+
+# Build the model
+print "==> using model {}".format(args.network)
+model_module = imp.load_source(os.path.basename(args.network), args.network)
+model = model_module.Network(**args_dict)
+network = model # alias
+suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
+                               ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                               ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                               args.timestep,
+                               ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
+model.final_name = args.prefix + model.say_name() + suffix                              
+print "==> model.final_name:", model.final_name
+
+
+# Compile the model
+print "==> compiling the model"
+optimizer_config = {'class_name': args.optimizer,
+                    'config': {'lr': args.lr,
+                               'beta_1': args.beta_1}}
+
+# NOTE: one can use binary_crossentropy even for (B, T, C) shape.
+#       It will calculate binary_crossentropies for each class
+#       and then take the mean over axis=-1. Tre results is (B, T).
+if target_repl:
+    loss = ['binary_crossentropy'] * 2
+    loss_weights = [1 - args.target_repl_coef, args.target_repl_coef]
+else:
+    loss = 'binary_crossentropy'
+    loss_weights = None
+
+model.compile(optimizer=optimizer_config,
+              loss=loss,
+              loss_weights=loss_weights)
+
+## print model summary
+model.summary()
+
+# Load model weights
+n_trained_chunks = 0
+if args.load_state != "":
+    model.load_weights(args.load_state)
+    n_trained_chunks = int(re.match(".*epoch([0-9]+).*", args.load_state).group(1))
+
+
+# Read data
+train_raw = utils.load_data(train_reader, discretizer, normalizer, args.small_part)
+val_raw = utils.load_data(val_reader, discretizer, normalizer, args.small_part)
+
+if target_repl:
+    T = train_raw[0][0].shape[0]
+
+    def extend_labels(data):
+        data = list(data)
+        labels = np.array(data[1]) # (B,)
+        data[1] = [labels, None]
+        data[1][1] = np.expand_dims(labels, axis=-1).repeat(T, axis=1) # (B, T)
+        data[1][1] = np.expand_dims(data[1][1], axis=-1) # (B, T, 1)
+        return data
+
+    train_raw = extend_labels(train_raw)
+    val_raw = extend_labels(val_raw)
+
+
+if args.mode == 'train':
+    
+    # Prepare training
+    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
+    
+    metrics_callback = keras_utils.MetricsBinaryFromData(train_raw,
+                                                       val_raw,
+                                                       args.batch_size,
+                                                       args.verbose)
+    
+    # make sure save directory exists
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
+    
+    if not os.path.exists('keras_logs'):
+        os.makedirs('keras_logs')
+    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+                           append=True, separator=';')
+    
+    print "==> training"
+    model.fit(x=train_raw[0],
+              y=train_raw[1],
+              validation_data=val_raw,
+              epochs=n_trained_chunks + args.epochs,
+              initial_epoch=n_trained_chunks,
+              callbacks=[metrics_callback, saver, csv_logger],
+              shuffle=True,
+              verbose=args.verbose,
+              batch_size=args.batch_size)
+
+
+elif args.mode == 'test':
+
+    # ensure that the code uses test_reader
+    del train_reader
+    del val_reader
+    del train_raw
+    del val_raw
+    
+    test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
+                    listfile='../../data/in-hospital-mortality/test_listfile.csv',
+                    period_length=48.0)
+    test_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
+    
+    data = np.array(test_raw[0])
+    labels = test_raw[1]
+    predictions = model.predict(data,
+                                batch_size=args.batch_size,
+                                verbose=1)
+    predictions = np.array(predictions)[:, 0]
+
+    metrics.print_metrics_binary(labels, predictions)
+    with open("activations.txt", "w") as fout:
+        fout.write("predictions, labels\n")
+        for (x, y) in zip(predictions, labels):
+            fout.write("%.6f, %d\n" % (x, y))
+
+else:
+    raise ValueError("Wrong value for args.mode")

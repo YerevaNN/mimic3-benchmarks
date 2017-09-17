@@ -61,8 +61,8 @@ cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") =
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
 normalizer.load_params('ph_ts%s.input_str:previous.start_time:zero.normalizer' % args.timestep)
 
-train_raw = utils.load_phenotypes(train_reader, discretizer, normalizer, args.small_part)
-test_raw = utils.load_phenotypes(val_reader, discretizer, normalizer, args.small_part)
+train_raw = utils.load_data(train_reader, discretizer, normalizer, args.small_part)
+test_raw = utils.load_data(val_reader, discretizer, normalizer, args.small_part)
 
 args_dict = dict(args._get_kwargs())
 args_dict['train_raw'] = train_raw
@@ -154,7 +154,7 @@ elif args.mode == 'test':
     test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
                     listfile='../../data/phenotyping/test_listfile.csv')
     
-    data_raw = utils.load_phenotypes(test_reader, discretizer, normalizer, args.small_part)
+    data_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
     
     NTASKS = 25
     n_batches = len(data_raw[0]) // args.batch_size

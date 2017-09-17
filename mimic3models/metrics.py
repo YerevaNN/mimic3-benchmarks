@@ -111,22 +111,24 @@ def print_metrics_regression(y_true, predictions):
     predictions = np.array(predictions)
     predictions = np.maximum(predictions, 0)
     y_true = np.array(y_true)
-    
+
     y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]
     prediction_bins = [get_bin_custom(x, CustomBins.nbins) for x in predictions]
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    
+    print "Custom bins confusion matrix:"
+    print cf
+
     kappa = metrics.cohen_kappa_score(y_true_bins, prediction_bins,
                                       weights='linear')
     mad = metrics.mean_absolute_error(y_true, predictions)
     mse = metrics.mean_squared_error(y_true, predictions)
     mape = mean_absolute_percentage_error(y_true, predictions)
-    
+
     print "Mean absolute deviation (MAD) =", mad
     print "Mean squared error (MSE) =", mse
     print "Mean absolute percentage error (MAPE) =", mape
     print "Cohen kappa score =", kappa
-    
+
     return {"mad": mad,
             "mse": mse,
             "mape": mape,
@@ -139,14 +141,21 @@ class LogBins:
              81.816438, 182.303159, 393.334856, 810.964040, 1715.702848]
 
     
-def get_bin_log(x, nbins):
+def get_bin_log(x, nbins, one_hot=False):
     binid = int(np.log(x + 1) / 8.0 * nbins)
     if (binid < 0):
         binid = 0
     if (binid >= nbins):
         binid = nbins - 1
+    
+    if one_hot:
+        ret = np.zeros((LogBins.nbins,))
+        ret[binid] = 1
+        return ret
     return binid
 
+
+# TODO: think about fix print_metrics_log_bins and print_metrics_custom_bins
 
 def get_estimate_log(prediction, nbins):
     binid = np.argmax(prediction)
@@ -156,32 +165,31 @@ def get_estimate_log(prediction, nbins):
 def print_metrics_log_bins(y_true, predictions):
     y_true_bins = [get_bin_log(x, LogBins.nbins) for x in y_true]
     prediction_bins = [get_bin_log(x, LogBins.nbins) for x in predictions]
-    
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "confusion matrix:"
+    print "LogBins confusion matrix:"
     print cf
-    
     return print_metrics_regression(y_true, predictions)
 
 
 class CustomBins:
     inf = 1e18
-    eps = 1e-6
     bins = [(-inf, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 14), (14, +inf)]
     nbins = len(bins)
     means = [11.450379, 35.070846, 59.206531, 83.382723, 107.487817,
             131.579534, 155.643957, 179.660558, 254.306624, 585.325890]
 
 
-def get_bin_custom(x, nbins):
+def get_bin_custom(x, nbins, one_hot=False):
     for i in range(nbins):
         a = CustomBins.bins[i][0] * 24.0
         b = CustomBins.bins[i][1] * 24.0
-        # [a, b)
-        if (x > a - CustomBins.eps and x < b - CustomBins.eps):
+        if (x >= a and x < b):
+            if one_hot:
+                ret = np.zeros((CustomBins.nbins,))
+                ret[i] = 1
+                return ret
             return i
-    assert False
-    return 0
+    return None
 
 
 def get_estimate_custom(prediction, nbins):
@@ -191,11 +199,4 @@ def get_estimate_custom(prediction, nbins):
 
 
 def print_metrics_custom_bins(y_true, predictions):
-    y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]
-    prediction_bins = [get_bin_custom(x, CustomBins.nbins) for x in predictions]
-    
-    cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "confusion matrix:"
-    print cf
-    
     return print_metrics_regression(y_true, predictions)

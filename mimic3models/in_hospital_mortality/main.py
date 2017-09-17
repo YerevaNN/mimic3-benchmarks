@@ -66,12 +66,13 @@ normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
 normalizer.load_params('ihm_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
 #normalizer=None
 
-train_raw = utils.load_mortalities(train_reader, discretizer, normalizer, args.small_part)
-test_raw = utils.load_mortalities(val_reader, discretizer, normalizer, args.small_part)
+train_raw = utils.load_data(train_reader, discretizer, normalizer, args.small_part)
+test_raw = utils.load_data(val_reader, discretizer, normalizer, args.small_part)
 
 args_dict = dict(args._get_kwargs())
 args_dict['train_raw'] = train_raw
 args_dict['test_raw'] = test_raw
+args_dict['header'] = discretizer_header
 
 # init class
 print "==> using network %s" % args.network
@@ -163,7 +164,7 @@ elif args.mode == 'test':
                     listfile='../../data/in-hospital-mortality/test_listfile.csv',
                     period_length=48.0)
 
-    data_raw = utils.load_mortalities(test_reader, discretizer, normalizer, args.small_part)
+    data_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
     
     n_batches = len(data_raw[0]) // args.batch_size
     y_true = []
