@@ -172,33 +172,52 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
 
+    labels = []
+    predictions = []
+
     if args.deep_supervision:
         del train_data_loader
         del val_data_loader
+        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/test/',
+                                                                  listfile='../../data/length-of-stay/test_listfile.csv')
+        test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, args.partition,
+                                                      discretizer, normalizer, args.batch_size)
+
+        for i in range(test_data_gen.steps):
+            print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+            (x, y_processed, y) = test_data_gen.next(return_y_true=True)
+            pred = model.predict(x, batch_size=args.batch_size)
+            if pred.shape[-1] == 1: # regression
+                pred_flatten = pred.flatten()
+            else: # classification
+                pred_flatten = pred.reshape((-1, 10))
+            for m, t, p in zip(x[1].flatten(), y.flatten(), pred_flatten):
+                if np.equal(m, 1):
+                    labels.append(t)
+                    predictions.append(p)
+
     else:
         del train_reader
         del val_reader
+        test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
+                                        listfile='../../data/length-of-stay/test_listfile.csv')
 
-    test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
-                                    listfile='../../data/length-of-stay/test_listfile.csv')
+        test_nbatches = test_reader.get_number_of_examples() // args.batch_size
+        test_nbatches = 10000
+        test_data_gen = utils.BatchGen(reader=test_reader,
+                                    discretizer=discretizer,
+                                    normalizer=normalizer,
+                                    partition=args.partition,
+                                    batch_size=args.batch_size,
+                                    steps=test_nbatches)
 
-    test_nbatches = test_reader.get_number_of_examples() // args.batch_size
-    test_nbatches = 10000
-    test_data_gen = utils.BatchGen(reader=test_reader,
-                                discretizer=discretizer,
-                                normalizer=normalizer,
-                                partition=args.partition,
-                                batch_size=args.batch_size,
-                                steps=test_nbatches)
-    labels = []
-    predictions = []
-    for i in range(test_nbatches):
-        print "\rpredicting {} / {}".format(i, test_nbatches),
-        x, y_processed, y = test_data_gen.next(return_y_true=True)
-        x = np.array(x)
-        pred = model.predict_on_batch(x)
-        predictions += list(pred)
-        labels += list(y)
+        for i in range(test_nbatches):
+            print "\rpredicting {} / {}".format(i, test_nbatches),
+            x, y_processed, y = test_data_gen.next(return_y_true=True)
+            x = np.array(x)
+            pred = model.predict_on_batch(x)
+            predictions += list(pred)
+            labels += list(y)
 
     if args.partition == 'log':
         predictions = [metrics.get_estimate_log(x, 10) for x in predictions]

@@ -9,7 +9,7 @@ from keras.layers.merge import Multiply
 
 class Network(Model):
 
-    def __init__(self, dim, batch_norm, dropout, rec_dropout, mode, partition,
+    def __init__(self, dim, batch_norm, dropout, rec_dropout, partition,
                 ihm_pos, target_repl=False, depth=1, input_dim=76, **kwargs):
 
         print "==> not used params in network class:", kwargs.keys()

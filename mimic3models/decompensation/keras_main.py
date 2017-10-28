@@ -153,31 +153,47 @@ elif args.mode == 'test':
     # ensure that the code uses test_reader
     del train_data_gen
     del val_data_gen
-    
+
+    labels = []
+    predictions = []
+
     if args.deep_supervision:
         del train_data_loader
         del val_data_loader
+        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/test/',
+                                                                  listfile='../../data/decompensation/test_listfile.csv')
+        test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, discretizer,
+                                                      normalizer, args.batch_size)
+
+        for i in range(test_data_gen.steps):
+            print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+            (x, y) = next(test_data_gen)
+            pred = model.predict(x, batch_size=args.batch_size)
+            for m, t, p in zip(x[1].flatten(), y.flatten(), pred.flatten()):
+                if np.equal(m, 1):
+                    labels.append(t)
+                    predictions.append(p)
+        print "\n"
+
     else:
         del train_reader
         del val_reader
+        test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
+                                           listfile='../../data/decompensation/test_listfile.csv')
 
-    test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
-                        listfile='../../data/decompensation/test_listfile.csv')
+        test_nbatches = test_reader.get_number_of_examples() // args.batch_size
+        test_nbatches = 10000
+        test_data_gen = utils.BatchGen(test_reader, discretizer,
+                                        normalizer, args.batch_size,
+                                        test_nbatches)
 
-    test_nbatches = test_reader.get_number_of_examples() // args.batch_size
-    test_nbatches = 10000
-    test_data_gen = utils.BatchGen(test_reader, discretizer,
-                                    normalizer, args.batch_size,
-                                    test_nbatches)
-    labels = []
-    predictions = []
-    for i in range(test_nbatches):
-        print "\rpredicting {} / {}".format(i, test_nbatches),
-        x, y = next(test_data_gen)
-        x = np.array(x)
-        pred = model.predict_on_batch(x)[:, 0]
-        predictions += list(pred)
-        labels += list(y)
+        for i in range(test_nbatches):
+            print "\rpredicting {} / {}".format(i, test_nbatches),
+            x, y = next(test_data_gen)
+            x = np.array(x)
+            pred = model.predict_on_batch(x)[:, 0]
+            predictions += list(pred)
+            labels += list(y)
 
     metrics.print_metrics_binary(labels, predictions)
     with open("activations.txt", "w") as fout:

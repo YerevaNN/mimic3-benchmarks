@@ -49,6 +49,11 @@ def parse_network(log):
     return ret.group(1)
 
 
+def parse_load_state(log):
+    ret = re.search("load_state='([^']*)'", log)
+    return ret.group(1)
+
+
 def parse_prefix(log):
     ret = re.search("prefix='([^']*)'", log)
     return ret.group(1)
@@ -102,6 +107,11 @@ def parse_dropout(log):
     return float(ret.group(1))
 
 
+def parse_timestep(log):
+    ret = re.search('timestep=([\.0-9]*)', log)
+    return float(ret.group(1))
+
+
 def parse_partition(log):
     ret = re.search("partition='([^']*)'", log)
     if ret:
@@ -110,7 +120,7 @@ def parse_partition(log):
 
 
 def parse_deep_supervision(log):
-    ret = re.search('deep_supervision=(.*),', log)
+    ret = re.search('deep_supervision=(True|False)', log)
     if ret:
         return ret.group(1) == 'True'
     return False
