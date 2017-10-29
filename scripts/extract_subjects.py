@@ -13,7 +13,7 @@ parser.add_argument('--event_tables', '-e', type=unicode, nargs='+', help='Table
                     default=['CHARTEVENTS', 'LABEVENTS', 'OUTPUTEVENTS'])
 parser.add_argument('--phenotype_definitions', '-p', type=unicode, default='resources/hcup_ccs_2015_definitions.yaml',
                     help='YAML file with phenotype definitions.')
-parser.add_argument('--use_db', type=bool, action='store_true', default=False)
+parser.add_argument('--use_db', action='store_true', default=False)
 parser.add_argument('--itemids_file', '-i', type=unicode, help='CSV containing list of ITEMIDs to keep.')
 parser.add_argument('--verbose', '-v', type=int, help='Level of verbosity in output.', default=1)
 parser.add_argument('--test', action='store_true', help='TEST MODE: process only 1000 subjects, 1000000 events.')

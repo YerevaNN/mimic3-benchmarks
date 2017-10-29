@@ -30,17 +30,18 @@ def query(sql, config):
     :return: connection to database
     """
     try:
-        config = Dict(config)
-        conn = psycopg2.connect("dbname='" + str(config.dbname)
-                                + "' user='" + str(config.user)
-                                + "' host='" + str(config.host)
-                                + "' password='" + str(config.password)
-                                + "' port='" + str(config.port) + "' ")
+        conn = psycopg2.connect("dbname='" + str(config["dbname"]) \
+                                + "' user='" + str(config["user"]) \
+                                + "' host='" + str(config["host"]) \
+                                + "' password='" + str(config["password"]) \
+                                + "' port='" + str(config["port"]) + "' ")
     except:
         raise
     cur = conn.cursor()
     cur.execute("SET search_path TO mimiciii")
-    return pd.read_sql(sql, conn)
+    df = pd.read_sql(sql, conn)
+    df.columns = df.columns.str.upper()
+    return df
 def get_config(path):
     '''
     Gets the config to connect to database (stored in json file)
@@ -55,7 +56,6 @@ def get_config(path):
 def read_patients_table(mimic3_path, use_db = False):
     if (use_db):
         pats = query("SELECT * FROM patients", get_config(mimic3_path))
-        pats.columns = pats.columns.str.upper()
     else:
         pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
     pats = pats[['SUBJECT_ID', 'GENDER', 'DOB', 'DOD']]
@@ -66,7 +66,6 @@ def read_patients_table(mimic3_path, use_db = False):
 def read_admissions_table(mimic3_path, use_db = False):
     if (use_db):
         admits = query("SELECT * FROM admissions", get_config(mimic3_path))
-        admits.columns = admits.columns.str.upper()
     else:
         admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
     admits = admits[['SUBJECT_ID', 'HADM_ID', 'ADMITTIME', 'DISCHTIME', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
@@ -78,7 +77,6 @@ def read_admissions_table(mimic3_path, use_db = False):
 def read_icustays_table(mimic3_path, use_db = False):
     if (use_db):
         stays = query("SELECT * FROM ICUSTAYS", get_config(mimic3_path))
-        stays.columns = stays.columns.str.upper()
     else:
         stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
     stays.INTIME = pd.to_datetime(stays.INTIME)
@@ -88,11 +86,13 @@ def read_icustays_table(mimic3_path, use_db = False):
 def read_icd_diagnoses_table(mimic3_path, use_db = False):
     if (use_db):
         codes = query("SELECT * FROM D_ICD_DIAGNOSES", get_config(mimic3_path))
-        codes.columns = codes.columns.str.upper()
     else:
         codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
     codes = codes[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']]
-    diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
+    if (use_db):
+        diagnoses = query("SELECT * FROM DIAGNOSES_ICD", get_config(mimic3_path))
+    else:
+        diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
     diagnoses = diagnoses.merge(codes, how='inner', left_on='ICD9_CODE', right_on='ICD9_CODE')
     diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']] = diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']].astype(int)
     return diagnoses
@@ -100,15 +100,29 @@ def read_icd_diagnoses_table(mimic3_path, use_db = False):
 def read_events_table_by_row(mimic3_path, table, use_db = False, items_to_keep = None, subjects_to_keep = None):
     nb_rows = { 'chartevents': 263201376, 'labevents': 27872576, 'outputevents': 4349340 }
     if (use_db):
-        events = query("SELECT * FROM table WHERE subject_id in " + convertListToSQL(subjects_to_keep) " AND itemid in " + convertListToSQL(items_to_keep), get_config(mimic3_path))
-        events.columns = events.columns.str.upper()
-        reader = events.iterrows()
+        if items_to_keep is None and subjects_to_keep is None:
+            events = query("SELECT * FROM " + table, get_config(mimic3_path))
+        else:
+            queryString = "SELECT * FROM " + table + " WHERE "
+            if subjects_to_keep is not None:
+                queryString = queryString +  "subject_id in " + convertListToSQL(subjects_to_keep)
+                if items_to_keep is not None:
+                    queryString = queryString + " AND "
+            if items_to_keep is not None:
+                queryString = queryString + " itemid in " + convertListToSQL(items_to_keep)
+            events = query(queryString, get_config(mimic3_path))
+            if 'ICUSTAY_ID' not in events.columns:
+                events['ICUSTAY_ID'] = pd.Series(dtype=str)
+            events['ICUSTAY_ID'].fillna("");
+        for i, row in events.iterrows():
+            yield row, i, nb_rows[table.lower()]
+            
     else:
         reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '.csv'), 'r'))
-    for i,row in enumerate(reader):
-        if 'ICUSTAY_ID' not in row:
-            row['ICUSTAY_ID'] = ''
-        yield row, i, nb_rows[table.lower()]
+        for i,row in enumerate(reader):
+            if 'ICUSTAY_ID' not in row:
+                row['ICUSTAY_ID'] = ''
+            yield row, i, nb_rows[table.lower()]
 
 def count_icd_codes(diagnoses, output_path=None):
     codes = diagnoses[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']].drop_duplicates().set_index('ICD9_CODE')
@@ -252,12 +266,12 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
         nonlocal.curr_obs.append(row_out)
         nonlocal.curr_subject_id = row['SUBJECT_ID']
         
-    if nonlocal.curr_subject_id != '':
-        write_current_observations()
+        if nonlocal.curr_subject_id != '':
+            write_current_observations()
 
-    if verbose and (row_no % 100000 == 0):
-        sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
-                         '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
-                                                                 nonlocal.last_write_no,
-                                                                 nonlocal.last_write_nb_rows,
-                                                                 nonlocal.last_write_subject_id))
+        if verbose and (row_no % 100000 == 0):
+            sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
+                             '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
+                                                                     nonlocal.last_write_no,
+                                                                     nonlocal.last_write_nb_rows,
+                                                                     nonlocal.last_write_subject_id))
