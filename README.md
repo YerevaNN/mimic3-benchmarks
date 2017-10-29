@@ -41,7 +41,7 @@ If you have Anaconda
 ```
 conda install --f requirements.txt
 ```
-
+### Details on Requirements
 We do not provide the MIMIC-III data itself. You must acquire the data yourself from https://mimic.physionet.org/. Specifically, download the CSVs. Otherwise, generally we make liberal use of the following packages:
 
 - numpy
@@ -62,6 +62,8 @@ Here are the required steps to build the benchmark. It assumes that you already 
 ``` 
        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
 ```
+If you are using Anaconda, setting the PYTHONPATH may cause problems, so you may need to copy the scripts to the base directory of the repo.
+
 3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
 ```
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
