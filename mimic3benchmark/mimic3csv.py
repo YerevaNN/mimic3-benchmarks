@@ -224,7 +224,7 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
         w.writerows(nonlocal.curr_obs)
         nonlocal.curr_obs = []
     
-    for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table, items_to_keep, subjects_to_keep):
+    for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table, use_db=use_db, items_to_keep=items_to_keep, subjects_to_keep=subjects_to_keep):
         if verbose and (row_no % 100000 == 0):
             if nonlocal.last_write_no != '':
                 sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
