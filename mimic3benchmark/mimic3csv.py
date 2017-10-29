@@ -3,9 +3,43 @@ import numpy as np
 import os
 import pandas as pd
 import sys
+import psycopg2
 
 from pandas import DataFrame
 
+def convertListToSQL(listItems):
+    '''
+    Transform a list of items, (usually ids)
+    from type int to format "(itemId1, itemId2)"
+    for sql
+    :param listItems a python list of stuff
+    :return string in sql format for "WHERE var IN" would work
+    '''
+    toRet = ""
+    for item in listItems:
+        toRet += str(item) + ", "
+    toRet = "(" + toRet[0:-2] + ")"
+    return toRet
+
+def query(sql, config):
+    """
+    :param sql Specific string query to run on the MIMIC3 sql database
+    :param config a dict/object containing fields dbname, user, host, password, and port
+        to create the connection to the database.
+    :return: connection to database
+    """
+    try:
+        config = Dict(config)
+        conn = psycopg2.connect("dbname='" + str(config.dbname)
+                                + "' user='" + str(config.user)
+                                + "' host='" + str(config.host)
+                                + "' password='" + str(config.password)
+                                + "' port='" + str(config.port) + "' ")
+    except:
+        raise
+    cur = conn.cursor()
+    cur.execute("SET search_path TO mimiciii")
+    return pd.read_sql(sql, conn)
 
 def read_patients_table(mimic3_path):
     pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
