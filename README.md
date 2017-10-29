@@ -36,6 +36,12 @@ Use the following command if you have pip installed
 pip install -r requirements.txt
 ```
 
+If you have Anaconda
+
+```
+conda install --f requirements.txt
+```
+
 We do not provide the MIMIC-III data itself. You must acquire the data yourself from https://mimic.physionet.org/. Specifically, download the CSVs. Otherwise, generally we make liberal use of the following packages:
 
 - numpy
