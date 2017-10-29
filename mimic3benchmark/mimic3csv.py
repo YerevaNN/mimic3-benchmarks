@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import sys
 import psycopg2
+import json
 
 from pandas import DataFrame
 
@@ -40,39 +41,70 @@ def query(sql, config):
     cur = conn.cursor()
     cur.execute("SET search_path TO mimiciii")
     return pd.read_sql(sql, conn)
-
-def read_patients_table(mimic3_path):
-    pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
+def get_config(path):
+    '''
+    Gets the config to connect to database (stored in json file)
+    :param path to the json
+    :return an object with fields to key info about connection to database
+    '''
+    try:
+        config = json.load(open(path, "r"))
+    except:
+        print "could not open path: " + path
+    return config
+def read_patients_table(mimic3_path, use_db = False):
+    if (use_db):
+        pats = query("SELECT * FROM patients", get_config(mimic3_path))
+        pats.columns = pats.columns.str.upper()
+    else:
+        pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
     pats = pats[['SUBJECT_ID', 'GENDER', 'DOB', 'DOD']]
     pats.DOB = pd.to_datetime(pats.DOB)
     pats.DOD = pd.to_datetime(pats.DOD)
     return pats
 
-def read_admissions_table(mimic3_path):
-    admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
+def read_admissions_table(mimic3_path, use_db = False):
+    if (use_db):
+        admits = query("SELECT * FROM admissions", get_config(mimic3_path))
+        admits.columns = admits.columns.str.upper()
+    else:
+        admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
     admits = admits[['SUBJECT_ID', 'HADM_ID', 'ADMITTIME', 'DISCHTIME', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
     admits.ADMITTIME = pd.to_datetime(admits.ADMITTIME)
     admits.DISCHTIME = pd.to_datetime(admits.DISCHTIME)
     admits.DEATHTIME = pd.to_datetime(admits.DEATHTIME)
     return admits
 
-def read_icustays_table(mimic3_path):
-    stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
+def read_icustays_table(mimic3_path, use_db = False):
+    if (use_db):
+        stays = query("SELECT * FROM ICUSTAYS", get_config(mimic3_path))
+        stays.columns = stays.columns.str.upper()
+    else:
+        stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
     stays.INTIME = pd.to_datetime(stays.INTIME)
     stays.OUTTIME = pd.to_datetime(stays.OUTTIME)
     return stays
 
-def read_icd_diagnoses_table(mimic3_path):
-    codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
+def read_icd_diagnoses_table(mimic3_path, use_db = False):
+    if (use_db):
+        codes = query("SELECT * FROM D_ICD_DIAGNOSES", get_config(mimic3_path))
+        codes.columns = codes.columns.str.upper()
+    else:
+        codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
     codes = codes[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']]
     diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
     diagnoses = diagnoses.merge(codes, how='inner', left_on='ICD9_CODE', right_on='ICD9_CODE')
     diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']] = diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']].astype(int)
     return diagnoses
 
-def read_events_table_by_row(mimic3_path, table):
+def read_events_table_by_row(mimic3_path, table, use_db = False, items_to_keep = None, subjects_to_keep = None):
     nb_rows = { 'chartevents': 263201376, 'labevents': 27872576, 'outputevents': 4349340 }
-    reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '.csv'), 'r'))
+    if (use_db):
+        events = query("SELECT * FROM table WHERE subject_id in " + convertListToSQL(subjects_to_keep) " AND itemid in " + convertListToSQL(items_to_keep), get_config(mimic3_path))
+        events.columns = events.columns.str.upper()
+        reader = events.iterrows()
+    else:
+        reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '.csv'), 'r'))
     for i,row in enumerate(reader):
         if 'ICUSTAY_ID' not in row:
             row['ICUSTAY_ID'] = ''
@@ -161,7 +193,7 @@ def break_up_diagnoses_by_subject(diagnoses, output_path, subjects=None, verbose
     if verbose:
         sys.stdout.write('DONE!\n')
 
-def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, items_to_keep=None, subjects_to_keep=None, verbose=1):
+def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, items_to_keep=None, subjects_to_keep=None, verbose=1, use_db = False):
     obs_header = [ 'SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'CHARTTIME', 'ITEMID', 'VALUE', 'VALUEUOM' ]
     if items_to_keep is not None:
         items_to_keep = set([ str(s) for s in items_to_keep ])
@@ -192,7 +224,7 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
         w.writerows(nonlocal.curr_obs)
         nonlocal.curr_obs = []
     
-    for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table):
+    for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table, items_to_keep, subjects_to_keep):
         if verbose and (row_no % 100000 == 0):
             if nonlocal.last_write_no != '':
                 sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
