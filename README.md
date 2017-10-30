@@ -68,6 +68,24 @@ If you are using Anaconda, setting the PYTHONPATH may cause problems, so you may
 ```
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 ```
+
+If you are using SQL (currently only PostgreSQL support), create the following json:
+```
+{
+  "dbname": "mimic",
+  "user": "username",
+  "host": "hostname",
+  "password": "password",
+  "port": "port"
+}
+```
+replacing, of course, with the specific config to connect.
+
+Then run this:
+```
+       python scripts/extract_subjects.py [PATH TO JSON FILE] data/root/ --use_db
+```
+
 4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
 ```
        python scripts/validate_events.py data/root/
