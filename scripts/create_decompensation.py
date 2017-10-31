@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 import numpy as np
@@ -24,10 +26,10 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0,
         os.mkdir(output_dir)
     
     xty_triples = []
-    patients = filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition)))
+    patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
     for (patient_index, patient) in enumerate(patients):
         patient_folder = os.path.join(args.root_path, partition, patient)
-        patient_ts_files = filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder))
+        patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
         stays_df = pd.read_csv(os.path.join(patient_folder, "stays.csv"))
         
         for ts_filename in patient_ts_files:
@@ -43,7 +45,7 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0,
                 
                 los = 24.0 * label_df.iloc[0]['Length of Stay'] # in hours
                 if (pd.isnull(los)):
-                    print "(length of stay is missing)", patient, ts_filename
+                    print("(length of stay is missing)", patient, ts_filename)
                     continue
                 
                 stay = stays_df[stays_df.ICUSTAY_ID == label_df.iloc[0]['Icustay']]
@@ -52,7 +54,7 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0,
                 if (pd.isnull(deathtime)):
                     lived_time = 1e18
                 else:
-                    lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -\
+                    lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -
                                   datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
                 
                 ts_lines = tsfile.readlines()
@@ -67,15 +69,15 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0,
                 
                 # no measurements in ICU
                 if (len(ts_lines) == 0):
-                    print "(no events in ICU) ", patient, ts_filename
+                    print("(no events in ICU) ", patient, ts_filename)
                     continue
                 
                 sample_times = np.arange(0.0, min(los, lived_time) + eps, sample_rate)
                 
-                sample_times = filter(lambda x: x > shortest_length, sample_times)
+                sample_times = list(filter(lambda x: x > shortest_length, sample_times))
                 
                 # At least one measurement
-                sample_times = filter(lambda x: x > event_times[0], sample_times)
+                sample_times = list(filter(lambda x: x > event_times[0], sample_times))
                 
                 output_ts_filename = patient + "_" + ts_filename
                 with open(os.path.join(output_dir, output_ts_filename), "w") as outfile:
@@ -91,9 +93,9 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4.0,
                     xty_triples.append((output_ts_filename, t, cur_mortality))
                 
         if ((patient_index + 1) % 100 == 0):
-            print "\rprocessed %d / %d patients" % (patient_index + 1, len(patients)),
+            print("\rprocessed {} / {} patients".format(patient_index + 1, len(patients)))
 
-    print len(xty_triples)
+    print(len(xty_triples))
     if partition == "train":
         random.shuffle(xty_triples)
     if partition == "test":

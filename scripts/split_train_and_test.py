@@ -24,7 +24,7 @@ def move_to_partition(patients, partition):
 
 
 folders = os.listdir(args.subjects_root_path)
-folders = filter(str.isdigit, folders)
+folders = list((filter(str.isdigit, folders)))
 train_patients = [x for x in folders if not x in testset]
 test_patients = [x for x in folders if x in testset]
 

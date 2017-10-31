@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 
@@ -14,10 +16,10 @@ def main():
     parser.add_argument('subjects_root_path', type=str,
                         help='Directory containing subject sub-directories.')
     args = parser.parse_args()
-    print args
+    print(args)
     
     subfolders = os.listdir(args.subjects_root_path)
-    subjects = filter(is_subject_folder, subfolders)
+    subjects = list(filter(is_subject_folder, subfolders))
     
     # get mapping for subject
     maps = {}
@@ -88,8 +90,8 @@ def main():
                 f.write(new_line)
         
         if (index % 100 == 0):
-            print "processed %d / %d" % (index+1, len(subjects)), "         \r",
-    print ""    
+            print("processed %d / %d" % (index+1, len(subjects)), "         \r")
+    print("")
     
     #print bad_pairs
     print('n_events', n_events,

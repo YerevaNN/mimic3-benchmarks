@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import re
 
@@ -77,6 +79,9 @@ def make_phenotype_label_matrix(phenotypes, stays=None):
 
 def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
     var_map = DataFrame.from_csv(fn, index_col=None).fillna('').astype(str)
+
+    var_map.COUNT = var_map.COUNT.astype(int)
+
     var_map = var_map.ix[(var_map[variable_column] != '') & (var_map.COUNT>0)]
     var_map = var_map.ix[(var_map.STATUS == 'ready')]
     var_map.ITEMID = var_map.ITEMID.astype(int)
@@ -138,7 +143,7 @@ def clean_crr(df):
 # FIO2: many 0s, some 0<x<0.2 or 1<x<20
 def clean_fio2(df):
     v = df.VALUE.astype(float)
-    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (df.VALUE>1.0)
+    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (v>1.0)
     v.ix[idx] = v[idx] / 100.
     return v
 
@@ -212,13 +217,13 @@ clean_fns = {
 }
 def clean_events(events):
     global cleaning_fns
-    for var_name, clean_fn in clean_fns.iteritems():
+    for var_name, clean_fn in clean_fns.items():
         idx = (events.VARIABLE == var_name)
         try:
             events.VALUE.ix[idx] = clean_fn(events.ix[idx])
-        except:
-            print "Exception in clean_events:", clean_fn.__name__
-            print "number of rows:", np.sum(idx)
-            print "values:", events.ix[idx]
+        except Exception as e:
+            print("Exception in clean_events:", clean_fn.__name__, e)
+            print("number of rows:", np.sum(idx))
+            print("values:", events.ix[idx])
             exit()
     return events.ix[events.VALUE.notnull()]
