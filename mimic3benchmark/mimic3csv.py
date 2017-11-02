@@ -134,17 +134,21 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
     if subjects_to_keep is not None:
         subjects_to_keep = set([ str(s) for s in subjects_to_keep ])
 
-    class nonlocal: pass
-    nonlocal.curr_subject_id = ''
-    nonlocal.last_write_no = 0
-    nonlocal.last_write_nb_rows = 0
-    nonlocal.last_write_subject_id = ''
-    nonlocal.curr_obs = []
+    class DataStats(object):
+        def __init__(self):
+            self.curr_subject_id = ''
+            self.last_write_no = 0
+            self.last_write_nb_rows = 0
+            self.last_write_subject_id = ''
+            self.curr_obs = []
+
+    data_stats = DataStats()
+
     def write_current_observations():
-        nonlocal.last_write_no += 1
-        nonlocal.last_write_nb_rows = len(nonlocal.curr_obs)
-        nonlocal.last_write_subject_id = nonlocal.curr_subject_id
-        dn = os.path.join(output_path, str(nonlocal.curr_subject_id))
+        data_stats.last_write_no += 1
+        data_stats.last_write_nb_rows = len(data_stats.curr_obs)
+        data_stats.last_write_subject_id = data_stats.curr_subject_id
+        dn = os.path.join(output_path, str(data_stats.curr_subject_id))
         try:
             os.makedirs(dn)
         except:
@@ -155,17 +159,17 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
             f.write(','.join(obs_header) + '\n')
             f.close()
         w = csv.DictWriter(open(fn, 'a'), fieldnames=obs_header, quoting=csv.QUOTE_MINIMAL)
-        w.writerows(nonlocal.curr_obs)
-        nonlocal.curr_obs = []
+        w.writerows(data_stats.curr_obs)
+        data_stats.curr_obs = []
     
     for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table):
         if verbose and (row_no % 100000 == 0):
-            if nonlocal.last_write_no != '':
+            if data_stats.last_write_no != '':
                 sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
                                  '({3}) {4} rows for subject {5}'.format(table, row_no, nb_rows,
-                                                                         nonlocal.last_write_no,
-                                                                         nonlocal.last_write_nb_rows,
-                                                                         nonlocal.last_write_subject_id))
+                                                                         data_stats.last_write_no,
+                                                                         data_stats.last_write_nb_rows,
+                                                                         data_stats.last_write_subject_id))
             else:
                 sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...'.format(table, row_no, nb_rows))
         
@@ -181,17 +185,17 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
                     'ITEMID': row['ITEMID'],
                     'VALUE': row['VALUE'],
                     'VALUEUOM': row['VALUEUOM'] }
-        if nonlocal.curr_subject_id != '' and nonlocal.curr_subject_id != row['SUBJECT_ID']:
+        if data_stats.curr_subject_id != '' and data_stats.curr_subject_id != row['SUBJECT_ID']:
             write_current_observations()
-        nonlocal.curr_obs.append(row_out)
-        nonlocal.curr_subject_id = row['SUBJECT_ID']
+        data_stats.curr_obs.append(row_out)
+        data_stats.curr_subject_id = row['SUBJECT_ID']
         
-    if nonlocal.curr_subject_id != '':
+    if data_stats.curr_subject_id != '':
         write_current_observations()
 
     if verbose and (row_no % 100000 == 0):
         sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
                          '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
-                                                                 nonlocal.last_write_no,
-                                                                 nonlocal.last_write_nb_rows,
-                                                                 nonlocal.last_write_subject_id))
+                                                                 data_stats.last_write_no,
+                                                                 data_stats.last_write_nb_rows,
+                                                                 data_stats.last_write_subject_id))
