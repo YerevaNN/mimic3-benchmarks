@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 import numpy as np
@@ -11,7 +13,7 @@ random.seed(49297)
 parser = argparse.ArgumentParser(description="Create data for multitask prediction.")
 parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
 parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-parser.add_argument('--phenotype_definitions', '-p', type=unicode, default='resources/hcup_ccs_2015_definitions.yaml',
+parser.add_argument('--phenotype_definitions', '-p', type=str, default='resources/hcup_ccs_2015_definitions.yaml',
                     help='YAML file with phenotype definitions.')
 args, _ = parser.parse_known_args()
 
@@ -57,11 +59,11 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
     swat_masks = []
     swat_labels = []
     
-    patients = filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition)))
+    patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
     
     for (patient_index, patient) in enumerate(patients):
         patient_folder = os.path.join(args.root_path, partition, patient)
-        patient_ts_files = filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder))
+        patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
         stays_df = pd.read_csv(os.path.join(patient_folder, "stays.csv"))
         
         for ts_filename in patient_ts_files:
@@ -71,13 +73,13 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                 
                 # empty label file, skip globally
                 if (label_df.shape[0] == 0):
-                    print "\n\t(empty label file)", patient, ts_filename
+                    print("\n\t(empty label file)", patient, ts_filename)
                     continue
                 
                 # find length of stay, skip globally if it is missing
                 los = 24.0 * label_df.iloc[0]['Length of Stay'] # in hours
                 if (pd.isnull(los)):
-                    print "\n\t(length of stay is missing)", patient, ts_filename
+                    print("\n\t(length of stay is missing)", patient, ts_filename)
                     continue
                 
                 # find all event in ICU, skip globally if there is no event in ICU
@@ -91,7 +93,7 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                                 if t > -eps and t < los - eps]
                 
                 if (len(ts_lines) == 0):
-                    print "\n\t(no events in ICU) ", patient, ts_filename
+                    print("\n\t(no events in ICU) ", patient, ts_filename)
                     continue
                 
                 # add length of stay
@@ -171,13 +173,13 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                 swat_labels.append(cur_swat_labels)
         
         if ((patient_index + 1) % 100 == 0):
-            print "\rprocessed %d / %d patients" % (patient_index + 1, len(patients)),
+            print("\rprocessed {} / {} patients" .format(patient_index + 1, len(patients)))
     
     def permute(arr, p):
         return [arr[index] for index in p]
     
     if partition == "train":
-        perm = range(len(filenames))
+        perm = list(range(len(filenames)))
         random.shuffle(perm)
     if partition == "test":
         perm = list(np.argsort(filenames))

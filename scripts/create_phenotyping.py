@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 import pandas as pd
@@ -9,7 +11,7 @@ random.seed(49297)
 parser = argparse.ArgumentParser(description="Create data for phenotype classification task.")
 parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
 parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-parser.add_argument('--phenotype_definitions', '-p', type=unicode, default='resources/hcup_ccs_2015_definitions.yaml',
+parser.add_argument('--phenotype_definitions', '-p', type=str, default='resources/hcup_ccs_2015_definitions.yaml',
                     help='YAML file with phenotype definitions.')
 args, _ = parser.parse_known_args()
 
@@ -35,14 +37,14 @@ if not os.path.exists(args.output_path):
 
 def process_partition(partition, eps=1e-6):
     output_dir = os.path.join(args.output_path, partition)
-    if (not os.path.exists(output_dir)):
+    if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     
     xty_triples = []
-    patients = filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition)))
+    patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
     for (patient_index, patient) in enumerate(patients):
         patient_folder = os.path.join(args.root_path, partition, patient)
-        patient_ts_files = filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder))
+        patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
         
         for ts_filename in patient_ts_files:
             with open(os.path.join(patient_folder, ts_filename)) as tsfile:
@@ -55,7 +57,7 @@ def process_partition(partition, eps=1e-6):
 
                 los = 24.0 * label_df.iloc[0]['Length of Stay'] # in hours
                 if (pd.isnull(los)):
-                    print "\n\t(length of stay is missing)", patient, ts_filename
+                    print("\n\t(length of stay is missing)", patient, ts_filename)
                     continue
                 
                 ts_lines = tsfile.readlines()
@@ -70,7 +72,7 @@ def process_partition(partition, eps=1e-6):
                 
                 # no measurements in ICU
                 if (len(ts_lines) == 0):
-                    print "\n\t(no events in ICU) ", patient, ts_filename
+                    print("\n\t(no events in ICU) ", patient, ts_filename)
                     continue
                 
                 output_ts_filename = patient + "_" + ts_filename
@@ -98,9 +100,9 @@ def process_partition(partition, eps=1e-6):
                 xty_triples.append((output_ts_filename, los, cur_labels))
                 
         if ((patient_index + 1) % 100 == 0):
-            print "\rprocessed %d / %d patients" % (patient_index + 1, len(patients)),
+            print("\rprocessed {} / {} patients".format(patient_index + 1, len(patients)))
 
-    print "\n", len(xty_triples)
+    print("\n", len(xty_triples))
     if partition == "train":
         random.shuffle(xty_triples)
     if partition == "train":

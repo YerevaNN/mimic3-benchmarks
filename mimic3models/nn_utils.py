@@ -16,7 +16,7 @@ class BaseNetwork:
         if not os.path.exists(os.path.dirname(file_name)):
             os.makedirs(os.path.dirname(file_name))
         
-        with open(file_name, 'w') as save_file:
+        with open(file_name, 'wb') as save_file:
             pickle.dump(
                 obj = {
                     'params' : [x.get_value() for x in self.params],
@@ -30,7 +30,7 @@ class BaseNetwork:
     def load_state(self, file_name):
         print "==> loading state %s" % file_name
         epoch = 0
-        with open(file_name, 'r') as load_file:
+        with open(file_name, 'rb') as load_file:
             dict = pickle.load(load_file)
             loaded_params = dict['params']
             assert(len(self.params) == len(loaded_params))

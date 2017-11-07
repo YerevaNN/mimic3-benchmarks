@@ -16,7 +16,7 @@ def check_decreasing(a, k, eps):
     return True
 
 
-def process_single(filename, verbose):
+def process_single(filename, verbose, select):
     if verbose:
         print("Processing log file: {}".format(filename))
 
@@ -96,6 +96,9 @@ def process_single(filename, verbose):
     val_max_pos = np.argmax(val_metrics)
     if len(val_metrics) - val_max_pos >= 8 and val_max - last_val > tol:
         rerun = False
+
+    if not select:
+        rerun = True
 
     if verbose:
         print("\trerun = {}".format(rerun))
@@ -183,6 +186,9 @@ def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument('logs', type=str, nargs='+')
     argparser.add_argument('--verbose', type=int, default=0)
+    argparser.add_argument('--select', dest='select', action='store_true')
+    argparser.add_argument('--no-select', dest='select', action='store_false')
+    argparser.set_defaults(select=True)
     args = argparser.parse_args()
 
     if not isinstance(args.logs, list):
@@ -192,7 +198,7 @@ def main():
     for log in args.logs:
         if log.find(".log") == -1:  # not a log file or is a not renamed log file
             continue
-        ret = process_single(log, args.verbose)
+        ret = process_single(log, args.verbose, args.select)
         if ret:
             rerun += [ret]
     rerun = sorted(rerun, key=lambda x: x["last_val"], reverse=True)

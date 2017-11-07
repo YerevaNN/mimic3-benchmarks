@@ -11,9 +11,9 @@ from mimic3benchmark.preprocessing import transform_gender, transform_ethnicity,
 
 parser = argparse.ArgumentParser(description='Extract episodes from per-subject data.')
 parser.add_argument('subjects_root_path', type=str, help='Directory containing subject sub-directories.')
-parser.add_argument('--variable_map_file', type=unicode, default='resources/itemid_to_variable_map.csv',
+parser.add_argument('--variable_map_file', type=str, default='resources/itemid_to_variable_map.csv',
                     help='CSV containing ITEMID-to-VARIABLE map.')
-parser.add_argument('--reference_range_file', type=unicode, default='resources/variable_ranges.csv',
+parser.add_argument('--reference_range_file', type=str, default='resources/variable_ranges.csv',
                     help='CSV containing reference ranges for VARIABLEs.')
 parser.add_argument('--verbose', '-v', type=int, help='Level of verbosity in output.', default=1)
 args, _ = parser.parse_known_args()
