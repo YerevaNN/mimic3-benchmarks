@@ -51,7 +51,7 @@ def get_config(path):
     try:
         config = json.load(open(path, "r"))
     except:
-        print "could not open path: " + path
+        print("could not open path: " + path)
     return config
 def read_patients_table(mimic3_path, use_db = False):
     if (use_db):
