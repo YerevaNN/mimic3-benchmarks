@@ -106,14 +106,14 @@ if args.load_state != "":
 # Load data and prepare generators
 if args.deep_supervision:
     train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size)
+                                        discretizer, normalizer, args.batch_size, True)
     val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size)
+                                        discretizer, normalizer, args.batch_size, False)
 else:
     # Set number of batches in one epoch
     train_nbatches = 2000
     val_nbatches = 1000
-    if (args.small_part):
+    if args.small_part:
         train_nbatches = 20
         val_nbatches = 20
 
@@ -122,16 +122,15 @@ else:
                                     normalizer=normalizer,
                                     partition=args.partition,
                                     batch_size=args.batch_size,
-                                    steps=train_nbatches)
+                                    steps=train_nbatches,
+                                    shuffle=True)
     val_data_gen = utils.BatchGen(reader=val_reader,
-                                discretizer=discretizer,
-                                normalizer=normalizer,
-                                partition=args.partition,
-                                batch_size=args.batch_size,
-                                steps=val_nbatches)
-    #val_data_gen.steps = val_reader.get_number_of_examples() // args.batch_size
-    #train_data_gen.steps = train_reader.get_number_of_examples() // args.batch_size
-
+                                  discretizer=discretizer,
+                                  normalizer=normalizer,
+                                  partition=args.partition,
+                                  batch_size=args.batch_size,
+                                  steps=val_nbatches,
+                                  shuffle=False)
 
 if args.mode == 'train':
 
@@ -181,7 +180,7 @@ elif args.mode == 'test':
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/test/',
                                                                   listfile='../../data/length-of-stay/test_listfile.csv')
         test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, args.partition,
-                                                      discretizer, normalizer, args.batch_size)
+                                                      discretizer, normalizer, args.batch_size, False)
 
         for i in range(test_data_gen.steps):
             print "\r\tdone {}/{}".format(i, test_data_gen.steps),
@@ -202,17 +201,16 @@ elif args.mode == 'test':
         test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
                                         listfile='../../data/length-of-stay/test_listfile.csv')
 
-        test_nbatches = test_reader.get_number_of_examples() // args.batch_size
-        test_nbatches = 10000
         test_data_gen = utils.BatchGen(reader=test_reader,
-                                    discretizer=discretizer,
-                                    normalizer=normalizer,
-                                    partition=args.partition,
-                                    batch_size=args.batch_size,
-                                    steps=test_nbatches)
+                                       discretizer=discretizer,
+                                       normalizer=normalizer,
+                                       partition=args.partition,
+                                       batch_size=args.batch_size,
+                                       steps=10000,  # put steps = None for a full test
+                                       shuffle=False)
 
-        for i in range(test_nbatches):
-            print "\rpredicting {} / {}".format(i, test_nbatches),
+        for i in range(test_data_gen.steps):
+            print "\rpredicting {} / {}".format(i, test_data_gen.steps),
             x, y_processed, y = test_data_gen.next(return_y_true=True)
             x = np.array(x)
             pred = model.predict_on_batch(x)
@@ -228,7 +226,10 @@ elif args.mode == 'test':
     if args.partition == 'none':
         metrics.print_metrics_regression(labels, predictions)
 
-    with open("activations.txt", "w") as fout:
+    if not os.path.exists("test_predictions"):
+        os.makedirs("test_predictions")
+
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
         fout.write("prediction, y_true")
         for (x, y) in zip(predictions, labels):
             fout.write("%.6f, %.6f\n" % (x, y))

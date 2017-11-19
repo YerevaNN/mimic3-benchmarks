@@ -140,7 +140,7 @@ def process_single(filename, verbose, select):
     target_repl_coef = parse_utils.parse_target_repl_coef(log)
 
     command = "python -u keras_main.py --network {} --prefix {} --dim {}"\
-              " --depth {} --epochs 60 --batch_size 8 --timestep 1.0"\
+              " --depth {} --epochs 100 --batch_size 8 --timestep 1.0"\
               " --load_state {}".format(network, prefix, dim, depth,  last_state)
 
     if network.find('channel') != -1:

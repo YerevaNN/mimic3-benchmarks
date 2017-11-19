@@ -15,7 +15,7 @@ def read_chunk(reader, chunk_size):
 
 def load_data(reader, discretizer, normalizer, small_part=False):
     N = reader.get_number_of_examples()
-    if (small_part == True):
+    if small_part:
         N = 1000
     (data, ts, labels, header) = read_chunk(reader, N)
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]

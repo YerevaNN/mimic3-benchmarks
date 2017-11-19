@@ -78,18 +78,18 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
     def calc_metrics(self, data, history, dataset, logs):
         y_true = []
         predictions = []
-        for i in range(0, len(data[0]), self.batch_size):
+        B = self.batch_size
+        for i in range(0, len(data[0]), B):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, len(data[0])),
-            (x,y) = (data[0][i:i+self.batch_size], data[1][i:i+self.batch_size])
-            if len(y) == 2: # target replication
+            (x,y) = (data[0][i:i+B], data[1][i:i+B])
+            outputs = self.model.predict(x, batch_size=B)
+
+            if isinstance(y[0], list): # target replication
                 y_true += list(y[0].flatten())
-            else:
-                y_true += list(np.array(y).flatten())
-            outputs = self.model.predict(x, batch_size=self.batch_size)
-            if len(outputs) == 2:
                 predictions += list(outputs[0].flatten())
             else:
+                y_true += list(np.array(y).flatten())
                 predictions += list(outputs.flatten())
         print "\n"
         predictions = np.array(predictions)
@@ -132,16 +132,16 @@ class MetricsMultilabel(keras.callbacks.Callback):
             if self.verbose == 1:
                 print "\r\tdone {}/{}".format(i, data_gen.steps),
             (x, y) = next(data_gen)
-            if len(y) == 2:
-                y_true += list(y[0])
-            else:
-                y_true += list(y)
             outputs = self.model.predict(x, batch_size=self.batch_size)
-            if len(outputs) == 2:
+
+            if data_gen.target_repl:
+                y_true += list(y[0])
                 predictions += list(outputs[0])
             else:
+                y_true += list(y)
                 predictions += list(outputs)
         print "\n"
+
         predictions = np.array(predictions)
         ret = metrics.print_metrics_multilabel(y_true, predictions)
         for k, v in ret.iteritems():
@@ -225,6 +225,7 @@ class MetricsLOS(keras.callbacks.Callback):
             if max_kappa > 0.38 and cur_kappa < 0.35 and max_train_kappa > 0.47:
                 self.model.stop_training = True
 
+
 class MetricsMultitask(keras.callbacks.Callback):
 
     def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, early_stopping=True, verbose=2):
@@ -260,7 +261,7 @@ class MetricsMultitask(keras.callbacks.Callback):
             decomp_M = X[2]
             los_M = X[3]
 
-            if len(outputs) == 4: # no target replication
+            if not data_gen.target_repl: # no target replication
                 (ihm_p, decomp_p, los_p, pheno_p) = outputs
                 (ihm_t, decomp_t, los_t, pheno_t) = y
             else: # target replication
@@ -351,7 +352,9 @@ class MetricsMultitask(keras.callbacks.Callback):
             if (pheno_max_auc > 0.75 and pheno_cur_auc < 0.73) and (ihm_max_auc > 0.85 and ihm_cur_auc < 0.83):
                 self.model.stop_training = True
 
+
 # ===================== LAYERS ===================== #                        
+
 
 def softmax(x, axis, mask=None):
     if mask is None:

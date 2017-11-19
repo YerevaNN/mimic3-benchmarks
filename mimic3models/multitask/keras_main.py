@@ -140,15 +140,17 @@ train_data_gen = utils.BatchGen(reader=train_reader,
                                 partition=args.partition,
                                 target_repl=target_repl,
                                 batch_size=args.batch_size,
-                                small_part=args.small_part)
+                                small_part=args.small_part,
+                                shuffle=True)
 val_data_gen = utils.BatchGen(reader=val_reader,
-                                discretizer=discretizer,
-                                normalizer=normalizer,
-                                ihm_pos=args_dict['ihm_pos'],
-                                partition=args.partition,
-                                target_repl=target_repl,
-                                batch_size=args.batch_size,
-                                small_part=args.small_part)
+                              discretizer=discretizer,
+                              normalizer=normalizer,
+                              ihm_pos=args_dict['ihm_pos'],
+                              partition=args.partition,
+                              target_repl=target_repl,
+                              batch_size=args.batch_size,
+                              small_part=args.small_part,
+                              shuffle=False)
 
 if args.mode == 'train':
     
@@ -192,13 +194,14 @@ elif args.mode == 'test':
                               listfile='../../data/multitask/test_listfile.csv')
 
     test_data_gen = utils.BatchGen(reader=test_reader,
-                                discretizer=discretizer,
-                                normalizer=normalizer,
-                                ihm_pos=args_dict['ihm_pos'],
-                                partition=args.partition,
-                                target_repl=target_repl,
-                                batch_size=args.batch_size,
-                                small_part=args.small_part)
+                                   discretizer=discretizer,
+                                   normalizer=normalizer,
+                                   ihm_pos=args_dict['ihm_pos'],
+                                   partition=args.partition,
+                                   target_repl=target_repl,
+                                   batch_size=args.batch_size,
+                                   small_part=args.small_part,
+                                   shuffle=False)
     ihm_y_true = []
     decomp_y_true = []
     los_y_true = []
@@ -307,9 +310,10 @@ elif args.mode == 'test_single':
     ihm_y_true = []
     ihm_pred = []
 
-    nsteps = test_reader.get_number_of_examples() // args.batch_size
-    for iteration in range(nsteps):
-        (X, ts, labels, header) = read_chunk(test_reader, args.batch_size)
+    n_examples = test_reader.get_number_of_examples()
+    for i in range(0, n_examples, args.batch_size):
+        j = min(i + args.batch_size, n_examples)
+        (X, ts, labels, header) = read_chunk(test_reader, j - i)
 
         for i in range(args.batch_size):
             X[i] = discretizer.transform(X[i], end=48.0)[0]

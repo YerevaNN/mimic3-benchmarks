@@ -97,23 +97,20 @@ if args.load_state != "":
 # Load data and prepare generators
 if args.deep_supervision:
     train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, discretizer,
-                                                normalizer, args.batch_size)
+                                                   normalizer, args.batch_size, True)
     val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, discretizer,
-                                                normalizer, args.batch_size)
+                                                 normalizer, args.batch_size, False)
 else:
     # Set number of batches in one epoch
     train_nbatches = 2000
     val_nbatches = 1000
-    if (args.small_part):
+    if args.small_part:
         train_nbatches = 40
         val_nbatches = 40
     train_data_gen = utils.BatchGen(train_reader, discretizer,
-                                normalizer, args.batch_size, train_nbatches)
+                                    normalizer, args.batch_size, train_nbatches, True)
     val_data_gen = utils.BatchGen(val_reader, discretizer,
-                                  normalizer, args.batch_size, val_nbatches)
-    #train_data_gen.steps = train_reader.get_number_of_examples() // args.batch_size
-    #val_data_gen.steps = val_reader.get_number_of_examples() // args.batch_size
-
+                                  normalizer, args.batch_size, val_nbatches, False)
 
 if args.mode == 'train':
     
@@ -163,7 +160,7 @@ elif args.mode == 'test':
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/test/',
                                                                   listfile='../../data/decompensation/test_listfile.csv')
         test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, discretizer,
-                                                      normalizer, args.batch_size)
+                                                      normalizer, args.batch_size, False)
 
         for i in range(test_data_gen.steps):
             print "\r\tdone {}/{}".format(i, test_data_gen.steps),
@@ -181,14 +178,12 @@ elif args.mode == 'test':
         test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
                                            listfile='../../data/decompensation/test_listfile.csv')
 
-        test_nbatches = test_reader.get_number_of_examples() // args.batch_size
-        test_nbatches = 10000
         test_data_gen = utils.BatchGen(test_reader, discretizer,
-                                        normalizer, args.batch_size,
-                                        test_nbatches)
+                                       normalizer, args.batch_size,
+                                       1000, False)  # put steps = None for a full test
 
-        for i in range(test_nbatches):
-            print "\rpredicting {} / {}".format(i, test_nbatches),
+        for i in range(test_data_gen.steps):
+            print "\rpredicting {} / {}".format(i, test_data_gen.steps),
             x, y = next(test_data_gen)
             x = np.array(x)
             pred = model.predict_on_batch(x)[:, 0]
@@ -196,7 +191,11 @@ elif args.mode == 'test':
             labels += list(y)
 
     metrics.print_metrics_binary(labels, predictions)
-    with open("activations.txt", "w") as fout:
+
+    if not os.path.exists("test_predictions"):
+        os.makedirs("test_predictions")
+
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
         fout.write("predictions, labels\n")
         for (x, y) in zip(predictions, labels):
             fout.write("%.6f, %d\n" % (x, y))

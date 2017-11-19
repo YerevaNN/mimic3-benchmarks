@@ -19,7 +19,7 @@ def read_chunk(reader, chunk_size):
 
 def load_data(reader, discretizer, normalizer, small_part=False, pad=False):
     N = reader.get_number_of_examples()
-    if (small_part == True):
+    if small_part:
         N = 1000
     (data, ts, ys, header) = read_chunk(reader, N)
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
@@ -34,11 +34,12 @@ def load_data(reader, discretizer, normalizer, small_part=False, pad=False):
 class BatchGen(object):
 
     def __init__(self, reader, discretizer, normalizer,
-                 batch_size, small_part, target_repl):
+                 batch_size, small_part, target_repl, shuffle):
         self.data = load_data(reader, discretizer, normalizer, small_part)
         self.batch_size = batch_size
         self.target_repl = target_repl
-        self.steps = len(self.data[0]) // batch_size
+        self.steps = (len(self.data[0]) + batch_size - 1) // batch_size
+        self.shuffle = shuffle
         self.lock = threading.Lock()
         self.generator = self._generator()
 

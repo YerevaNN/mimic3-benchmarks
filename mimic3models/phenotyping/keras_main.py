@@ -97,10 +97,10 @@ if args.load_state != "":
 # Build data generators
 train_data_gen = utils.BatchGen(train_reader, discretizer,
                                 normalizer, args.batch_size,
-                                args.small_part, target_repl)
+                                args.small_part, target_repl, True)
 val_data_gen = utils.BatchGen(val_reader, discretizer,
                               normalizer, args.batch_size,
-                              args.small_part, target_repl)
+                              args.small_part, target_repl, False)
 
 if args.mode == 'train':
     
@@ -144,15 +144,13 @@ elif args.mode == 'test':
                     listfile='../../data/phenotyping/test_listfile.csv')
     
     test_data_gen = utils.BatchGen(test_reader, discretizer,
-                                    normalizer, args.batch_size,
-                                    args.small_part, target_repl)
-    test_nbatches = test_data_gen.steps
-    #test_nbatches = 2
+                                   normalizer, args.batch_size,
+                                   args.small_part, target_repl, False)
 
     labels = []
     predictions = []
-    for i in range(test_nbatches):
-        print "\rpredicting {} / {}".format(i, test_nbatches),
+    for i in range(test_data_gen.steps):
+        print "\rpredicting {} / {}".format(i, test_data_gen.steps),
         x, y = next(test_data_gen)
         x = np.array(x)
         pred = model.predict_on_batch(x)
@@ -176,6 +174,20 @@ elif args.mode == 'test':
     
     np.savetxt("activations.csv", predictions, delimiter=',')
     np.savetxt("answer.csv", np.array(labels, dtype=np.int32), delimiter=',')
+
+    if not os.path.exists("test_predictions"):
+        os.makedirs("test_predictions")
+
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
+        header = ["pred_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
+        header += ["label_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
+        header = ",".join(header)
+        fout.write(header + '\n')
+        for x, y in zip(predictions, labels):
+            line = ["{:.6f}".format(a) for a in x]
+            line += [str(a) for a in y]
+            line = ",".join(line)
+            fout.write(line + '\n')
 
 else:
     raise ValueError("Wrong value for args.mode")

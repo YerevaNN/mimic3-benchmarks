@@ -166,9 +166,12 @@ elif args.mode == 'test':
                                 batch_size=args.batch_size,
                                 verbose=1)
     predictions = np.array(predictions)[:, 0]
-
     metrics.print_metrics_binary(labels, predictions)
-    with open("activations.txt", "w") as fout:
+
+    if not os.path.exists("test_predictions"):
+        os.makedirs("test_predictions")
+
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
         fout.write("predictions, labels\n")
         for (x, y) in zip(predictions, labels):
             fout.write("%.6f, %d\n" % (x, y))

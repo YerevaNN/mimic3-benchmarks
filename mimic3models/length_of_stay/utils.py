@@ -29,43 +29,55 @@ def preprocess_chunk(data, ts, discretizer, normalizer=None):
 class BatchGen(object):
 
     def __init__(self, reader, partition, discretizer, normalizer,
-                 batch_size, steps):
-
+                 batch_size, steps, shuffle):
         self.reader = reader
         self.partition = partition
         self.discretizer = discretizer
         self.normalizer = normalizer
         self.batch_size = batch_size
-        self.steps = steps
-        self.chunk_size = min(10000, steps * batch_size)
+
+        if steps is None:
+            self.n_examples = reader.get_number_of_examples()
+            self.steps = (self.n_examples + batch_size - 1) // batch_size
+        else:
+            self.n_examples = steps * batch_size
+            self.steps = steps
+
+        self.shuffle = shuffle
+        self.chunk_size = min(1024, steps) * batch_size
         self.lock = threading.Lock()
         self.generator = self._generator()
 
     def _generator(self):
         B = self.batch_size
         while True:
-            self.reader.random_shuffle()
-            (data, ts, labels, header) = read_chunk(self.reader, self.chunk_size)
-            data = preprocess_chunk(data, ts, self.discretizer, self.normalizer)
-            data = (data, labels)
-            data = common_utils.sort_and_shuffle(data, B)
+            if self.shuffle:
+                self.reader.random_shuffle()
+            remaining = self.n_examples
+            while remaining > 0:
+                current_size = min(self.chunk_size, remaining)
+                remaining -= current_size
+                (data, ts, labels, header) = read_chunk(self.reader, current_size)
+                data = preprocess_chunk(data, ts, self.discretizer, self.normalizer)
+                data = (data, labels)
+                data = common_utils.sort_and_shuffle(data, B)
 
-            for i in range(0, self.chunk_size, B):
-                X = nn_utils.pad_zeros(data[0][i:i+B])
-                y = data[1][i:i+B]
-                y_true = np.array(y)
+                for i in range(0, current_size, B):
+                    X = nn_utils.pad_zeros(data[0][i:i+B])
+                    y = data[1][i:i+B]
+                    y_true = np.array(y)
 
-                if self.partition == 'log':
-                    y = [metrics.get_bin_log(x, 10) for x in y]
-                if self.partition == 'custom':
-                    y = [metrics.get_bin_custom(x, 10) for x in y]
+                    if self.partition == 'log':
+                        y = [metrics.get_bin_log(x, 10) for x in y]
+                    if self.partition == 'custom':
+                        y = [metrics.get_bin_custom(x, 10) for x in y]
 
-                y = np.array(y)
+                    y = np.array(y)
 
-                if self.return_y_true:
-                    yield (X, y, y_true)
-                else:
-                    yield (X, y)
+                    if self.return_y_true:
+                        yield (X, y, y_true)
+                    else:
+                        yield (X, y)
 
     def __iter__(self):
         return self.generator
@@ -81,11 +93,12 @@ class BatchGen(object):
 
 class BatchGenDeepSupervisoin(object):
 
-    def __init__(self, dataloader, partition, discretizer, normalizer, batch_size):
+    def __init__(self, dataloader, partition, discretizer, normalizer, batch_size, shuffle):
         self.partition = partition
         self.batch_size = batch_size
         self.data = self._load_per_patient_data(dataloader, discretizer, normalizer)
-        self.steps = len(self.data[1]) // batch_size
+        self.steps = (len(self.data[1]) + batch_size - 1) // batch_size
+        self.shuffle = shuffle
         self.lock = threading.Lock()
         self.generator = self._generator()
 

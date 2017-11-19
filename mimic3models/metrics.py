@@ -4,14 +4,15 @@ from sklearn import metrics
 
 # for decompensation, in-hospital mortality
 
-def print_metrics_binary(y_true, predictions):
+def print_metrics_binary(y_true, predictions, verbose=1):
     predictions = np.array(predictions)
     if (len(predictions.shape) == 1):
         predictions = np.stack([1-predictions, predictions]).transpose((1, 0))
     
     cf = metrics.confusion_matrix(y_true, predictions.argmax(axis=1))
-    print "confusion matrix:"
-    print cf
+    if verbose:
+        print "confusion matrix:"
+        print cf
     cf = cf.astype(np.float32)
     
     acc = (cf[0][0] + cf[1][1]) / np.sum(cf)
@@ -24,15 +25,16 @@ def print_metrics_binary(y_true, predictions):
     (precisions, recalls, thresholds) = metrics.precision_recall_curve(y_true, predictions[:, 1])
     auprc = metrics.auc(recalls, precisions)
     minpse = np.max([min(x, y) for (x, y) in zip(precisions, recalls)])
-    
-    print "accuracy =", acc
-    print "precision class 0 =", prec0
-    print "precision class 1 =", prec1
-    print "recall class 0 =", rec0
-    print "recall calss 1 =", rec1
-    print "AUC of ROC =", auroc
-    print "AUC of PRC =", auprc
-    print "min(+P, Se) =", minpse
+
+    if verbose:
+        print "accuracy =", acc
+        print "precision class 0 =", prec0
+        print "precision class 1 =", prec1
+        print "recall class 0 =", rec0
+        print "recall calss 1 =", rec1
+        print "AUC of ROC =", auroc
+        print "AUC of PRC =", auprc
+        print "min(+P, Se) =", minpse
     
     return {"acc": acc,
             "prec0": prec0,
@@ -46,7 +48,7 @@ def print_metrics_binary(y_true, predictions):
 
 # for phenotyping
 
-def print_metrics_multilabel(y_true, predictions):
+def print_metrics_multilabel(y_true, predictions, verbose=1):
     y_true = np.array(y_true)
     predictions = np.array(predictions)
     
@@ -71,23 +73,12 @@ def print_metrics_multilabel(y_true, predictions):
                                              average="macro")
     ave_auc_weighted = metrics.roc_auc_score(y_true, predictions,
                                              average="weighted")
-    
-    """
-    print "ave_prec_micro =", ave_prec_micro
-    print "ave_prec_macro =", ave_prec_macro
-    print "ave_prec_weighted =", ave_prec_weighted
-    print "-------------------------"
 
-    print "ave_recall_micro =", ave_recall_micro
-    print "ave_recall_macro =", ave_recall_macro
-    print "ave_recall_weighted =", ave_recall_weighted
-    print "-------------------------"
-    """
-    
-    print "ROC AUC scores for labels:", auc_scores
-    print "ave_auc_micro =", ave_auc_micro
-    print "ave_auc_macro =", ave_auc_macro
-    print "ave_auc_weighted =", ave_auc_weighted
+    if verbose:
+        print "ROC AUC scores for labels:", auc_scores
+        print "ave_auc_micro =", ave_auc_micro
+        print "ave_auc_macro =", ave_auc_macro
+        print "ave_auc_weighted =", ave_auc_weighted
 
     return {"ave_prec_micro": ave_prec_micro,
             "ave_prec_macro": ave_prec_macro,
@@ -107,7 +98,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / (y_true + 0.1))) * 100
 
 
-def print_metrics_regression(y_true, predictions):
+def print_metrics_regression(y_true, predictions, verbose=1):
     predictions = np.array(predictions)
     predictions = np.maximum(predictions, 0)
     y_true = np.array(y_true)
@@ -115,8 +106,9 @@ def print_metrics_regression(y_true, predictions):
     y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]
     prediction_bins = [get_bin_custom(x, CustomBins.nbins) for x in predictions]
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "Custom bins confusion matrix:"
-    print cf
+    if verbose:
+        print "Custom bins confusion matrix:"
+        print cf
 
     kappa = metrics.cohen_kappa_score(y_true_bins, prediction_bins,
                                       weights='linear')
@@ -124,10 +116,11 @@ def print_metrics_regression(y_true, predictions):
     mse = metrics.mean_squared_error(y_true, predictions)
     mape = mean_absolute_percentage_error(y_true, predictions)
 
-    print "Mean absolute deviation (MAD) =", mad
-    print "Mean squared error (MSE) =", mse
-    print "Mean absolute percentage error (MAPE) =", mape
-    print "Cohen kappa score =", kappa
+    if verbose:
+        print "Mean absolute deviation (MAD) =", mad
+        print "Mean squared error (MSE) =", mse
+        print "Mean absolute percentage error (MAPE) =", mape
+        print "Cohen kappa score =", kappa
 
     return {"mad": mad,
             "mse": mse,
@@ -162,13 +155,14 @@ def get_estimate_log(prediction, nbins):
     return LogBins.means[binid]
 
 
-def print_metrics_log_bins(y_true, predictions):
+def print_metrics_log_bins(y_true, predictions, verbose=1):
     y_true_bins = [get_bin_log(x, LogBins.nbins) for x in y_true]
     prediction_bins = [get_bin_log(x, LogBins.nbins) for x in predictions]
     cf = metrics.confusion_matrix(y_true_bins, prediction_bins)
-    print "LogBins confusion matrix:"
-    print cf
-    return print_metrics_regression(y_true, predictions)
+    if verbose:
+        print "LogBins confusion matrix:"
+        print cf
+    return print_metrics_regression(y_true, predictions, verbose)
 
 
 class CustomBins:
@@ -198,5 +192,5 @@ def get_estimate_custom(prediction, nbins):
     return CustomBins.means[binid]
 
 
-def print_metrics_custom_bins(y_true, predictions):
-    return print_metrics_regression(y_true, predictions)
+def print_metrics_custom_bins(y_true, predictions, verbose=1):
+    return print_metrics_regression(y_true, predictions, verbose)

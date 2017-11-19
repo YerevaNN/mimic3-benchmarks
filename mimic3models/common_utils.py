@@ -82,7 +82,7 @@ def add_common_arguments(parser):
                         help="dropout rate for recurrent connections")
     parser.add_argument('--batch_norm', type=bool, default=False,
                         help='batch normalization')
-    parser.add_argument('--timestep', type=float, default=0.8,
+    parser.add_argument('--timestep', type=float, default=1.0,
                         help="fixed timestep used in the dataset")
     parser.add_argument('--imputation', type=str, default='previous')
     parser.add_argument('--small_part', dest='small_part', action='store_true')
