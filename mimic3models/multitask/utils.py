@@ -3,6 +3,7 @@ from mimic3models import metrics
 from mimic3models import nn_utils
 from mimic3models import common_utils
 import threading
+import random
 
 
 def read_chunk(reader, chunk_size):
@@ -130,9 +131,23 @@ class BatchGen(object):
             # convert to right format for sort_and_shuffle
             kvpairs = self.data.items()
             mas = [kv[1] for kv in kvpairs]
-            mas = common_utils.sort_and_shuffle(mas, B)
-            for i in range(len(kvpairs)):
-                self.data[kvpairs[i][0]] = mas[i]
+
+            if self.shuffle:
+                N = len(self.data['X'])
+                order = range(N)
+                random.shuffle(order)
+                tmp = [None] * len(mas)
+                for mas_idx in range(len(mas)):
+                    tmp[mas_idx] = [None] * len(mas[mas_idx])
+                    for i in range(N):
+                        tmp[mas_idx][i] = mas[mas_idx][order[i]]
+                for i in range(len(kvpairs)):
+                    self.data[kvpairs[i][0]] = tmp[i]
+            else:
+                # sort entirely
+                mas = common_utils.sort_and_shuffle(mas, B)
+                for i in range(len(kvpairs)):
+                   self.data[kvpairs[i][0]] = mas[i]
 
             for i in range(0, len(self.data['X']), B):
                 outputs = []

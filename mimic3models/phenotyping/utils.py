@@ -2,6 +2,7 @@ import numpy as np
 from mimic3models import nn_utils
 from mimic3models import common_utils
 import threading
+import random
 
 
 def read_chunk(reader, chunk_size):
@@ -46,7 +47,19 @@ class BatchGen(object):
     def _generator(self):
         B = self.batch_size
         while True:
-            self.data = common_utils.sort_and_shuffle(self.data, B)
+            if self.shuffle:
+                N = len(self.data[1])
+                order = range(N)
+                random.shuffle(order)
+                tmp = [[None] * N, [None] * N]
+                for i in range(N):
+                    tmp[0][i] = self.data[0][order[i]]
+                    tmp[1][i] = self.data[1][order[i]]
+                self.data = tmp
+            else:
+                # sort entirely
+                self.data = common_utils.sort_and_shuffle(self.data, B)
+
             self.data[1] = np.array(self.data[1]) # this is important for Keras
             for i in range(0, len(self.data[0]), B):
                 x = self.data[0][i:i+B]

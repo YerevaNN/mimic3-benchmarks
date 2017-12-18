@@ -120,10 +120,12 @@ def process_single(filename, verbose, select):
     network = parse_utils.parse_network(log)
 
     prefix = parse_utils.parse_prefix(log)
-    if prefix == 'r' or prefix == '':
+    if prefix == '':
         prefix = 'r2'
+    elif not str.isdigit(prefix[-1]):
+        prefix += '2'
     else:
-        prefix = 'r{}'.format(int(prefix[1:]) + 1)
+        prefix = prefix[:-1] + str(int(prefix[-1]) + 1)
 
     dim = parse_utils.parse_dim(log)
     size_coef = parse_utils.parse_size_coef(log)

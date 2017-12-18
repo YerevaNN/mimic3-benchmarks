@@ -16,12 +16,12 @@ def parse_task(log):
     return None
 
 
-def get_loss(log, lossname):
-    """ Options for lossname: 'loss', 'ihm_loss', 'decomp_loss', 'pheno_loss', 'los_loss'
+def get_loss(log, loss_name):
+    """ Options for loss_name: 'loss', 'ihm_loss', 'decomp_loss', 'pheno_loss', 'los_loss'
     """
-    train = re.findall('[^_]{}: ([0-9.]+)'.format(lossname), log)
+    train = re.findall('[^_]{}: ([0-9.]+)'.format(loss_name), log)
     train = map(float, train)
-    val = re.findall('val_{}: ([0-9.]+)'.format(lossname), log)
+    val = re.findall('val_{}: ([0-9.]+)'.format(loss_name), log)
     val = map(float, val)
     if len(train) > len(val):
         assert len(train) - 1 == len(val)
@@ -29,7 +29,7 @@ def get_loss(log, lossname):
     return train, val
 
 
-def parse_metrics(metric, log):
+def parse_metrics(log, metric):
     ret = re.findall('{} = (.*)\n'.format(metric), log)
     ret = map(float, ret)
     if len(ret) % 2 == 1:
@@ -136,3 +136,24 @@ def parse_target_repl_coef(log):
 def parse_epoch(state):
     ret = re.search('.*(chunk|epoch)([0-9]*).*', state)
     return int(ret.group(2))
+
+
+def parse_state(log, epoch):
+    lines = log.split('\n')
+    for line in lines:
+        res = re.search('.*saving model to (.*(chunk|epoch)([0-9]+).*)', line)
+        if (res is not None):
+            if epoch == 0:
+                return res.group(1).strip()
+            epoch -= 1
+    raise Exception("State file is not found")
+
+
+def parse_last_state(log):
+    lines = log.split('\n')
+    ret = None
+    for line in lines:
+        res = re.search('.*saving model to (.*(chunk|epoch)([0-9]+).*)', line)
+        if (res is not None):
+            ret = res.group(1).strip()
+    return ret

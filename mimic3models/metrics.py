@@ -100,7 +100,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 def print_metrics_regression(y_true, predictions, verbose=1):
     predictions = np.array(predictions)
-    predictions = np.maximum(predictions, 0)
+    predictions = np.maximum(predictions, 0).flatten()
     y_true = np.array(y_true)
 
     y_true_bins = [get_bin_custom(x, CustomBins.nbins) for x in y_true]

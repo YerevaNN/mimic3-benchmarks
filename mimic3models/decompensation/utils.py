@@ -3,6 +3,7 @@ from mimic3models import common_utils
 import threading
 import os
 import numpy as np
+import random
 
 
 def read_chunk(reader, chunk_size):
@@ -123,12 +124,23 @@ class BatchGenDeepSupervisoin(object):
     def _generator(self):
         B = self.batch_size
         while True:
-            # convert to right format for sort_and_shuffle
-            Xs = self.data[0][0]
-            masks = self.data[0][1]
-            ys = self.data[1]
-            (Xs, masks, ys) = common_utils.sort_and_shuffle([Xs, masks, ys], B)
-            self.data = [[Xs, masks], ys]
+            if self.shuffle:
+                N = len(self.data[1])
+                order = range(N)
+                random.shuffle(order)
+                tmp = [[[None]*N, [None]*N], [None]*N]
+                for i in range(N):
+                    tmp[0][0][i] = self.data[0][0][order[i]]
+                    tmp[0][1][i] = self.data[0][1][order[i]]
+                    tmp[1][i] = self.data[1][order[i]]
+                self.data = tmp
+            else:
+                # sort entirely
+                Xs = self.data[0][0]
+                masks = self.data[0][1]
+                ys = self.data[1]
+                (Xs, masks, ys) = common_utils.sort_and_shuffle([Xs, masks, ys], B)
+                self.data = [[Xs, masks], ys]
 
             for i in range(0, len(self.data[1]), B):
                 X = self.data[0][0][i:i+B]
