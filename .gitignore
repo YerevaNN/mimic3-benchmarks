@@ -96,3 +96,6 @@ ENV/
 # States of models
 keras_states/
 states/
+
+# config for connection to DB
+scripts/config.json

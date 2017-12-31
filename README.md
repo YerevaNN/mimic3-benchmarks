@@ -30,6 +30,18 @@ In [Harutyunyan, Khachatrian, Kale, and Galstyan 2017](https://arxiv.org/abs/170
 
 ## Requirements
 
+Use the following command if you have pip installed
+
+```
+pip install -r requirements.txt
+```
+
+If you have Anaconda
+
+```
+conda install --f requirements.txt
+```
+### Details on Requirements
 We do not provide the MIMIC-III data itself. You must acquire the data yourself from https://mimic.physionet.org/. Specifically, download the CSVs. Otherwise, generally we make liberal use of the following packages:
 
 - numpy
@@ -42,37 +54,58 @@ For logistic regression  baselines [sklearn](http://scikit-learn.org/) is requir
 Here are the required steps to build the benchmark. It assumes that you already have MIMIC-III dataset (lots of CSV files) on the disk.
 1. Clone the repo.
 
+```
        git clone https://github.com/YerevaNN/mimic3-benchmarks/
        cd mimic3-benchmarks/
-    
+```    
 2. Add the path to the `PYTHONPATH` (sorry for this).
- 
+``` 
        export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
+```
+If you are using Anaconda, setting the PYTHONPATH may cause problems, so you may need to copy the scripts to the base directory of the repo.
 
 3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
-
+```
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
+```
+
+If you are using SQL (currently only PostgreSQL support), create the following json:
+```
+{
+  "dbname": "mimic",
+  "user": "username",
+  "host": "hostname",
+  "password": "password",
+  "port": "port"
+}
+```
+replacing, of course, with the specific config to connect.
+
+Then run this:
+```
+       python scripts/extract_subjects.py [PATH TO JSON FILE] data/root/ --use_db
+```
 
 4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
-
+```
        python scripts/validate_events.py data/root/
-
+```
 5. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
-
+```
        python scripts/extract_episodes_from_subjects.py data/root/
-
+```
 6. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
-
+```
        python scripts/split_train_and_test.py data/root/
-	
+```	
 7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
-
+```
        python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
        python scripts/create_decompensation.py data/root/ data/decompensation/
        python scripts/create_length_of_stay.py data/root/ data/length-of-stay/
        python scripts/create_phenotyping.py data/root/ data/phenotyping/
        python scripts/create_multitask.py data/root/ data/multitask/
-        
+```        
 ## Working with baseline models
 
 For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
@@ -81,87 +114,87 @@ Please note that running linear models can take hours because of extensive grid 
 ### Train / validation split
 
 Use the following command to extract validation set from the traning set. This step is required for running the baseline models.
-
+```
        python mimic3models/split_train_val.py [TASK]
-       
+```       
 `[TASK]` is either `in-hospital-mortality`, `decompensation`, `length-of-stay`, `phenotyping` or `multitask`.
 
 
 ### In-hospital mortality prediction
 
 Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
-       
+```       
        cd mimic3models/in_hospital_mortality/
        python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
-
+```
 To test the model use the following:
-       
+```       
        python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
+```
 Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
-       
+```       
        cd mimic3models/in_hospital_mortality/logistic/
        python -u main.py --l2 --C 0.001
-
+```
 ### Decompensation prediction
 
 The best model we got for this task was trained for 110 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
-       
+```       
        cd mimic3models/decompensation/
        python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
-
+```
 Here is the command to test:
-       
+```       
        python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
+```
 Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
-       
+```       
        cd mimic3models/decompensation/logistic/
        python -u main.py
-
+```       
 ### Length of stay prediction
 
 The best model we got for this task was trained for 15 chunks.
-       
+```       
        cd mimic3models/length_of_stay/
        python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
-
+```
 Run the following command to test the best pretrained neural network.
-       
+```       
        python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
+```
 Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
-       
+```       
        cd mimic3models/length_of_stay/logistic/
        python -u main_cf.py
-
+```
 ### Phenotype classification
 
 The best model we got for this task was trained for 30 epochs.
-       
+```       
        cd mimic3models/phenotyping/
        python -u main.py --network lstm_2layer --dim 512 --mode train --batch_size 8 --log_every 30
-
+```
 Use the following command for testing:
-       
+```       
        python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-
+```
 Use the following command for logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
-       
+```       
        cd mimic3models/phenotyping/logistic/
        python -u main.py
-
+```
 ### Multitask learning
 
 `ihm_C`, `decomp_C`, `los_C` and `ph_C` coefficients control the relative weight of the tasks in the multitask model. Default is `1.0`. The best model we got was trained for 12 epochs.
-       
+```       
        cd mimic3models/multitask/
        python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --ihm_C 0.02 --decomp_C 0.1 --los_C 0.5
-
+```
 Use the following command for testing:
-       
+```       
        python -u main.py --network lstm --dim 1024 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
-       
+```       
 
 ## General todos:
 

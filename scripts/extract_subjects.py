@@ -8,13 +8,25 @@ from mimic3benchmark.mimic3csv import *
 from mimic3benchmark.preprocessing import add_hcup_ccs_2015_groups, make_phenotype_label_matrix
 
 parser = argparse.ArgumentParser(description='Extract per-subject data from MIMIC-III CSV files.')
+<<<<<<< HEAD
+parser.add_argument('mimic3_path', type=str, help='Directory containing MIMIC-III CSV files.' \
+                    + ' (if use_db is used, instead file path where config for connection is provided)')
+parser.add_argument('output_path', type=unicode, help='Directory where per-subject data should be written.')
+parser.add_argument('--event_tables', '-e', type=unicode, nargs='+', help='Tables from which to read events.',
+=======
 parser.add_argument('mimic3_path', type=str, help='Directory containing MIMIC-III CSV files.')
 parser.add_argument('output_path', type=str, help='Directory where per-subject data should be written.')
 parser.add_argument('--event_tables', '-e', type=str, nargs='+', help='Tables from which to read events.',
+>>>>>>> c0544cd2ac79888f1a256536482bebe680205e6b
                     default=['CHARTEVENTS', 'LABEVENTS', 'OUTPUTEVENTS'])
 parser.add_argument('--phenotype_definitions', '-p', type=str, default='resources/hcup_ccs_2015_definitions.yaml',
                     help='YAML file with phenotype definitions.')
+<<<<<<< HEAD
+parser.add_argument('--use_db', action='store_true', default=False)
+parser.add_argument('--itemids_file', '-i', type=unicode, help='CSV containing list of ITEMIDs to keep.')
+=======
 parser.add_argument('--itemids_file', '-i', type=str, help='CSV containing list of ITEMIDs to keep.')
+>>>>>>> c0544cd2ac79888f1a256536482bebe680205e6b
 parser.add_argument('--verbose', '-v', type=int, help='Level of verbosity in output.', default=1)
 parser.add_argument('--test', action='store_true', help='TEST MODE: process only 1000 subjects, 1000000 events.')
 args, _ = parser.parse_known_args()
@@ -24,9 +36,9 @@ try:
 except:
     pass
 
-patients = read_patients_table(args.mimic3_path)
-admits = read_admissions_table(args.mimic3_path)
-stays = read_icustays_table(args.mimic3_path)
+patients = read_patients_table(args.mimic3_path, use_db=args.use_db)
+admits = read_admissions_table(args.mimic3_path, use_db=args.use_db)
+stays = read_icustays_table(args.mimic3_path, use_db=args.use_db)
 if args.verbose:
     print('START:', stays.ICUSTAY_ID.unique().shape[0], stays.HADM_ID.unique().shape[0],
           stays.SUBJECT_ID.unique().shape[0])
@@ -54,7 +66,7 @@ if args.verbose:
           stays.SUBJECT_ID.unique().shape[0])
 
 stays.to_csv(os.path.join(args.output_path, 'all_stays.csv'), index=False)
-diagnoses = read_icd_diagnoses_table(args.mimic3_path)
+diagnoses = read_icd_diagnoses_table(args.mimic3_path, use_db=args.use_db)
 diagnoses = filter_diagnoses_on_stays(diagnoses, stays)
 diagnoses.to_csv(os.path.join(args.output_path, 'all_diagnoses.csv'), index=False)
 count_icd_codes(diagnoses, output_path=os.path.join(args.output_path, 'diagnosis_counts.csv'))
@@ -76,4 +88,4 @@ items_to_keep = set(
     [int(itemid) for itemid in DataFrame.from_csv(args.itemids_file)['ITEMID'].unique()]) if args.itemids_file else None
 for table in args.event_tables:
     read_events_table_and_break_up_by_subject(args.mimic3_path, table, args.output_path, items_to_keep=items_to_keep,
-                                              subjects_to_keep=subjects, verbose=args.verbose)
+                                              subjects_to_keep=subjects, verbose=args.verbose, use_db=args.use_db)
