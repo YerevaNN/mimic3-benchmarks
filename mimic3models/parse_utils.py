@@ -138,6 +138,11 @@ def parse_epoch(state):
     return int(ret.group(2))
 
 
+def parse_batch_size(log):
+    ret = re.search('batch_size=([0-9]*)', log)
+    return int(ret.group(1))
+
+
 def parse_state(log, epoch):
     lines = log.split('\n')
     for line in lines:
