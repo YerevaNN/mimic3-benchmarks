@@ -3,6 +3,9 @@ from __future__ import print_function
 import argparse
 import csv
 import yaml
+import sys
+
+sys.path.append('.')
 
 from mimic3benchmark.mimic3csv import *
 from mimic3benchmark.preprocessing import add_hcup_ccs_2015_groups, make_phenotype_label_matrix
