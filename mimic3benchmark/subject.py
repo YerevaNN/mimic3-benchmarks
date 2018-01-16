@@ -2,11 +2,11 @@ import numpy as np
 import os
 import pandas as pd
 
-import mimic3benchmark.util as util
+from mimic3benchmark.util import *
 
 
 def read_stays(subject_path):
-    stays = util.from_csv(os.path.join(subject_path, 'stays.csv'), index_col=None)
+    stays = dataframe_from_csv(os.path.join(subject_path, 'stays.csv'), index_col=None)
     stays.INTIME = pd.to_datetime(stays.INTIME)
     stays.OUTTIME = pd.to_datetime(stays.OUTTIME)
     stays.DOB = pd.to_datetime(stays.DOB)
@@ -16,10 +16,10 @@ def read_stays(subject_path):
     return stays
 
 def read_diagnoses(subject_path):
-    return util.from_csv(os.path.join(subject_path, 'diagnoses.csv'), index_col=None)
+    return dataframe_from_csv(os.path.join(subject_path, 'diagnoses.csv'), index_col=None)
 
 def read_events(subject_path, remove_null=True):
-    events = util.from_csv(os.path.join(subject_path, 'events.csv'), index_col=None)
+    events = dataframe_from_csv(os.path.join(subject_path, 'events.csv'), index_col=None)
     if remove_null:
         events = events.ix[events.VALUE.notnull()]
     events.CHARTTIME = pd.to_datetime(events.CHARTTIME)
