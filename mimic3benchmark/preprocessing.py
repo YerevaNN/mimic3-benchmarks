@@ -5,6 +5,7 @@ import re
 
 from pandas import DataFrame, Series
 
+from mimic3benchmark.util import *
 
 ###############################
 # Non-time series preprocessing
@@ -78,10 +79,9 @@ def make_phenotype_label_matrix(phenotypes, stays=None):
 ###################################
 
 def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
-    var_map = DataFrame.from_csv(fn, index_col=None).fillna('').astype(str)
-
+    var_map = dataframe_from_csv(fn, index_col=None).fillna('').astype(str)
+    var_map[variable_column] = var_map[variable_column].apply(lambda s: s.lower())
     var_map.COUNT = var_map.COUNT.astype(int)
-
     var_map = var_map.ix[(var_map[variable_column] != '') & (var_map.COUNT>0)]
     var_map = var_map.ix[(var_map.STATUS == 'ready')]
     var_map.ITEMID = var_map.ITEMID.astype(int)
@@ -95,7 +95,8 @@ def read_variable_ranges(fn, variable_column='LEVEL2'):
     columns = [ variable_column, 'OUTLIER LOW', 'VALID LOW', 'IMPUTE', 'VALID HIGH', 'OUTLIER HIGH' ]
     to_rename = dict(zip(columns, [ c.replace(' ', '_') for c in columns ]))
     to_rename[variable_column] = 'VARIABLE'
-    var_ranges = DataFrame.from_csv(fn, index_col=None)
+    var_ranges = dataframe_from_csv(fn, index_col=None)
+    var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
     var_ranges = var_ranges[columns]
     var_ranges.rename_axis(to_rename, axis=1, inplace=True)
     var_ranges = var_ranges.drop_duplicates(subset='VARIABLE', keep='first')
@@ -111,7 +112,7 @@ def remove_outliers_for_variable(events, variable, ranges):
     V.ix[V > ranges.OUTLIER_HIGH[variable]] = np.nan
     V.ix[V < ranges.VALID_LOW[variable]]    = ranges.VALID_LOW[variable]
     V.ix[V > ranges.VALID_HIGH[variable]]   = ranges.VALID_HIGH[variable]
-    events.VALUE.ix[idx] = V
+    events.ix[idx,'VALUE'] = V
     return events
 
 # SBP: some are strings of type SBP/DBP
@@ -220,7 +221,7 @@ def clean_events(events):
     for var_name, clean_fn in clean_fns.items():
         idx = (events.VARIABLE == var_name)
         try:
-            events.VALUE.ix[idx] = clean_fn(events.ix[idx])
+            events.ix[idx,'VALUE'] = clean_fn(events.ix[idx])
         except Exception as e:
             print("Exception in clean_events:", clean_fn.__name__, e)
             print("number of rows:", np.sum(idx))

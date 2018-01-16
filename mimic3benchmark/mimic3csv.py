@@ -4,18 +4,17 @@ import os
 import pandas as pd
 import sys
 
-from pandas import DataFrame
-
+from mimic3benchmark.util import *
 
 def read_patients_table(mimic3_path):
-    pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
+    pats = dataframe_from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
     pats = pats[['SUBJECT_ID', 'GENDER', 'DOB', 'DOD']]
     pats.DOB = pd.to_datetime(pats.DOB)
     pats.DOD = pd.to_datetime(pats.DOD)
     return pats
 
 def read_admissions_table(mimic3_path):
-    admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
+    admits = dataframe_from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
     admits = admits[['SUBJECT_ID', 'HADM_ID', 'ADMITTIME', 'DISCHTIME', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
     admits.ADMITTIME = pd.to_datetime(admits.ADMITTIME)
     admits.DISCHTIME = pd.to_datetime(admits.DISCHTIME)
@@ -23,21 +22,21 @@ def read_admissions_table(mimic3_path):
     return admits
 
 def read_icustays_table(mimic3_path):
-    stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
+    stays = dataframe_from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
     stays.INTIME = pd.to_datetime(stays.INTIME)
     stays.OUTTIME = pd.to_datetime(stays.OUTTIME)
     return stays
 
 def read_icd_diagnoses_table(mimic3_path):
-    codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
+    codes = dataframe_from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
     codes = codes[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']]
-    diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
+    diagnoses = dataframe_from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
     diagnoses = diagnoses.merge(codes, how='inner', left_on='ICD9_CODE', right_on='ICD9_CODE')
     diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']] = diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']].astype(int)
     return diagnoses
 
 def read_events_table_by_row(mimic3_path, table):
-    nb_rows = { 'chartevents': 263201376, 'labevents': 27872576, 'outputevents': 4349340 }
+    nb_rows = { 'chartevents': 330712484, 'labevents': 27854056, 'outputevents': 4349219 }
     reader = csv.DictReader(open(os.path.join(mimic3_path, table.upper() + '.csv'), 'r'))
     for i,row in enumerate(reader):
         if 'ICUSTAY_ID' not in row:
@@ -65,7 +64,7 @@ def merge_on_subject_admission(table1, table2):
 
 def add_age_to_icustays(stays):
     stays['AGE'] = (stays.INTIME - stays.DOB).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60/24/365
-    stays.AGE.ix[stays.AGE<0] = 90
+    stays.ix[stays.AGE<0,'AGE'] = 90
     return stays
 
 def add_inhospital_mortality_to_icustays(stays):
@@ -193,8 +192,8 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
     if data_stats.curr_subject_id != '':
         write_current_observations()
 
-    if verbose and (row_no % 100000 == 0):
-        sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
+    if verbose:
+        sys.stdout.write('\rfinished processing {0}: ROW {1} of {2}...last write '
                          '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
                                                                  data_stats.last_write_no,
                                                                  data_stats.last_write_nb_rows,
