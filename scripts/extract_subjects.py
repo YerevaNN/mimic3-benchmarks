@@ -5,7 +5,7 @@ import yaml
 
 from mimic3benchmark.mimic3csv import *
 from mimic3benchmark.preprocessing import add_hcup_ccs_2015_groups, make_phenotype_label_matrix
-import mimic3benchmark.util as util
+from mimic3benchmark.util import *
 
 parser = argparse.ArgumentParser(description='Extract per-subject data from MIMIC-III CSV files.')
 parser.add_argument('mimic3_path', type=str, help='Directory containing MIMIC-III CSV files.')
@@ -30,8 +30,6 @@ stays = read_icustays_table(args.mimic3_path)
 if args.verbose:
     print('START:', stays.ICUSTAY_ID.unique().shape[0], stays.HADM_ID.unique().shape[0],
           stays.SUBJECT_ID.unique().shape[0])
-
-print(stays.ICUSTAY_ID.dtype)
 
 stays = remove_icustays_with_transfers(stays)
 if args.verbose:
@@ -67,13 +65,14 @@ if args.test:
     pat_idx = np.random.choice(patients.shape[0], size=1000)
     patients = patients.iloc[pat_idx]
     stays = stays.merge(patients[['SUBJECT_ID']], left_on='SUBJECT_ID', right_on='SUBJECT_ID')
-    print('Using only', stays.shape[0], 'stays')
+    args.event_tables = [args.event_tables[0]]
+    print('Using only', stays.shape[0], 'stays and only', args.event_tables[0], 'table')
 
 subjects = stays.SUBJECT_ID.unique()
 break_up_stays_by_subject(stays, args.output_path, subjects=subjects, verbose=args.verbose)
 break_up_diagnoses_by_subject(phenotypes, args.output_path, subjects=subjects, verbose=args.verbose)
 items_to_keep = set(
-    [int(itemid) for itemid in util.from_csv(args.itemids_file)['ITEMID'].unique()]) if args.itemids_file else None
+    [int(itemid) for itemid in dataframe_from_csv(args.itemids_file)['ITEMID'].unique()]) if args.itemids_file else None
 for table in args.event_tables:
     read_events_table_and_break_up_by_subject(args.mimic3_path, table, args.output_path, items_to_keep=items_to_keep,
                                               subjects_to_keep=subjects, verbose=args.verbose)
