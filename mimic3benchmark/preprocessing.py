@@ -5,7 +5,7 @@ import re
 
 from pandas import DataFrame, Series
 
-import mimic3benchmark.util as util
+from mimic3benchmark.util import *
 
 ###############################
 # Non-time series preprocessing
@@ -79,7 +79,7 @@ def make_phenotype_label_matrix(phenotypes, stays=None):
 ###################################
 
 def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
-    var_map = util.from_csv(fn, index_col=None).fillna('').astype(str)
+    var_map = dataframe_from_csv(fn, index_col=None).fillna('').astype(str)
     var_map[variable_column] = var_map[variable_column].apply(lambda s: s.lower())
     var_map.COUNT = var_map.COUNT.astype(int)
     var_map = var_map.ix[(var_map[variable_column] != '') & (var_map.COUNT>0)]
@@ -95,7 +95,7 @@ def read_variable_ranges(fn, variable_column='LEVEL2'):
     columns = [ variable_column, 'OUTLIER LOW', 'VALID LOW', 'IMPUTE', 'VALID HIGH', 'OUTLIER HIGH' ]
     to_rename = dict(zip(columns, [ c.replace(' ', '_') for c in columns ]))
     to_rename[variable_column] = 'VARIABLE'
-    var_ranges = util.from_csv(fn, index_col=None)
+    var_ranges = dataframe_from_csv(fn, index_col=None)
     var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
     var_ranges = var_ranges[columns]
     var_ranges.rename_axis(to_rename, axis=1, inplace=True)
