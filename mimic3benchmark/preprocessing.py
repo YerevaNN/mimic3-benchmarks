@@ -111,7 +111,7 @@ def remove_outliers_for_variable(events, variable, ranges):
     V.ix[V > ranges.OUTLIER_HIGH[variable]] = np.nan
     V.ix[V < ranges.VALID_LOW[variable]]    = ranges.VALID_LOW[variable]
     V.ix[V > ranges.VALID_HIGH[variable]]   = ranges.VALID_HIGH[variable]
-    events.VALUE.ix[idx] = V
+    events.ix[idx,'VALUE'] = V
     return events
 
 # SBP: some are strings of type SBP/DBP
@@ -220,7 +220,7 @@ def clean_events(events):
     for var_name, clean_fn in clean_fns.items():
         idx = (events.VARIABLE == var_name)
         try:
-            events.VALUE.ix[idx] = clean_fn(events.ix[idx])
+            events.ix[idx,'VALUE'] = clean_fn(events.ix[idx])
         except Exception as e:
             print("Exception in clean_events:", clean_fn.__name__, e)
             print("number of rows:", np.sum(idx))
