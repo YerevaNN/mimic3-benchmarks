@@ -4,18 +4,17 @@ import os
 import pandas as pd
 import sys
 
-from pandas import DataFrame
-
+import mimic3benchmark.util as util
 
 def read_patients_table(mimic3_path):
-    pats = DataFrame.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
+    pats = util.from_csv(os.path.join(mimic3_path, 'PATIENTS.csv'))
     pats = pats[['SUBJECT_ID', 'GENDER', 'DOB', 'DOD']]
     pats.DOB = pd.to_datetime(pats.DOB)
     pats.DOD = pd.to_datetime(pats.DOD)
     return pats
 
 def read_admissions_table(mimic3_path):
-    admits = DataFrame.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
+    admits = util.from_csv(os.path.join(mimic3_path, 'ADMISSIONS.csv'))
     admits = admits[['SUBJECT_ID', 'HADM_ID', 'ADMITTIME', 'DISCHTIME', 'DEATHTIME', 'ETHNICITY', 'DIAGNOSIS']]
     admits.ADMITTIME = pd.to_datetime(admits.ADMITTIME)
     admits.DISCHTIME = pd.to_datetime(admits.DISCHTIME)
@@ -23,15 +22,15 @@ def read_admissions_table(mimic3_path):
     return admits
 
 def read_icustays_table(mimic3_path):
-    stays = DataFrame.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
+    stays = util.from_csv(os.path.join(mimic3_path, 'ICUSTAYS.csv'))
     stays.INTIME = pd.to_datetime(stays.INTIME)
     stays.OUTTIME = pd.to_datetime(stays.OUTTIME)
     return stays
 
 def read_icd_diagnoses_table(mimic3_path):
-    codes = DataFrame.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
+    codes = util.from_csv(os.path.join(mimic3_path, 'D_ICD_DIAGNOSES.csv'))
     codes = codes[['ICD9_CODE','SHORT_TITLE','LONG_TITLE']]
-    diagnoses = DataFrame.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
+    diagnoses = util.from_csv(os.path.join(mimic3_path, 'DIAGNOSES_ICD.csv'))
     diagnoses = diagnoses.merge(codes, how='inner', left_on='ICD9_CODE', right_on='ICD9_CODE')
     diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']] = diagnoses[['SUBJECT_ID','HADM_ID','SEQ_NUM']].astype(int)
     return diagnoses

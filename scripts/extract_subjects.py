@@ -1,11 +1,11 @@
 from __future__ import print_function
 
 import argparse
-import csv
 import yaml
 
 from mimic3benchmark.mimic3csv import *
 from mimic3benchmark.preprocessing import add_hcup_ccs_2015_groups, make_phenotype_label_matrix
+import mimic3benchmark.util as util
 
 parser = argparse.ArgumentParser(description='Extract per-subject data from MIMIC-III CSV files.')
 parser.add_argument('mimic3_path', type=str, help='Directory containing MIMIC-III CSV files.')
@@ -73,7 +73,7 @@ subjects = stays.SUBJECT_ID.unique()
 break_up_stays_by_subject(stays, args.output_path, subjects=subjects, verbose=args.verbose)
 break_up_diagnoses_by_subject(phenotypes, args.output_path, subjects=subjects, verbose=args.verbose)
 items_to_keep = set(
-    [int(itemid) for itemid in DataFrame.from_csv(args.itemids_file)['ITEMID'].unique()]) if args.itemids_file else None
+    [int(itemid) for itemid in util.from_csv(args.itemids_file)['ITEMID'].unique()]) if args.itemids_file else None
 for table in args.event_tables:
     read_events_table_and_break_up_by_subject(args.mimic3_path, table, args.output_path, items_to_keep=items_to_keep,
                                               subjects_to_keep=subjects, verbose=args.verbose)
