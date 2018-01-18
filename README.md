@@ -35,7 +35,7 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 - numpy
 - pandas
 
-For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use Theano/[Lasagne](http://lasagne.readthedocs.io/en/latest/).
+For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use [Keras](https://keras.io/).
 
 ## Building a benchmark
 
