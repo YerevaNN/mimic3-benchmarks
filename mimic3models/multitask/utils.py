@@ -6,44 +6,10 @@ import threading
 import random
 
 
-def read_chunk(reader, chunk_size):
-    data = []
-    ts = []
-    fms = []
-    loss = []
-    phs = []
-    sws = []
-    for i in range(chunk_size):
-        (X, t, fm, los, ph, sw, header) = reader.read_next()
-        data.append(X)
-        ts.append(t)
-        fms.append(fm)
-        loss.append(los)
-        phs.append(ph)
-        sws.append(sw)
-    return (data, ts, fms, loss, phs, sws)
-
-
-def load_data(reader, discretizer, normalizer, small_part=False):
-    N = reader.get_number_of_examples()
-    if small_part:
-        N = 1000
-    (data, ts, fms, loss, phs, sws) = read_chunk(reader, N)
-    data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
-    if (normalizer is not None):
-        data = [normalizer.transform(X) for X in data]
-    return (data, fms, loss, phs, sws)
-
-
 class BatchGen(object):
 
     def __init__(self, reader, discretizer, normalizer, ihm_pos, partition,
-                 target_repl, batch_size, small_part, shuffle):
-
-        N = reader.get_number_of_examples()
-        if small_part:
-            N = 1000
-
+                 target_repl, batch_size, small_part, shuffle, return_names=False):
         self.discretizer = discretizer
         self.normalizer = normalizer
         self.ihm_pos = ihm_pos
@@ -51,24 +17,40 @@ class BatchGen(object):
         self.target_repl = target_repl
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.return_names = return_names
+
+        N = reader.get_number_of_examples()
+        if small_part:
+            N = 1000
         self.steps = (N + batch_size - 1) // batch_size
         self.lock = threading.Lock()
 
-        (Xs, ts, ihms, loss, phenos, decomps) = read_chunk(reader, N)
+        ret = common_utils.read_chunk(reader, N)
+        Xs = ret["X"]
+        ts = ret["t"]
+        ihms = ret["ihm"]
+        loss = ret["los"]
+        phenos = ret["pheno"]
+        decomps = ret["decomps"]
+
+        self.data = dict()
+        self.data["decomp_ts"] = [x[0] for x in decomps]
+        self.data["los_ts"] = [x[0] for x in loss]
 
         for i in range(N):
             (Xs[i], ihms[i], decomps[i], loss[i], phenos[i]) = \
                 self._preprocess_single(Xs[i], ts[i], ihms[i], decomps[i], loss[i], phenos[i])
 
-        self.data = {}
-        self.data['X'] = Xs
-        self.data['ihm_M'] = [x[0] for x in ihms]
-        self.data['ihm_y'] = [x[1] for x in ihms]
-        self.data['decomp_M'] = [x[0] for x in decomps]
-        self.data['decomp_y'] = [x[1] for x in decomps]
-        self.data['los_M'] = [x[0] for x in loss]
-        self.data['los_y'] = [x[1] for x in loss]
-        self.data['pheno_y'] = phenos
+        self.data["X"] = Xs
+        self.data["ihm_M"] = [x[0] for x in ihms]
+        self.data["ihm_y"] = [x[1] for x in ihms]
+        self.data["decomp_M"] = [x[0] for x in decomps]
+        self.data["decomp_y"] = [x[1] for x in decomps]
+        self.data["los_M"] = [x[0] for x in loss]
+        self.data["los_y"] = [x[1] for x in loss]
+        self.data["pheno_y"] = phenos
+        self.data["names"] = ret["names"]
+        self.data["ts"] = ts
 
         self.generator = self._generator()
 
@@ -199,9 +181,16 @@ class BatchGen(object):
                 inputs = [X, ihm_M, decomp_M, los_M]
 
                 if self.return_y_true:
-                    yield (inputs, outputs, los_y_true)
+                    batch_data = (inputs, outputs, los_y_true)
                 else:
-                    yield (inputs, outputs)
+                    batch_data = (inputs, outputs)
+
+                if not self.return_names:
+                    yield batch_data
+                else:
+                    yield {"data": batch_data, "names": self.data["names"][i:i+B],
+                           "ts": self.data["ts"][i:i+B], "decomp_ts": self.data["decomp_ts"][i:i+B],
+                           "los_ts": self.data["los_ts"][i:i+B]}
 
     def __iter__(self):
         return self.generator

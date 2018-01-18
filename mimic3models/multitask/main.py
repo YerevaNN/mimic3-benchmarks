@@ -44,7 +44,7 @@ discretizer = Discretizer(timestep=args.timestep,
                           imput_strategy='previous',
                           start_time='zero')
 
-discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
@@ -71,7 +71,7 @@ suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_pheno={}".format
                                     args.decomp_C,
                                     args.los_C,
                                     args.pheno_C)
-model.final_name = args.prefix + model.say_name() + suffix                              
+model.final_name = args.prefix + model.say_name() + suffix
 print "==> model.final_name:", model.final_name
 
 
@@ -153,7 +153,7 @@ val_data_gen = utils.BatchGen(reader=val_reader,
                               shuffle=False)
 
 if args.mode == 'train':
-    
+
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
 
@@ -167,12 +167,12 @@ if args.mode == 'train':
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
-    
+
     if not os.path.exists('keras_logs'):
         os.makedirs('keras_logs')
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
-    
+
     print "==> training"
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
@@ -184,6 +184,7 @@ if args.mode == 'train':
                         verbose=args.verbose)
 
 elif args.mode == 'test':
+
     # ensure that the code uses test_reader
     del train_reader
     del val_reader
@@ -191,7 +192,7 @@ elif args.mode == 'test':
     del val_data_gen
 
     test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
-                              listfile='../../data/multitask/test_listfile.csv')
+                                  listfile='../../data/multitask/test_listfile.csv')
 
     test_data_gen = utils.BatchGen(reader=test_reader,
                                    discretizer=discretizer,
@@ -201,7 +202,8 @@ elif args.mode == 'test':
                                    target_repl=target_repl,
                                    batch_size=args.batch_size,
                                    small_part=args.small_part,
-                                   shuffle=False)
+                                   shuffle=False,
+                                   return_names=True)
     ihm_y_true = []
     decomp_y_true = []
     los_y_true = []
@@ -212,10 +214,24 @@ elif args.mode == 'test':
     los_pred = []
     pheno_pred = []
 
+    names = []  # ihm, pheno
+    ts = []  # pheno
+    los_ts = []
+    los_names = []
+    decomp_ts = []
+    decomp_names = []
+
     for i in range(test_data_gen.steps):
         print "\r\tdone {}/{}".format(i, test_data_gen.steps),
-        (X, y, los_y_reg) = test_data_gen.next(return_y_true=True)
+        ret = test_data_gen.next(return_y_true=True)
+        (X, y, los_y_reg) = ret["data"]
         outputs = model.predict(X, batch_size=args.batch_size)
+
+        names_extended = np.array(ret["names"]).repeat(X.shape[1], axis=-1)
+        ts += list(ret["ts"])
+        names += list(ret["names"])
+        los_ts += list(ret["los_ts"])
+        decomp_ts += list(ret["decomp_ts"])
 
         ihm_M = X[1]
         decomp_M = X[2]
@@ -234,20 +250,25 @@ elif args.mode == 'test':
                 ihm_pred.append(p)
 
         ## decomp
-        for (m, t, p) in zip(decomp_M.flatten(), decomp_t.flatten(), decomp_p.flatten()):
+        for (name, m, t, p) in zip(names_extended.flatten(), decomp_M.flatten(),
+                                   decomp_t.flatten(), decomp_p.flatten()):
             if np.equal(m, 1):
+                decomp_names.append(name)
                 decomp_y_true.append(t)
                 decomp_pred.append(p)
 
         ## los
         if los_p.shape[-1] == 1: # regression
-            for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.flatten()):
+            for (name, m, t, p) in zip(names_extended.flatten(), los_M.flatten(),
+                                 los_t.flatten(), los_p.flatten()):
                 if np.equal(m, 1):
+                    los_names.append(name)
                     los_y_true.append(t)
                     los_pred.append(p)
         else: # classification
-            for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.reshape((-1, 10))):
+            for (name, m, t, p) in zip(names_extended.flatten(), los_M.flatten(), los_t.flatten(), los_p.reshape((-1, 10))):
                 if np.equal(m, 1):
+                    los_names.append(name)
                     los_y_true.append(t)
                     los_pred.append(p)
 
@@ -289,50 +310,7 @@ elif args.mode == 'test':
         pheno_pred = np.array(pheno_pred)
         pheno_ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
 
-    # TODO: save activations if needed
-
-elif args.mode == 'test_single':
-    # ensure that the code uses test_reader
-    del train_reader
-    del val_reader
-    del train_data_gen
-    del val_data_gen
-
-    # Testing ihm
-    from mimic3benchmark.readers import InHospitalMortalityReader
-    from mimic3models.in_hospital_mortality.utils import read_chunk
-    from mimic3models import nn_utils
-
-    test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
-                    listfile='../../data/in-hospital-mortality/test_listfile.csv',
-                    period_length=48.0)
-
-    ihm_y_true = []
-    ihm_pred = []
-
-    n_examples = test_reader.get_number_of_examples()
-    for i in range(0, n_examples, args.batch_size):
-        j = min(i + args.batch_size, n_examples)
-        (X, ts, labels, header) = read_chunk(test_reader, j - i)
-
-        for i in range(args.batch_size):
-            X[i] = discretizer.transform(X[i], end=48.0)[0]
-            X[i] = normalizer.transform(X[i])
-
-        X = nn_utils.pad_zeros(X, min_length=args_dict['ihm_pos']+1)
-        T = X.shape[1]
-        ihm_M = np.ones(shape=(args.batch_size,1))
-        decomp_M = np.ones(shape=(args.batch_size, T))
-        los_M = np.ones(shape=(args.batch_size, T))
-
-        pred = model.predict([X, ihm_M, decomp_M, los_M])[0]
-        ihm_y_true += labels
-        ihm_pred += list(pred.flatten())
-
-    print "\n ================= 48h mortality ================"
-    ihm_pred = np.array(ihm_pred)
-    ihm_pred = np.stack([1-ihm_pred, ihm_pred], axis=1)
-    ihm_ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
+    # TODO: write codes for saving the predictions for all tasks
 
 else:
     raise ValueError("Wrong value for args.mode")

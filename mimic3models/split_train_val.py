@@ -5,7 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Split train data into train and validation sets.")
 parser.add_argument('task', type=str, help="Possible values are: decompensation, "\
-                            "in-hospital-mortality, length-of-stay, phenotyping, multitask.")
+                    "in-hospital-mortality, length-of-stay, phenotyping, multitask  .")
 args, _ = parser.parse_known_args()
 assert args.task in ['decompensation', 'in-hospital-mortality', 'length-of-stay',
                      'phenotyping', 'multitask']

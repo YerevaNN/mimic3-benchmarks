@@ -1,24 +1,20 @@
 import numpy as np
-
-def read_chunk(reader, chunk_size):
-    data = []
-    labels = []
-    ts = []
-    header = None
-    for i in range(chunk_size):
-        (X, t, y, header) = reader.read_next()
-        data.append(X)
-        ts.append(t)
-        labels.append(y)
-    return (data, ts, labels, header)
+from mimic3models import common_utils
 
 
-def load_data(reader, discretizer, normalizer, small_part=False):
+def load_data(reader, discretizer, normalizer, small_part=False, return_names=False):
     N = reader.get_number_of_examples()
     if small_part:
         N = 1000
-    (data, ts, labels, header) = read_chunk(reader, N)
+    ret = common_utils.read_chunk(reader, N)
+    data = ret["X"]
+    ts = ret["t"]
+    labels = ret["y"]
+    names = ret["name"]
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
     if (normalizer is not None):
         data = [normalizer.transform(X) for X in data]
-    return (np.array(data), labels)
+    whole_data = (np.array(data), labels)
+    if not return_names:
+        return whole_data
+    return {"data": whole_data, "names": names}

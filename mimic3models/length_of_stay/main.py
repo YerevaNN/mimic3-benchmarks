@@ -47,9 +47,9 @@ discretizer = Discretizer(timestep=args.timestep,
                           start_time='zero')
 
 if args.deep_supervision:
-    discretizer_header = discretizer.transform(train_data_loader._data[0][0])[1].split(',')
+    discretizer_header = discretizer.transform(train_data_loader._data["X"][0])[1].split(',')
 else:
-    discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+    discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
@@ -106,9 +106,9 @@ if args.load_state != "":
 # Load data and prepare generators
 if args.deep_supervision:
     train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size, True)
+                                        discretizer, normalizer, args.batch_size, shuffle=True)
     val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size, False)
+                                        discretizer, normalizer, args.batch_size, shuffle=False)
 else:
     # Set number of batches in one epoch
     train_nbatches = 2000
@@ -164,13 +164,13 @@ if args.mode == 'train':
                         verbose=args.verbose)
 
 elif args.mode == 'test':
-    # NOTE: for testing we make sure that deepsupervision is disabled
-    #       and we predict examples one by one.
 
     # ensure that the code uses test_reader
     del train_data_gen
     del val_data_gen
 
+    names = []
+    ts = []
     labels = []
     predictions = []
 
@@ -178,44 +178,61 @@ elif args.mode == 'test':
         del train_data_loader
         del val_data_loader
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/test/',
-                                                                  listfile='../../data/length-of-stay/test_listfile.csv')
+                                                                  listfile='../../data/length-of-stay/test_listfile.csv',
+                                                                  small_part=args.small_part)
         test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, args.partition,
-                                                      discretizer, normalizer, args.batch_size, False)
+                                                      discretizer, normalizer, args.batch_size,
+                                                      shuffle=False, return_names=True)
 
         for i in range(test_data_gen.steps):
             print "\r\tdone {}/{}".format(i, test_data_gen.steps),
-            (x, y_processed, y) = test_data_gen.next(return_y_true=True)
+
+            ret = test_data_gen.next(return_y_true=True)
+            (x, y_processed, y) = ret["data"]
+            cur_names = np.array(ret["names"]).repeat(x[0].shape[1], axis=-1)
+            cur_ts = ret["ts"]
+            for single_ts in cur_ts:
+                ts += single_ts
+
             pred = model.predict(x, batch_size=args.batch_size)
             if pred.shape[-1] == 1: # regression
                 pred_flatten = pred.flatten()
             else: # classification
                 pred_flatten = pred.reshape((-1, 10))
-            for m, t, p in zip(x[1].flatten(), y.flatten(), pred_flatten):
+            for m, t, p, name in zip(x[1].flatten(), y.flatten(), pred_flatten, cur_names.flatten()):
                 if np.equal(m, 1):
                     labels.append(t)
                     predictions.append(p)
+                    names.append(name)
 
     else:
         del train_reader
         del val_reader
         test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
-                                        listfile='../../data/length-of-stay/test_listfile.csv')
-
+                                         listfile='../../data/length-of-stay/test_listfile.csv')
         test_data_gen = utils.BatchGen(reader=test_reader,
                                        discretizer=discretizer,
                                        normalizer=normalizer,
                                        partition=args.partition,
                                        batch_size=args.batch_size,
-                                       steps=10000,  # put steps = None for a full test
-                                       shuffle=False)
+                                       steps=None,  # put steps = None for a full test
+                                       shuffle=False,
+                                       return_names=True)
 
         for i in range(test_data_gen.steps):
             print "\rpredicting {} / {}".format(i, test_data_gen.steps),
-            x, y_processed, y = test_data_gen.next(return_y_true=True)
+
+            ret = test_data_gen.next(return_y_true=True)
+            (x, y_processed, y) = ret["data"]
+            cur_names = ret["names"]
+            cur_ts = ret["ts"]
+
             x = np.array(x)
             pred = model.predict_on_batch(x)
             predictions += list(pred)
             labels += list(y)
+            names += list(cur_names)
+            ts += list(cur_ts)
 
     if args.partition == 'log':
         predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
@@ -230,9 +247,9 @@ elif args.mode == 'test':
         os.makedirs("test_predictions")
 
     with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
-        fout.write("prediction, y_true")
-        for (x, y) in zip(predictions, labels):
-            fout.write("%.6f, %.6f\n" % (x, y))
+        fout.write("stay, period_length, prediction, y_true\n")
+        for (name, t, x, y) in zip(names, ts, predictions, labels):
+            fout.write("{},{:.6f},{:.6f},{:.6f}\n".format(name, t, x, y))
 
 else:
     raise ValueError("Wrong value for args.mode")

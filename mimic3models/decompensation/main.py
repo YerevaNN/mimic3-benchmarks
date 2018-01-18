@@ -46,9 +46,9 @@ discretizer = Discretizer(timestep=args.timestep,
                           start_time='zero')
 
 if args.deep_supervision:
-    discretizer_header = discretizer.transform(train_data_loader._data[0][0])[1].split(',')
+    discretizer_header = discretizer.transform(train_data_loader._data["X"][0])[1].split(',')
 else:
-    discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+    discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
@@ -97,9 +97,9 @@ if args.load_state != "":
 # Load data and prepare generators
 if args.deep_supervision:
     train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, discretizer,
-                                                   normalizer, args.batch_size, True)
+                                                   normalizer, args.batch_size, shuffle=True)
     val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, discretizer,
-                                                 normalizer, args.batch_size, False)
+                                                 normalizer, args.batch_size, shuffle=False)
 else:
     # Set number of batches in one epoch
     train_nbatches = 2000
@@ -144,13 +144,12 @@ if args.mode == 'train':
 
 elif args.mode == 'test':
 
-    # NOTE: for testing we make sure that deepsupervision is disabled
-    #       and we predict examples one by one.
-
     # ensure that the code uses test_reader
     del train_data_gen
     del val_data_gen
 
+    names = []
+    ts = []
     labels = []
     predictions = []
 
@@ -158,20 +157,28 @@ elif args.mode == 'test':
         del train_data_loader
         del val_data_loader
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/test/',
-                                                                  listfile='../../data/decompensation/test_listfile.csv')
+                                                                  listfile='../../data/decompensation/test_listfile.csv',
+                                                                  small_part=args.small_part)
         test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, discretizer,
-                                                      normalizer, args.batch_size, False)
+                                                      normalizer, args.batch_size,
+                                                      shuffle=False, return_names=True)
 
         for i in range(test_data_gen.steps):
             print "\r\tdone {}/{}".format(i, test_data_gen.steps),
-            (x, y) = next(test_data_gen)
+            ret = next(test_data_gen)
+            (x, y) = ret["data"]
+            cur_names = np.array(ret["names"]).repeat(x[0].shape[1], axis=-1)
+            cur_ts = ret["ts"]
+            for single_ts in cur_ts:
+                ts += single_ts
+
             pred = model.predict(x, batch_size=args.batch_size)
-            for m, t, p in zip(x[1].flatten(), y.flatten(), pred.flatten()):
+            for m, t, p, name in zip(x[1].flatten(), y.flatten(), pred.flatten(), cur_names.flatten()):
                 if np.equal(m, 1):
                     labels.append(t)
                     predictions.append(p)
+                    names.append(name)
         print "\n"
-
     else:
         del train_reader
         del val_reader
@@ -180,15 +187,21 @@ elif args.mode == 'test':
 
         test_data_gen = utils.BatchGen(test_reader, discretizer,
                                        normalizer, args.batch_size,
-                                       1000, False)  # put steps = None for a full test
+                                       None, shuffle=False, return_names=True)  # put steps = None for a full test
 
         for i in range(test_data_gen.steps):
             print "\rpredicting {} / {}".format(i, test_data_gen.steps),
-            x, y = next(test_data_gen)
+            ret = next(test_data_gen)
+            x, y = ret["data"]
+            cur_names = ret["names"]
+            cur_ts = ret["ts"]
+
             x = np.array(x)
             pred = model.predict_on_batch(x)[:, 0]
             predictions += list(pred)
             labels += list(y)
+            names += list(cur_names)
+            ts += list(cur_ts)
 
     metrics.print_metrics_binary(labels, predictions)
 
@@ -196,9 +209,9 @@ elif args.mode == 'test':
         os.makedirs("test_predictions")
 
     with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
-        fout.write("predictions, labels\n")
-        for (x, y) in zip(predictions, labels):
-            fout.write("%.6f, %d\n" % (x, y))
+        fout.write("stay, period_length, prediction, y_true\n")
+        for (name, t, x, y) in zip(names, ts, predictions, labels):
+            fout.write("{},{:.6f},{:.6f},{}\n".format(name, t, x, y))
 
 else:
     raise ValueError("Wrong value for args.mode")

@@ -40,7 +40,7 @@ discretizer = Discretizer(timestep=float(args.timestep),
                           imput_strategy='previous',
                           start_time='zero')
 
-discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
@@ -154,17 +154,18 @@ elif args.mode == 'test':
     del val_reader
     del train_raw
     del val_raw
-    
+
     test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
                     listfile='../../data/in-hospital-mortality/test_listfile.csv',
                     period_length=48.0)
-    test_raw = utils.load_data(test_reader, discretizer, normalizer, args.small_part)
-    
-    data = np.array(test_raw[0])
-    labels = test_raw[1]
-    predictions = model.predict(data,
-                                batch_size=args.batch_size,
-                                verbose=1)
+    ret = utils.load_data(test_reader, discretizer, normalizer, args.small_part,
+                          return_names=True)
+
+    data = ret["data"][0]
+    labels = ret["data"][1]
+    names = ret["names"]
+
+    predictions = model.predict(data, batch_size=args.batch_size, verbose=1)
     predictions = np.array(predictions)[:, 0]
     metrics.print_metrics_binary(labels, predictions)
 
@@ -172,9 +173,9 @@ elif args.mode == 'test':
         os.makedirs("test_predictions")
 
     with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
-        fout.write("predictions, labels\n")
-        for (x, y) in zip(predictions, labels):
-            fout.write("%.6f, %d\n" % (x, y))
+        fout.write("stay, prediction, y_true\n")
+        for (name, x, y) in zip(names, predictions, labels):
+            fout.write("{},{:.6f},{}\n".format(name, x, y))
 
 else:
     raise ValueError("Wrong value for args.mode")

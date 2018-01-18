@@ -143,7 +143,7 @@ def process_single(filename, verbose, select):
 
     batch_size = parse_utils.parse_batch_size(log)
 
-    command = "python -u keras_main.py --network {} --prefix {} --dim {}"\
+    command = "python -u main.py --network {} --prefix {} --dim {}"\
               " --depth {} --epochs 100 --batch_size {} --timestep 1.0"\
               " --load_state {}".format(network, prefix, dim, depth,  batch_size, last_state)
 

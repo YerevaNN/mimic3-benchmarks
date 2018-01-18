@@ -25,6 +25,18 @@ def extract_features_from_rawdata(chunk, header, period, features):
     return extract_features(data, period, features)
 
 
+def read_chunk(reader, chunk_size):
+    data = {}
+    for i in range(chunk_size):
+        ret = reader.read_next()
+        for k, v in ret.iteritems():
+            if k not in data:
+                data[k] = []
+            data[k].append(v)
+    data["header"] = data["header"][0]
+    return data
+
+
 def sort_and_shuffle(data, batch_size):
     """ Sort data by the length and then make batches and shuffle them.
         data is tuple (X1, X2, ..., Xn) all of them have the same length.
@@ -49,8 +61,6 @@ def sort_and_shuffle(data, batch_size):
     for x in mas:
         data += x
     data += tail
-    # NOTE: we assume that we will not use cycling in batch generator
-    # so all examples in one batch will have more or less the same context lenghts
 
     data = zip(*data)
     return data
@@ -100,7 +110,6 @@ class DeepSupervisionDataLoader:
     r"""
     Data loader for decompensation and length of stay task.
     Reads all the data for one patient at once.
-    NOTE: this should be used for training/validation not testing.
 
     Parameters
     ----------
@@ -124,28 +133,31 @@ class DeepSupervisionDataLoader:
         self._data = [(x, float(t), y) for (x, t, y) in self._data]
         self._data = sorted(self._data)
 
-        mas = []
+        mas = {"X": [],
+               "ts": [],
+               "ys": [],
+               "name": []}
         i = 0
         while i < len(self._data):
             j = i
             cur_stay = self._data[i][0]
-            cur_positions = []
+            cur_ts = []
             cur_labels = []
             while j < len(self._data) and self._data[j][0] == cur_stay:
-                cur_positions.append(self._data[j][1])
+                cur_ts.append(self._data[j][1])
                 cur_labels.append(self._data[j][2])
                 j += 1
+
+            cur_X, header = self._read_timeseries(cur_stay)
+            mas["X"].append(cur_X)
+            mas["ts"].append(cur_ts)
+            mas["ys"].append(cur_labels)
+            mas["name"].append(cur_stay)
+
             i = j
-            mas.append([cur_stay, cur_positions, cur_labels])
-        self._data = mas
+            if small_part and len(mas["name"]) == 256:
+                break
 
-        if small_part:
-            self._data = self._data[:256]
-
-        mas = []
-        for (stay, positions, labels) in self._data:
-            X, header = self._read_timeseries(stay)
-            mas.append([X, positions, labels])
         self._data = mas
 
     def _read_timeseries(self, ts_filename):
