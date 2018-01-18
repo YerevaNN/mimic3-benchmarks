@@ -1,236 +1,238 @@
 import numpy as np
 import argparse
-import time
 import os
-import importlib
-import random
+import imp
+import re
 
+from mimic3models.length_of_stay import utils
 from mimic3benchmark.readers import LengthOfStayReader
+
 from mimic3models.preprocessing import Discretizer, Normalizer
 from mimic3models import metrics
-from mimic3models.length_of_stay import utils
+from mimic3models import keras_utils
+from mimic3models import common_utils
+
+from keras.callbacks import ModelCheckpoint, CSVLogger
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--network', type=str, required=True)
-parser.add_argument('--dim', type=int, default=256,
-                        help='number of hidden units')
-parser.add_argument('--chunks', type=int, default=1000,
-                        help='number of chunks to train')
-parser.add_argument('--load_state', type=str, default="",
-                        help='state file path')
-parser.add_argument('--mode', type=str, default="train",
-                        help='mode: train, test or info')
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--l2', type=float, default=0, help='L2 regularization')
-parser.add_argument('--l1', type=float, default=0, help='L1 regularization')
-parser.add_argument('--log_every', type=int, default=1,
-                        help='print information every x iteration')
-parser.add_argument('--save_every', type=int, default=1,
-                        help='save state every x epoch')
-parser.add_argument('--prefix', type=str, default="",
-                        help='optional prefix of network name')
-parser.add_argument('--dropout', type=float, default=0.0, help='dropout rate')
-parser.add_argument('--batch_norm', type=bool, default=False,
-                        help='batch normalization')
-parser.add_argument('--timestep', type=float, default=0.8,
-                        help="fixed timestep used in the dataset")
-parser.add_argument('--small_part', dest='small_part', action='store_true')
-parser.add_argument('--whole_data', dest='small_part', action='store_false')
-parser.set_defaults(small_part=False)
+common_utils.add_common_arguments(parser)
+parser.add_argument('--deep_supervision', dest='deep_supervision', action='store_true')
+parser.set_defaults(deep_supervision=False)
+parser.add_argument('--partition', type=str, default='custom',
+                    help="log, custom, none")
 args = parser.parse_args()
 print args
 
-train_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
-                    listfile='../../data/length-of-stay/train_listfile.csv')
+if args.small_part:
+    args.save_every = 2**30
 
-val_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
-                    listfile='../../data/length-of-stay/val_listfile.csv')
+# Build readers, discretizers, normalizers
+if args.deep_supervision:
+    train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/train/',
+                            listfile='../../data/length-of-stay/train_listfile.csv',
+                            small_part=args.small_part)
+    val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/train/',
+                            listfile='../../data/length-of-stay/val_listfile.csv',
+                            small_part=args.small_part)
+else:
+    train_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                        listfile='../../data/length-of-stay/train_listfile.csv')
+    val_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
+                        listfile='../../data/length-of-stay/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
                           imput_strategy='previous',
                           start_time='zero')
 
-discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+if args.deep_supervision:
+    discretizer_header = discretizer.transform(train_data_loader._data[0][0])[1].split(',')
+else:
+    discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
 normalizer.load_params('los_ts{}.input_str:previous.start_time:zero.n5e4.normalizer'.format(args.timestep))
 
 args_dict = dict(args._get_kwargs())
+args_dict['header'] = discretizer_header
+args_dict['task'] = 'los'
+args_dict['num_classes'] = (1 if args.partition == 'none' else 10)
 
-# init class
-print "==> using network %s" % args.network
-network_module = importlib.import_module("networks." + args.network)
-network = network_module.Network(**args_dict)
-time_step_suffix = ".ts%.2f" % args.timestep
-network_name = args.prefix + network.say_name() + time_step_suffix
-print "==> network_name:", network_name
 
+# Build the model
+print "==> using model {}".format(args.network)
+model_module = imp.load_source(os.path.basename(args.network), args.network)
+model = model_module.Network(**args_dict)
+suffix = "{}.bs{}{}{}.ts{}.partition={}".format("" if not args.deep_supervision else ".dsup",
+                                                args.batch_size,
+                                                ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                                                ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                                                args.timestep,
+                                                args.partition)
+model.final_name = args.prefix + model.say_name() + suffix                              
+print "==> model.final_name:", model.final_name
+
+
+# Compile the model
+print "==> compiling the model"
+optimizer_config = {'class_name': args.optimizer,
+                    'config': {'lr': args.lr,
+                               'beta_1': args.beta_1}}
+
+if args.partition == 'none':
+    # other options are: 'mean_squared_error', 'mean_absolute_percentage_error'
+    loss_function = 'mean_squared_logarithmic_error'
+else:
+    loss_function = 'sparse_categorical_crossentropy'
+# NOTE: categorical_crossentropy needs one-hot vectors
+#       that's why we use sparse_categorical_crossentropy
+# NOTE: it is ok to use keras.losses even for (B, T, D) shapes
+
+model.compile(optimizer=optimizer_config,
+              loss=loss_function)
+
+## print model summary
+model.summary()
+
+# Load model weights
 n_trained_chunks = 0
 if args.load_state != "":
-    n_trained_chunks = network.load_state(args.load_state) - 1
+    model.load_weights(args.load_state)
+    n_trained_chunks = int(re.match(".*chunk([0-9]+).*", args.load_state).group(1))
 
-if (args.small_part):
-    args.save_every = 100000 # never save
-    chunk_size = args.batch_size
+
+# Load data and prepare generators
+if args.deep_supervision:
+    train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, args.partition,
+                                        discretizer, normalizer, args.batch_size, True)
+    val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, args.partition,
+                                        discretizer, normalizer, args.batch_size, False)
 else:
-    chunk_size = 10000
+    # Set number of batches in one epoch
+    train_nbatches = 2000
+    val_nbatches = 1000
+    if args.small_part:
+        train_nbatches = 20
+        val_nbatches = 20
 
-def process_one_chunk(mode, chunk_index):
-    assert (mode == "train" or mode == "test")
-    
-    if (mode == "train"):
-        reader = train_reader
-    if (mode == "test"):
-        reader = val_reader
-    
-    (data, ts, ys, header) = utils.read_chunk(reader, chunk_size)
-    data = utils.preprocess_chunk(data, ts, discretizer, normalizer)
-    
-    if (mode == "train"):
-        network.set_datasets((data, ys), None)
-    if (mode == "test"):
-        network.set_datasets(None, (data, ys))
-        
-    network.shuffle_train_set()
-        
-    y_true = []
-    predictions = []
-    avg_loss = 0.0
-    sum_loss = 0.0
-    prev_time = time.time()
-    n_batches = network.get_batches_per_epoch(mode)
-    
-    for i in range(0, n_batches):
-        step_data = network.step(mode)
-        prediction = step_data["prediction"]
-        answers = step_data["answers"]
-        current_loss = step_data["current_loss"]
-        current_loss_mse = step_data["loss_mse"]
-        current_loss_reg = step_data["loss_reg"]
-        log = step_data["log"]
-        
-        avg_loss += current_loss
-        sum_loss += current_loss
-        
-        for x in answers:
-            y_true.append(x)
-        
-        for x in prediction:
-            predictions.append(x)
-        
-        if ((i + 1) % args.log_every == 0):
-            cur_time = time.time()
-            print ("  %sing: %d.%d / %d \t loss: %.3f = %.3f + %.3f \t avg_loss: %.3f \t"\
-                   "%s \t time: %.2fs" % (mode, chunk_index, i * args.batch_size,
-                        n_batches * args.batch_size, 
-                        current_loss, current_loss_mse, current_loss_reg,
-                        avg_loss / args.log_every, log, cur_time - prev_time))
-            avg_loss = 0
-            prev_time = cur_time
-        
-        if np.isnan(current_loss):
-            raise Exception ("current loss IS NaN. This should never happen :)") 
-
-    sum_loss /= n_batches
-    print "\n  %s loss = %.5f" % (mode, sum_loss)
-    
-    if args.network in ['lstm', 'lstm_log']:
-        metrics.print_metrics_regression(y_true, predictions)
-    if args.network == 'lstm_cf_log':
-        metrics.print_metrics_log_bins(y_true, predictions)
-    if args.network == 'lstm_cf_custom':
-        metrics.print_metrics_custom_bins(y_true, predictions)
-    
-    return sum_loss
-
+    train_data_gen = utils.BatchGen(reader=train_reader,
+                                    discretizer=discretizer,
+                                    normalizer=normalizer,
+                                    partition=args.partition,
+                                    batch_size=args.batch_size,
+                                    steps=train_nbatches,
+                                    shuffle=True)
+    val_data_gen = utils.BatchGen(reader=val_reader,
+                                  discretizer=discretizer,
+                                  normalizer=normalizer,
+                                  partition=args.partition,
+                                  batch_size=args.batch_size,
+                                  steps=val_nbatches,
+                                  shuffle=False)
 
 if args.mode == 'train':
-    
-    print "==> training"  	
-    for chunk_index in range(n_trained_chunks, n_trained_chunks + args.chunks):
-        start_time = time.time()
-        
-        process_one_chunk("train", chunk_index)
-        cnt_trained = chunk_index - n_trained_chunks + 1
 
-        if (cnt_trained % 5 == 0):
-            val_loss = process_one_chunk("test", chunk_index)
-            if ((cnt_trained / 5) % args.save_every == 0):
-                state_name = 'states/%s.chunk%d.test%.8f.state' % (network_name,
-                                        chunk_index, val_loss)
-                               
-                print "==> saving ... %s" % state_name
-                network.save_params(state_name, chunk_index)
-        
-        print "chunk %d took %.3fs" % (chunk_index, float(time.time()) - start_time)
-        
-        chunks_per_epoch = train_reader.get_number_of_examples() // chunk_size
-        if (cnt_trained % chunks_per_epoch == 0):
-            train_reader.random_shuffle()
-            val_reader.random_shuffle()
-            
+    # Prepare training
+    path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
+    
+    metrics_callback = keras_utils.MetricsLOS(train_data_gen,
+                                            val_data_gen,
+                                            args.partition,
+                                            args.batch_size,
+                                            args.verbose)
+    # make sure save directory exists
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
+    
+    if not os.path.exists('keras_logs'):
+        os.makedirs('keras_logs')
+    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+                           append=True, separator=';')
+    
+    print "==> training"
+    model.fit_generator(generator=train_data_gen,
+                        steps_per_epoch=train_data_gen.steps,
+                        validation_data=val_data_gen,
+                        validation_steps=val_data_gen.steps,
+                        epochs=n_trained_chunks + args.epochs,
+                        initial_epoch=n_trained_chunks,
+                        callbacks=[metrics_callback, saver, csv_logger],
+                        verbose=args.verbose)
+
 elif args.mode == 'test':
-    # ensure that the code uses test_reader
-    del train_reader
-    del val_reader 
-    
-    test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
-            listfile='../../data/length-of-stay/test_listfile.csv')
-    
-    n_batches = test_reader.get_number_of_examples() // args.batch_size
-    y_true = []
-    predictions = []
-    avg_loss = 0.0
-    sum_loss = 0.0
-    prev_time = time.time()
-    
-    n_batches = 1000 # TODO: remove this, to test on full data
-    
-    for i in range(n_batches):
-        (data, ts, ys, header) = utils.read_chunk(test_reader, args.batch_size)
-        data = utils.preprocess_chunk(data, ts, discretizer, normalizer)
-        ret = network.predict((data, ys))
-        prediction = ret[0]
-        current_loss = ret[1]
-        
-        avg_loss += current_loss
-        sum_loss += current_loss
-        
-        for x in ys:
-            y_true.append(x)
-        
-        for x in prediction:
-            predictions.append(x)
-        
-        if ((i + 1) % args.log_every == 0):
-            cur_time = time.time()
-            print ("  testing: %d / %d \t loss: %.3f \t avg_loss: %.3f \t"\
-                   " time: %.2fs" % ((i+1) * args.batch_size,
-                        n_batches * args.batch_size, current_loss,
-                        avg_loss / args.log_every, cur_time - prev_time))
-            avg_loss = 0
-            prev_time = cur_time
-        
-        if np.isnan(current_loss):
-            raise Exception ("current loss IS NaN. This should never happen :)") 
+    # NOTE: for testing we make sure that deepsupervision is disabled
+    #       and we predict examples one by one.
 
-    sum_loss /= n_batches
-    print "\n  test loss = %.5f" % sum_loss
-    
-    if args.network in ['lstm', 'lstm_log']:
-        metrics.print_metrics_regression(y_true, predictions)
-    if args.network == 'lstm_cf_log':
-        metrics.print_metrics_log_bins(y_true, predictions)
-    if args.network == 'lstm_cf_custom':
-        metrics.print_metrics_custom_bins(y_true, predictions)
-    
-    with open("activations.txt", "w") as fout:
+    # ensure that the code uses test_reader
+    del train_data_gen
+    del val_data_gen
+
+    labels = []
+    predictions = []
+
+    if args.deep_supervision:
+        del train_data_loader
+        del val_data_loader
+        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/test/',
+                                                                  listfile='../../data/length-of-stay/test_listfile.csv')
+        test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, args.partition,
+                                                      discretizer, normalizer, args.batch_size, False)
+
+        for i in range(test_data_gen.steps):
+            print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+            (x, y_processed, y) = test_data_gen.next(return_y_true=True)
+            pred = model.predict(x, batch_size=args.batch_size)
+            if pred.shape[-1] == 1: # regression
+                pred_flatten = pred.flatten()
+            else: # classification
+                pred_flatten = pred.reshape((-1, 10))
+            for m, t, p in zip(x[1].flatten(), y.flatten(), pred_flatten):
+                if np.equal(m, 1):
+                    labels.append(t)
+                    predictions.append(p)
+
+    else:
+        del train_reader
+        del val_reader
+        test_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/test/',
+                                        listfile='../../data/length-of-stay/test_listfile.csv')
+
+        test_data_gen = utils.BatchGen(reader=test_reader,
+                                       discretizer=discretizer,
+                                       normalizer=normalizer,
+                                       partition=args.partition,
+                                       batch_size=args.batch_size,
+                                       steps=10000,  # put steps = None for a full test
+                                       shuffle=False)
+
+        for i in range(test_data_gen.steps):
+            print "\rpredicting {} / {}".format(i, test_data_gen.steps),
+            x, y_processed, y = test_data_gen.next(return_y_true=True)
+            x = np.array(x)
+            pred = model.predict_on_batch(x)
+            predictions += list(pred)
+            labels += list(y)
+
+    if args.partition == 'log':
+        predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
+        metrics.print_metrics_log_bins(labels, predictions)
+    if args.partition == 'custom':
+        predictions = [metrics.get_estimate_custom(x, 10) for x in predictions]
+        metrics.print_metrics_custom_bins(labels, predictions)
+    if args.partition == 'none':
+        metrics.print_metrics_regression(labels, predictions)
+
+    if not os.path.exists("test_predictions"):
+        os.makedirs("test_predictions")
+
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
         fout.write("prediction, y_true")
-        for (x, y) in zip(predictions, y_true):
+        for (x, y) in zip(predictions, labels):
             fout.write("%.6f, %.6f\n" % (x, y))
-    
+
 else:
-    raise Exception("unknown mode")
+    raise ValueError("Wrong value for args.mode")
