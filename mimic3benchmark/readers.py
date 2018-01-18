@@ -74,28 +74,34 @@ class DecompensationReader(Reader):
         index : int
             Index of the line of the listfile to read (counting starts from 0).
         
-        Returns (X, t, y, header)
+        Returns dictionary
         -------
         X : np.array
             2D array containing all events. Each row corresponds to a moment.
-            First coloumn is the time and other columns correspond to different
+            First column is the time and other columns correspond to different
             variables.
         t : float
-            Lenght of the data in hours. Note, in general, it is not eqaul to the
+            Length of the data in hours. Note, in general, it is not equal to the
             timestamp of last event.
         y : int (0 or 1)
             Mortality within next 24 hours.
         header : array of strings
             Names of the columns. The ordering of the columns is always the same.
+        name: Name of the sample.
         """
         if (index < 0 or index >= len(self._data)):
             raise ValueError("Index must be from 0 (inclusive) to number of examples (exclusive).")
 
+        name = self._data[index][0]
         t = self._data[index][1]
-        (X, header) = self._read_timeseries(self._data[index][0], t)
         y = self._data[index][2]
+        (X, header) = self._read_timeseries(name, t)
 
-        return (X, t, y, header)
+        return {"X": X,
+                "t": t,
+                "y": y,
+                "header": header,
+                "name": name}
 
 
 class InHospitalMortalityReader(Reader):
@@ -138,27 +144,34 @@ class InHospitalMortalityReader(Reader):
         index : int
             Index of the line of the listfile to read (counting starts from 0).
 
-        Returns (X, t, y, header)
+        Returns dictionary
         -------
         X : np.array
             2D array containing all events. Each row corresponds to a moment.
-            First coloumn is the time and other columns correspond to different
+            First column is the time and other columns correspond to different
             variables.
         t : float
-            Lenght of the data in hours. Note, in general, it is not eqaul to the
+            Length of the data in hours. Note, in general, it is not equal to the
             timestamp of last event.
         y : int (0 or 1)
             In-hospital mortality.
         header : array of strings
             Names of the columns. The ordering of the columns is always the same.
+        name: Name of the sample.
         """
         if (index < 0 or index >= len(self._data)):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
-        (X, header) = self._read_timeseries(self._data[index][0])
+        name = self._data[index][0]
+        t = self._period_length
         y = self._data[index][1]
+        (X, header) = self._read_timeseries(name)
 
-        return (X, self._period_length, y, header)
+        return {"X": X,
+                "t": t,
+                "y": y,
+                "header": header,
+                "name": name}
 
 
 class LengthOfStayReader(Reader):
@@ -201,28 +214,34 @@ class LengthOfStayReader(Reader):
         index : int
             Index of the line of the listfile to read (counting starts from 0).
 
-        Returns (X, t, y, header)
+        Returns dictionary
         -------
         X : np.array
             2D array containing all events. Each row corresponds to a moment.
-            First coloumn is the time and other columns correspond to different
+            First column is the time and other columns correspond to different
             variables.
         t : float
-            Lenght of the data in hours. Note, in general, it is not eqaul to the
+            Length of the data in hours. Note, in general, it is not equal to the
             timestamp of last event.
         y : float
             Remaining time in ICU.
         header : array of strings
             Names of the columns. The ordering of the columns is always the same.
+        name: Name of the sample.
         """
         if (index < 0 or index >= len(self._data)):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
-    
-        t = self._data[index][1]
-        (X, header) = self._read_timeseries(self._data[index][0], t)
-        y = self._data[index][2]
 
-        return (X, t, y, header)
+        name = self._data[index][0]
+        t = self._data[index][1]
+        y = self._data[index][2]
+        (X, header) = self._read_timeseries(name, t)
+
+        return {"X": X,
+                "t": t,
+                "y": y,
+                "header": header,
+                "name": name}
 
 
 class PhenotypingReader(Reader):
@@ -264,27 +283,34 @@ class PhenotypingReader(Reader):
         index : int
             Index of the line of the listfile to read (counting starts from 0).
 
-        Returns (X, t, y, header)
+        Returns dictionary
         -------
         X : np.array
             2D array containing all events. Each row corresponds to a moment.
-            First coloumn is the time and other columns correspond to different
+            First column is the time and other columns correspond to different
             variables.
         t : float
-            Lenght of the data in hours. Note, in general, it is not eqaul to the
+            Length of the data in hours. Note, in general, it is not equal to the
             timestamp of last event.
         y : array of ints
             Phenotype labels.
         header : array of strings
             Names of the columns. The ordering of the columns is always the same.
+        name: Name of the sample.
         """
         if (index < 0 or index >= len(self._data)):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
-        (X, header) = self._read_timeseries(self._data[index][0])
+        name = self._data[index][0]
+        t = self._data[index][1]
         y = self._data[index][2]
+        (X, header) = self._read_timeseries(name)
 
-        return (X, self._data[index][1], y, header)
+        return {"X": X,
+                "t": t,
+                "y": y,
+                "header": header,
+                "name": name}
 
 
 class MultitaskReader(Reader):
@@ -343,14 +369,14 @@ class MultitaskReader(Reader):
         index : int
             Index of the line of the listfile to read (counting starts from 0).
 
-        Returns (X, t, ihm, los, ph, decomp, header)
+        Returns dictionary
         -------
         X : np.array
             2D array containing all events. Each row corresponds to a moment.
-            First coloumn is the time and other columns correspond to different
+            First column is the time and other columns correspond to different
             variables.
         t : float
-            Lenght of the data in hours. Note, in general, it is not eqaul to the
+            Length of the data in hours. Note, in general, it is not equal to the
             timestamp of last event.
         ihm : array
             Array of 3 integers: [pos, mask, label].
@@ -362,8 +388,19 @@ class MultitaskReader(Reader):
             Array of 2 arrays: [masks, labels].
         header : array of strings
             Names of the columns. The ordering of the columns is always the same.
+        name: Name of the sample.
         """
         if (index < 0 or index >= len(self._data)):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
-        (X, header) = self._read_timeseries(self._data[index][0])
-        return [X] + list(self._data[index][1:]) + [header]
+
+        name = self._data[index][0]
+        (X, header) = self._read_timeseries(name)
+
+        return {"X": X,
+                "t": self.data[index][1],
+                "ihm": self.data[index][2],
+                "los": self.data[index][3],
+                "ph": self.data[index][4],
+                "decomp": self.data[index][5],
+                "header": header,
+                "name": name}
