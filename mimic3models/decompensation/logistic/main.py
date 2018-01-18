@@ -9,20 +9,16 @@ from mimic3benchmark.readers import DecompensationReader
 from mimic3models import common_utils
 from mimic3models import metrics
 
-from mimic3models.decompensation import utils
-
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=100,
-                    help='number of epochs to train')
-parser.add_argument('--period', type=str, default="all", 
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train')
+parser.add_argument('--period', type=str, default="all",
                     help="first4days, first8days, last12hours, "\
                          "first25percent, first50percent, all")
-parser.add_argument('--features', type=str, default="all",
-                    help="all, len, all_but_len")
+parser.add_argument('--features', type=str, default="all", help="all, len, all_but_len")
 
-#penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
-#Cs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
+# penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
+# Cs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
 penalties = ['l2']
 Cs = [0.001]
 
@@ -30,21 +26,25 @@ args = parser.parse_args()
 print args
 
 train_reader = DecompensationReader(dataset_dir='../../../data/decompensation/train/',
-                    listfile='../../../data/decompensation/train_listfile.csv')
+                                    listfile='../../../data/decompensation/train_listfile.csv')
 
 val_reader = DecompensationReader(dataset_dir='../../../data/decompensation/train/',
-                    listfile='../../../data/decompensation/val_listfile.csv')
+                                  listfile='../../../data/decompensation/val_listfile.csv')
 
 test_reader = DecompensationReader(dataset_dir='../../../data/decompensation/test/',
-                             listfile='../../../data/decompensation/test_listfile.csv')
+                                   listfile='../../../data/decompensation/test_listfile.csv')
+
 
 def read_and_extract_features(reader, count):
     read_chunk_size = 1000
-    #assert (count % read_chunk_size == 0)
+    # assert (count % read_chunk_size == 0)
     Xs = []
     ys = []
     for i in range(count // read_chunk_size):
-        (chunk, ts, y, header) = utils.read_chunk(reader, read_chunk_size)
+        ret = common_utils.read_chunk(reader, read_chunk_size)
+        chunk = ret["X"]
+        y = ret["y"]
+        header = ret["header"]
         X = common_utils.extract_features_from_rawdata(chunk, header, args.period, args.features)
         Xs.append(X)
         ys += y
@@ -53,7 +53,7 @@ def read_and_extract_features(reader, count):
 
 
 print "==> reading data and extracting features"
-chunk_size = 100000 # TODO: bigger chunk_size
+chunk_size = 100000  # TODO: bigger chunk_size
 
 (train_X, train_y) = read_and_extract_features(train_reader, chunk_size)
 del train_reader
@@ -90,16 +90,16 @@ if not os.path.exists("results"):
     os.mkdir("results")
 
 for (penalty, C) in zip(penalties, Cs):
-    file_name = "%s.%s.%s.C%f" % (args.period, args.features, 
+    file_name = "%s.%s.%s.C%f" % (args.period, args.features,
                                   penalty, C)
-    
+
     logreg = LogisticRegression(penalty=penalty, C=C)
     logreg.fit(train_X, train_y)
 
-    with open(os.path.join("results", file_name + ".txt"), "w") as resfile:        
-        
+    with open(os.path.join("results", file_name + ".txt"), "w") as resfile:
+
         resfile.write("acc, prec0, prec1, rec0, rec1, auroc, auprc, minpse\n")
-        
+
         print "Scores on train set"
         ret = metrics.print_metrics_binary(train_y, logreg.predict_proba(train_X))
         resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n" % (
@@ -111,7 +111,7 @@ for (penalty, C) in zip(penalties, Cs):
             ret['auroc'],
             ret['auprc'],
             ret['minpse']))
-            
+
         print "Scores on validation set"
         ret = metrics.print_metrics_binary(val_y, logreg.predict_proba(val_X))
         resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n" % (
@@ -123,7 +123,7 @@ for (penalty, C) in zip(penalties, Cs):
             ret['auroc'],
             ret['auprc'],
             ret['minpse']))
-            
+
         print "Scores on test set"
         ret = metrics.print_metrics_binary(test_y, logreg.predict_proba(test_X))
         resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n" % (

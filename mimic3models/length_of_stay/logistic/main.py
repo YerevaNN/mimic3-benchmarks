@@ -8,26 +8,21 @@ from sklearn.linear_model import LinearRegression
 from mimic3benchmark.readers import LengthOfStayReader
 from mimic3models import common_utils
 from mimic3models import metrics
-from mimic3models.length_of_stay import utils
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=100,
-                    help='number of epochs to train')
-parser.add_argument('--period', type=str, default="all", 
-                    help="first4days, first8days, last12hours, "\
-                         "first25percent, first50percent, all")
-parser.add_argument('--features', type=str, default="all",
-                    help="all, len, all_but_len")
-
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train')
+parser.add_argument('--period', type=str, default="all", help="first4days, first8days, last12hours, "\
+                                                              "first25percent, first50percent, all")
+parser.add_argument('--features', type=str, default="all", help="all, len, all_but_len")
 args = parser.parse_args()
 print args
 
 train_reader = LengthOfStayReader(dataset_dir='../../../data/length-of-stay/train/',
-                    listfile='../../../data/length-of-stay/train_listfile.csv')
+                                  listfile='../../../data/length-of-stay/train_listfile.csv')
 
 val_reader = LengthOfStayReader(dataset_dir='../../../data/length-of-stay/train/',
-                    listfile='../../../data/length-of-stay/val_listfile.csv')
+                                listfile='../../../data/length-of-stay/val_listfile.csv')
 
 
 def read_and_extract_features(reader, count):
@@ -36,7 +31,10 @@ def read_and_extract_features(reader, count):
     Xs = []
     ys = []
     for i in range(count // read_chunk_size):
-        (chunk, ts, y, header) = utils.read_chunk(reader, read_chunk_size)
+        ret = utils.read_chunk(reader, read_chunk_size)
+        chunk = ret["X"]
+        y = ret["y"]
+        header = ret["header"]
         X = common_utils.extract_features_from_rawdata(chunk, header, args.period, args.features)
         Xs.append(X)
         ys += y
@@ -45,7 +43,7 @@ def read_and_extract_features(reader, count):
 
 
 print "==> reading data and extracting features"
-chunk_size = 100000 # TODO: bigger chunk_size
+chunk_size = 100000  # TODO: bigger chunk_size
 prev_time = time.time()
 (train_X, train_y) = read_and_extract_features(train_reader, chunk_size)
 (val_X, val_y) = read_and_extract_features(val_reader, chunk_size)
@@ -79,9 +77,9 @@ if not os.path.exists("results"):
     os.mkdir("results")
 
 with open(os.path.join("results", file_name + ".txt"), "w") as resfile:
-    
+
     resfile.write("mad, mse, mape, kappa\n")
-    
+
     print "Scores on train set"
     ret = metrics.print_metrics_regression(train_y, linreg.predict(train_X))
     resfile.write("%.6f,%.6f,%.6f,%.6f\n" % (
@@ -89,7 +87,7 @@ with open(os.path.join("results", file_name + ".txt"), "w") as resfile:
         ret['mse'],
         ret['mape'],
         ret['kappa']))
-    
+
     print "Scores on validation set"
     ret = metrics.print_metrics_regression(val_y, linreg.predict(val_X))
     resfile.write("%.6f,%.6f,%.6f,%.6f\n" % (

@@ -9,38 +9,36 @@ from mimic3benchmark.readers import InHospitalMortalityReader
 from mimic3models import common_utils
 from mimic3models import metrics
 
-from mimic3models.in_hospital_mortality import utils
-
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=100,
-                    help='number of epochs to train')
-parser.add_argument('--C', type=float, default=1.0,
-                    help='inverse of L1 / L2 regularization')
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train')
+parser.add_argument('--C', type=float, default=1.0, help='inverse of L1 / L2 regularization')
 parser.add_argument('--l1', dest='l2', action='store_false')
 parser.add_argument('--l2', dest='l2', action='store_true')
 parser.set_defaults(l2=True)
-parser.add_argument('--period', type=str, default="all", 
+parser.add_argument('--period', type=str, default="all",
                     help="first4days, first8days, last12hours, "\
                          "first25percent, first50percent, all")
-parser.add_argument('--features', type=str, default="all",
-                    help="all, len, all_but_len")
+parser.add_argument('--features', type=str, default="all", help="all, len, all_but_len")
 
 args = parser.parse_args()
 print args
 
 train_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/train/',
-                    listfile='../../../data/in-hospital-mortality/train_listfile.csv',
-                    period_length=48.0)
+                                         listfile='../../../data/in-hospital-mortality/train_listfile.csv',
+                                         period_length=48.0)
 
 val_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/train/',
-                    listfile='../../../data/in-hospital-mortality/val_listfile.csv',
-                    period_length=48.0)
+                                       listfile='../../../data/in-hospital-mortality/val_listfile.csv',
+                                       period_length=48.0)
 
 
 def read_and_extract_features(reader):
-    (chunk, ts, y, header) = utils.read_chunk(reader, reader.get_number_of_examples())
-    #(chunk, ts, y, header) = utils.read_chunk(reader, 100)
+    ret = common_utils.read_chunk(reader, reader.get_number_of_examples())
+    # ret = common_utils.read_chunk(reader, 100)
+    chunk = ret["X"]
+    y = ret["y"]
+    header = ret["header"]
     X = common_utils.extract_features_from_rawdata(chunk, header, args.period, args.features)
     return (X, y)
 
@@ -83,9 +81,9 @@ if not os.path.exists("results"):
     os.mkdir("results")
 
 with open(os.path.join("results", file_name + ".txt"), "w") as resfile:
-    
+
     resfile.write("acc, prec0, prec1, rec0, rec1, auroc, auprc, minpse\n")
-    
+
     print "Scores on train set"
     ret = metrics.print_metrics_binary(train_y, logreg.predict_proba(train_X))
     resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n" % (
@@ -97,7 +95,7 @@ with open(os.path.join("results", file_name + ".txt"), "w") as resfile:
         ret['auroc'],
         ret['auprc'],
         ret['minpse']))
-        
+
     print "Scores on validation set"
     ret = metrics.print_metrics_binary(val_y, logreg.predict_proba(val_X))
     resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n" % (
@@ -121,8 +119,8 @@ del train_y
 del val_y
 
 test_reader = InHospitalMortalityReader(dataset_dir='../../../data/in-hospital-mortality/test/',
-                             listfile='../../../data/in-hospital-mortality/test_listfile.csv',
-                             period_length=48.0)
+                                        listfile='../../../data/in-hospital-mortality/test_listfile.csv',
+                                        period_length=48.0)
 (test_X, test_y) = read_and_extract_features(test_reader)
 test_X = np.array(imputer.transform(test_X), dtype=np.float32)
 test_X = scaler.transform(test_X)
