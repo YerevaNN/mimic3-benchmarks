@@ -37,13 +37,6 @@ def parse_metrics(log, metric):
     return ret[::2], ret[1::2]
 
 
-def parse_last_state(log):
-    ret = re.findall('saving model to (.*.state)\n', log)
-    if len(ret) == 0:
-        return None
-    return ret[-1]
-
-
 def parse_network(log):
     ret = re.search("network='([^']*)'", log)
     return ret.group(1)
