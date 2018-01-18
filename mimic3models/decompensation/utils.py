@@ -75,7 +75,7 @@ class BatchGen(object):
         return self.generator.__next__()
 
 
-class BatchGenDeepSupervisoin(object):
+class BatchGenDeepSupervision(object):
 
     def __init__(self, dataloader, discretizer, normalizer,
                  batch_size, shuffle, return_names=False):
@@ -172,10 +172,10 @@ class BatchGenDeepSupervisoin(object):
                 names = self.names[i:i + B]
                 ts = self.ts[i:i + B]
 
-                X = nn_utils.pad_zeros(X) # (B, T, D)
-                mask = nn_utils.pad_zeros(mask) # (B, T)
+                X = nn_utils.pad_zeros(X)  # (B, T, D)
+                mask = nn_utils.pad_zeros(mask)  # (B, T)
                 y = nn_utils.pad_zeros(y)
-                y = np.expand_dims(y, axis=-1) # (B, T, 1)
+                y = np.expand_dims(y, axis=-1)  # (B, T, 1)
                 batch_data = ([X, mask], y)
                 if not self.return_names:
                     yield batch_data

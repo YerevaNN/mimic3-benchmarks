@@ -91,7 +91,7 @@ class BatchGen(object):
         return self.generator.__next__()
 
 
-class BatchGenDeepSupervisoin(object):
+class BatchGenDeepSupervision(object):
 
     def __init__(self, dataloader, partition, discretizer, normalizer,
                  batch_size, shuffle, return_names=False):
@@ -198,8 +198,8 @@ class BatchGenDeepSupervisoin(object):
                 if self.partition == 'custom':
                     y = [np.array([metrics.get_bin_custom(x, 10) for x in z]) for z in y]
 
-                X = nn_utils.pad_zeros(X) # (B, T, D)
-                mask = nn_utils.pad_zeros(mask) # (B, T)
+                X = nn_utils.pad_zeros(X)  # (B, T, D)
+                mask = nn_utils.pad_zeros(mask)  # (B, T)
                 y = nn_utils.pad_zeros(y)
                 y = np.expand_dims(y, axis=-1)
 

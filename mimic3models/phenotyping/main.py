@@ -28,10 +28,10 @@ target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
 train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                listfile='../../data/phenotyping/train_listfile.csv')
+                                 listfile='../../data/phenotyping/train_listfile.csv')
 
 val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                listfile='../../data/phenotyping/val_listfile.csv')
+                               listfile='../../data/phenotyping/val_listfile.csv')
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -41,7 +41,7 @@ discretizer = Discretizer(timestep=float(args.timestep),
 discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
+normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
 normalizer.load_params('ph_ts%s.input_str:previous.start_time:zero.normalizer' % args.timestep)
 
 args_dict = dict(args._get_kwargs())
@@ -54,7 +54,6 @@ args_dict['target_repl'] = target_repl
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
-network = model # alias
 suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
                                    ".L1{}".format(args.l1) if args.l1 > 0 else "",
                                    ".L2{}".format(args.l2) if args.l2 > 0 else "",
@@ -83,8 +82,6 @@ else:
 model.compile(optimizer=optimizer_config,
               loss=loss,
               loss_weights=loss_weights)
-
-## print model summary
 model.summary()
 
 # Load model weights
@@ -106,10 +103,10 @@ if args.mode == 'train':
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
 
-    metrics_callback = keras_utils.MetricsMultilabel(train_data_gen,
-                                                   val_data_gen,
-                                                   args.batch_size,
-                                                   args.verbose)
+    metrics_callback = keras_utils.PhenotypingMetrics(train_data_gen=train_data_gen,
+                                                      val_data_gen=val_data_gen,
+                                                      batch_size=args.batch_size,
+                                                      verbose=args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -140,7 +137,7 @@ elif args.mode == 'test':
     del val_data_gen
 
     test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
-                    listfile='../../data/phenotyping/test_listfile.csv')
+                                    listfile='../../data/phenotyping/test_listfile.csv')
 
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                    normalizer, args.batch_size,

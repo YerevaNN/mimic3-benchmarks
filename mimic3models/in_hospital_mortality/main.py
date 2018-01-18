@@ -28,12 +28,12 @@ target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                        listfile='../../data/in-hospital-mortality/train_listfile.csv',
-                                        period_length=48.0)
+                                         listfile='../../data/in-hospital-mortality/train_listfile.csv',
+                                         period_length=48.0)
 
 val_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                      listfile='../../data/in-hospital-mortality/val_listfile.csv',
-                                      period_length=48.0)
+                                       listfile='../../data/in-hospital-mortality/val_listfile.csv',
+                                       period_length=48.0)
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -43,7 +43,7 @@ discretizer = Discretizer(timestep=float(args.timestep),
 discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
+normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
 normalizer.load_params('ihm_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
 
 args_dict = dict(args._get_kwargs())
@@ -55,13 +55,12 @@ args_dict['target_repl'] = target_repl
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
-network = model # alias
 suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
-                               ".L1{}".format(args.l1) if args.l1 > 0 else "",
-                               ".L2{}".format(args.l2) if args.l2 > 0 else "",
-                               args.timestep,
-                               ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
-model.final_name = args.prefix + model.say_name() + suffix                              
+                                   ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                                   ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                                   args.timestep,
+                                   ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
+model.final_name = args.prefix + model.say_name() + suffix
 print "==> model.final_name:", model.final_name
 
 
@@ -84,8 +83,6 @@ else:
 model.compile(optimizer=optimizer_config,
               loss=loss,
               loss_weights=loss_weights)
-
-## print model summary
 model.summary()
 
 # Load model weights
@@ -113,28 +110,27 @@ if target_repl:
     train_raw = extend_labels(train_raw)
     val_raw = extend_labels(val_raw)
 
-
 if args.mode == 'train':
-    
+
     # Prepare training
     path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
-    
-    metrics_callback = keras_utils.MetricsBinaryFromData(train_raw,
-                                                       val_raw,
-                                                       args.batch_size,
-                                                       args.verbose)
-    
+
+    metrics_callback = keras_utils.InHospitalMortalityMetrics(train_data=train_raw,
+                                                              val_data=val_raw,
+                                                              target_repl=(args.target_repl_coef > 0),
+                                                              batch_size=args.batch_size,
+                                                              verbose=args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
-    
+
     if not os.path.exists('keras_logs'):
         os.makedirs('keras_logs')
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
-    
+
     print "==> training"
     model.fit(x=train_raw[0],
               y=train_raw[1],
@@ -146,7 +142,6 @@ if args.mode == 'train':
               verbose=args.verbose,
               batch_size=args.batch_size)
 
-
 elif args.mode == 'test':
 
     # ensure that the code uses test_reader
@@ -156,8 +151,8 @@ elif args.mode == 'test':
     del val_raw
 
     test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
-                    listfile='../../data/in-hospital-mortality/test_listfile.csv',
-                    period_length=48.0)
+                                            listfile='../../data/in-hospital-mortality/test_listfile.csv',
+                                            period_length=48.0)
     ret = utils.load_data(test_reader, discretizer, normalizer, args.small_part,
                           return_names=True)
 

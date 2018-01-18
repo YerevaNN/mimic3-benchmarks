@@ -29,16 +29,16 @@ if args.small_part:
 # Build readers, discretizers, normalizers
 if args.deep_supervision:
     train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/train/',
-                            listfile='../../data/decompensation/train_listfile.csv',
-                            small_part=args.small_part)
+                                                               listfile='../../data/decompensation/train_listfile.csv',
+                                                               small_part=args.small_part)
     val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/train/',
-                            listfile='../../data/decompensation/val_listfile.csv',
-                            small_part=args.small_part)
+                                                             listfile='../../data/decompensation/val_listfile.csv',
+                                                             small_part=args.small_part)
 else:
     train_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/train_listfile.csv')
+                                        listfile='../../data/decompensation/train_listfile.csv')
     val_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/val_listfile.csv')
+                                      listfile='../../data/decompensation/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -51,7 +51,7 @@ else:
     discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
+normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
 normalizer.load_params('decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep))
 
 args_dict = dict(args._get_kwargs())
@@ -63,13 +63,12 @@ args_dict['task'] = 'decomp'
 print "==> using model {}".format(args.network)
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
-network = model # alias
 suffix = "{}.bs{}{}{}.ts{}".format("" if not args.deep_supervision else ".dsup",
-                                args.batch_size,
-                                ".L1{}".format(args.l1) if args.l1 > 0 else "",
-                                ".L2{}".format(args.l2) if args.l2 > 0 else "",
-                                args.timestep)
-model.final_name = args.prefix + model.say_name() + suffix                              
+                                   args.batch_size,
+                                   ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                                   ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                                   args.timestep)
+model.final_name = args.prefix + model.say_name() + suffix
 print "==> model.final_name:", model.final_name
 
 
@@ -84,8 +83,6 @@ optimizer_config = {'class_name': args.optimizer,
 #       and then take the mean over axis=-1. Tre results is (B, T).
 model.compile(optimizer=optimizer_config,
               loss='binary_crossentropy')
-
-## print model summary
 model.summary()
 
 # Load model weights
@@ -96,9 +93,9 @@ if args.load_state != "":
 
 # Load data and prepare generators
 if args.deep_supervision:
-    train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, discretizer,
+    train_data_gen = utils.BatchGenDeepSupervision(train_data_loader, discretizer,
                                                    normalizer, args.batch_size, shuffle=True)
-    val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, discretizer,
+    val_data_gen = utils.BatchGenDeepSupervision(val_data_loader, discretizer,
                                                  normalizer, args.batch_size, shuffle=False)
 else:
     # Set number of batches in one epoch
@@ -113,25 +110,26 @@ else:
                                   normalizer, args.batch_size, val_nbatches, False)
 
 if args.mode == 'train':
-    
+
     # Prepare training
     path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
-    
-    metrics_callback = keras_utils.MetricsBinaryFromGenerator(train_data_gen,
-                                                            val_data_gen,
-                                                            args.batch_size,
-                                                            args.verbose)
+
+    metrics_callback = keras_utils.DecompensationMetrics(train_data_gen=train_data_gen,
+                                                         val_data_gen=val_data_gen,
+                                                         deep_supervision=args.deep_supervision,
+                                                         batch_size=args.batch_size,
+                                                         verbose=args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
-    
+
     if not os.path.exists('keras_logs'):
         os.makedirs('keras_logs')
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
-    
+
     print "==> training"
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
@@ -159,7 +157,7 @@ elif args.mode == 'test':
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/test/',
                                                                   listfile='../../data/decompensation/test_listfile.csv',
                                                                   small_part=args.small_part)
-        test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, discretizer,
+        test_data_gen = utils.BatchGenDeepSupervision(test_data_loader, discretizer,
                                                       normalizer, args.batch_size,
                                                       shuffle=False, return_names=True)
 

@@ -30,16 +30,16 @@ if args.small_part:
 # Build readers, discretizers, normalizers
 if args.deep_supervision:
     train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/train/',
-                            listfile='../../data/length-of-stay/train_listfile.csv',
-                            small_part=args.small_part)
+                                                               listfile='../../data/length-of-stay/train_listfile.csv',
+                                                               small_part=args.small_part)
     val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/train/',
-                            listfile='../../data/length-of-stay/val_listfile.csv',
-                            small_part=args.small_part)
+                                                             listfile='../../data/length-of-stay/val_listfile.csv',
+                                                             small_part=args.small_part)
 else:
     train_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
-                        listfile='../../data/length-of-stay/train_listfile.csv')
+                                      listfile='../../data/length-of-stay/train_listfile.csv')
     val_reader = LengthOfStayReader(dataset_dir='../../data/length-of-stay/train/',
-                        listfile='../../data/length-of-stay/val_listfile.csv')
+                                    listfile='../../data/length-of-stay/val_listfile.csv')
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -52,7 +52,7 @@ else:
     discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
+normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
 normalizer.load_params('los_ts{}.input_str:previous.start_time:zero.n5e4.normalizer'.format(args.timestep))
 
 args_dict = dict(args._get_kwargs())
@@ -92,9 +92,8 @@ else:
 
 model.compile(optimizer=optimizer_config,
               loss=loss_function)
-
-## print model summary
 model.summary()
+
 
 # Load model weights
 n_trained_chunks = 0
@@ -102,13 +101,12 @@ if args.load_state != "":
     model.load_weights(args.load_state)
     n_trained_chunks = int(re.match(".*chunk([0-9]+).*", args.load_state).group(1))
 
-
 # Load data and prepare generators
 if args.deep_supervision:
-    train_data_gen = utils.BatchGenDeepSupervisoin(train_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size, shuffle=True)
-    val_data_gen = utils.BatchGenDeepSupervisoin(val_data_loader, args.partition,
-                                        discretizer, normalizer, args.batch_size, shuffle=False)
+    train_data_gen = utils.BatchGenDeepSupervision(train_data_loader, args.partition,
+                                                   discretizer, normalizer, args.batch_size, shuffle=True)
+    val_data_gen = utils.BatchGenDeepSupervision(val_data_loader, args.partition,
+                                                 discretizer, normalizer, args.batch_size, shuffle=False)
 else:
     # Set number of batches in one epoch
     train_nbatches = 2000
@@ -131,28 +129,26 @@ else:
                                   batch_size=args.batch_size,
                                   steps=val_nbatches,
                                   shuffle=False)
-
 if args.mode == 'train':
-
     # Prepare training
     path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
-    
-    metrics_callback = keras_utils.MetricsLOS(train_data_gen,
-                                            val_data_gen,
-                                            args.partition,
-                                            args.batch_size,
-                                            args.verbose)
+
+    metrics_callback = keras_utils.LengthOfStayMetrics(train_data_gen=train_data_gen,
+                                                       val_data_gen=val_data_gen,
+                                                       partition=args.partition,
+                                                       batch_size=args.batch_size,
+                                                       verbose=args.verbose)
     # make sure save directory exists
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
-    
+
     if not os.path.exists('keras_logs'):
         os.makedirs('keras_logs')
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
-    
+
     print "==> training"
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
@@ -164,7 +160,6 @@ if args.mode == 'train':
                         verbose=args.verbose)
 
 elif args.mode == 'test':
-
     # ensure that the code uses test_reader
     del train_data_gen
     del val_data_gen
@@ -180,10 +175,9 @@ elif args.mode == 'test':
         test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/length-of-stay/test/',
                                                                   listfile='../../data/length-of-stay/test_listfile.csv',
                                                                   small_part=args.small_part)
-        test_data_gen = utils.BatchGenDeepSupervisoin(test_data_loader, args.partition,
+        test_data_gen = utils.BatchGenDeepSupervision(test_data_loader, args.partition,
                                                       discretizer, normalizer, args.batch_size,
                                                       shuffle=False, return_names=True)
-
         for i in range(test_data_gen.steps):
             print "\r\tdone {}/{}".format(i, test_data_gen.steps),
 
@@ -195,16 +189,15 @@ elif args.mode == 'test':
                 ts += single_ts
 
             pred = model.predict(x, batch_size=args.batch_size)
-            if pred.shape[-1] == 1: # regression
+            if pred.shape[-1] == 1:  # regression
                 pred_flatten = pred.flatten()
-            else: # classification
+            else:  # classification
                 pred_flatten = pred.reshape((-1, 10))
             for m, t, p, name in zip(x[1].flatten(), y.flatten(), pred_flatten, cur_names.flatten()):
                 if np.equal(m, 1):
                     labels.append(t)
                     predictions.append(p)
                     names.append(name)
-
     else:
         del train_reader
         del val_reader

@@ -7,7 +7,6 @@ import random
 
 
 class BatchGen(object):
-
     def __init__(self, reader, discretizer, normalizer, ihm_pos, partition,
                  target_repl, batch_size, small_part, shuffle, return_names=False):
         self.discretizer = discretizer
@@ -31,7 +30,7 @@ class BatchGen(object):
         ihms = ret["ihm"]
         loss = ret["los"]
         phenos = ret["pheno"]
-        decomps = ret["decomps"]
+        decomps = ret["decomp"]
 
         self.data = dict()
         self.data["decomp_ts"] = [x[0] for x in decomps]
@@ -49,7 +48,7 @@ class BatchGen(object):
         self.data["los_M"] = [x[0] for x in loss]
         self.data["los_y"] = [x[1] for x in loss]
         self.data["pheno_y"] = phenos
-        self.data["names"] = ret["names"]
+        self.data["names"] = ret["name"]
         self.data["ts"] = ts
 
         self.generator = self._generator()
@@ -68,21 +67,21 @@ class BatchGen(object):
 
         nsteps = get_bin(max_time) + 1
 
-        ## X
+        # X
         X = self.discretizer.transform(X, end=max_time)[0]
         if self.normalizer is not None:
             X = self.normalizer.transform(X)
         assert len(X) == nsteps
 
-        ## ihm
+        # ihm
         # NOTE: when mask is 0, we set y to be 0. This is important
-        #   because in the multitask networks when ihm_M = 0 we set
-        #   our prediction thus the loss will be 0.
+        #       because in the multitask networks when ihm_M = 0 we set
+        #       our prediction thus the loss will be 0.
         if np.equal(ihm[1], 0):
             ihm[2] = 0
-        ihm = (np.int32(ihm[1]), np.int32(ihm[2])) # mask, label
+        ihm = (np.int32(ihm[1]), np.int32(ihm[2]))  # mask, label
 
-        ## decomp
+        # decomp
         decomp_M = [0] * nsteps
         decomp_y = [0] * nsteps
         for (t, m, y) in zip(sample_times, decomp[0], decomp[1]):
@@ -92,7 +91,7 @@ class BatchGen(object):
         decomp = (np.array(decomp_M, dtype=np.int32),
                   np.array(decomp_y, dtype=np.int32))
 
-        ## los
+        # los
         los_M = [0] * nsteps
         los_y = [0] * nsteps
         for (t, m, y) in zip(sample_times, los[0], los[1]):
@@ -102,7 +101,7 @@ class BatchGen(object):
         los = (np.array(los_M, dtype=np.int32),
                np.array(los_y, dtype=np.float32))
 
-        ## pheno
+        # pheno
         pheno = np.array(pheno, dtype=np.int32)
 
         return (X, ihm, decomp, los, pheno)
@@ -129,7 +128,7 @@ class BatchGen(object):
                 # sort entirely
                 mas = common_utils.sort_and_shuffle(mas, B)
                 for i in range(len(kvpairs)):
-                   self.data[kvpairs[i][0]] = mas[i]
+                    self.data[kvpairs[i][0]] = mas[i]
 
             for i in range(0, len(self.data['X']), B):
                 outputs = []
@@ -139,25 +138,25 @@ class BatchGen(object):
                 X = nn_utils.pad_zeros(X, min_length=self.ihm_pos+1)
                 T = X.shape[1]
 
-                ## ihm
+                # ihm
                 ihm_M = np.array(self.data['ihm_M'][i:i+B])
-                ihm_M = np.expand_dims(ihm_M, axis=-1) # (B, 1)
+                ihm_M = np.expand_dims(ihm_M, axis=-1)  # (B, 1)
                 ihm_y = np.array(self.data['ihm_y'][i:i+B])
-                ihm_y = np.expand_dims(ihm_y, axis=-1) # (B, 1)
+                ihm_y = np.expand_dims(ihm_y, axis=-1)  # (B, 1)
                 outputs.append(ihm_y)
                 if self.target_repl:
-                    ihm_seq = np.expand_dims(ihm_y, axis=-1).repeat(T, axis=1) # (B, T, 1)
+                    ihm_seq = np.expand_dims(ihm_y, axis=-1).repeat(T, axis=1)  # (B, T, 1)
                     outputs.append(ihm_seq)
 
-                ## decomp
+                # decomp
                 decomp_M = self.data['decomp_M'][i:i+B]
                 decomp_M = nn_utils.pad_zeros(decomp_M, min_length=self.ihm_pos+1)
                 decomp_y = self.data['decomp_y'][i:i+B]
                 decomp_y = nn_utils.pad_zeros(decomp_y, min_length=self.ihm_pos+1)
-                decomp_y = np.expand_dims(decomp_y, axis=-1) # (B, T, 1)
+                decomp_y = np.expand_dims(decomp_y, axis=-1)  # (B, T, 1)
                 outputs.append(decomp_y)
 
-                ## los
+                # los
                 los_M = self.data['los_M'][i:i+B]
                 los_M = nn_utils.pad_zeros(los_M, min_length=self.ihm_pos+1)
                 los_y = self.data['los_y'][i:i+B]
@@ -168,14 +167,14 @@ class BatchGen(object):
                 if self.partition == 'custom':
                     los_y = [np.array([metrics.get_bin_custom(x, 10) for x in z]) for z in los_y]
                 los_y = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
-                los_y = np.expand_dims(los_y, axis=-1) # (B, T, 1)
+                los_y = np.expand_dims(los_y, axis=-1)  # (B, T, 1)
                 outputs.append(los_y)
 
-                ## pheno
+                # pheno
                 pheno_y = np.array(self.data['pheno_y'][i:i+B])
                 outputs.append(pheno_y)
                 if self.target_repl:
-                    pheno_seq = np.expand_dims(pheno_y, axis=1).repeat(T, axis=1) # (B, T, 25)
+                    pheno_seq = np.expand_dims(pheno_y, axis=1).repeat(T, axis=1)  # (B, T, 25)
                     outputs.append(pheno_seq)
 
                 inputs = [X, ihm_M, decomp_M, los_M]
