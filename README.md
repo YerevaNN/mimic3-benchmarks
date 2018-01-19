@@ -45,27 +45,23 @@ Here are the required steps to build the benchmark. It assumes that you already 
        git clone https://github.com/YerevaNN/mimic3-benchmarks/
        cd mimic3-benchmarks/
     
-2. Add the path to the `PYTHONPATH` (sorry for this).
- 
-       export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
-
-3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
+2. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
 
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
-4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
+3. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
 
        python scripts/validate_events.py data/root/
 
-5. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
+4. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
 
        python scripts/extract_episodes_from_subjects.py data/root/
 
-6. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
+5. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
 
        python scripts/split_train_and_test.py data/root/
 	
-7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
+6. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
 
        python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
        python scripts/create_decompensation.py data/root/ data/decompensation/
