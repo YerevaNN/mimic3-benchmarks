@@ -9,13 +9,30 @@ def is_subject_folder(x):
 
 
 def main():
+    """ Whit this code we try to assert some assumptions about the data;
+        find events with some problems and fix these problems if possible.
+
+        Assumptions we assert:
+            1. There is one-to-one mapping between HADM_ID and ICUSTAY_ID in `stays.csv` files.
+            2. HADM_ID and ICUSTAY_ID are not empty in `stays.csv` files.
+            3. `stays.csv`, `events.csv` files are always present.
+            4. There is no case, where after initial filtering we cannot recover empty ICUSTAY_ID problem.
+
+        Problems we fix (the order of this steps is fixed):
+            1. Remove all events for which HADM_ID is missing.
+            2. Remove all events for which HADM_ID is not present in `stays.csv`.
+            3. If ICUSTAY_ID is missing in an event and HADM_ID is not missing, then we look at
+               `stays.csv` and try to recover ICUSTAY_ID.
+            4. Remove all events for which we cannot recover ICUSTAY_ID.
+            5. Remove all events for which ICUSTAY_ID is not present in `stays.csv`.
+    """
     n_events = 0                   # total number of events
-    empty_hadm = 0                 # HADM_ID is empty in events.csv
-    no_icustay = 0                 # ICUSTAY_ID is empty in events.csv
+    empty_hadm = 0                 # HADM_ID is empty in events.csv. We exclude such events.
+    no_hadm_in_stay = 0            # HADM_ID does not appear in stays.csv. We exclude such events.
+    no_icustay = 0                 # ICUSTAY_ID is empty in events.csv. We try to fix such events.
     recovered = 0                  # empty ICUSTAY_IDs are recovered according to stays.csv files (given HADM_ID)
     could_not_recover = 0          # empty ICUSTAY_IDs that are not recovered. This should be zero.
-    icustay_missing_in_stays = 0   # ICUSTAY_ID does not appear in stays.csv
-    no_hadm_in_stay = 0            # HADM_ID does not appear in stays.csv
+    icustay_missing_in_stays = 0   # ICUSTAY_ID does not appear in stays.csv. We exclude such events.
 
     parser = argparse.ArgumentParser()
     parser.add_argument('subjects_root_path', type=str,
@@ -27,10 +44,11 @@ def main():
     subjects = list(filter(is_subject_folder, subdirectories))
 
     for (index, subject) in enumerate(subjects):
-        if index % 1 == 0:
+        if index % 100 == 0:
             print("processed {} / {} {}\r".format(index+1, len(subjects), ' '*10))
 
-        stays_df = pd.read_csv(os.path.join(args.subjects_root_path, subject, 'stays.csv'), index_col=False)
+        stays_df = pd.read_csv(os.path.join(args.subjects_root_path, subject, 'stays.csv'), index_col=False,
+                               dtype={'HADM_ID': str, "ICUSTAY_ID": str})
         stays_df.columns = stays_df.columns.str.upper()
 
         # assert that there is no row with empty ICUSTAY_ID or HADM_ID
@@ -42,7 +60,8 @@ def main():
         assert(len(stays_df['ICUSTAY_ID'].unique()) == len(stays_df['ICUSTAY_ID']))
         assert(len(stays_df['HADM_ID'].unique()) == len(stays_df['HADM_ID']))
 
-        events_df = pd.read_csv(os.path.join(args.subjects_root_path, subject, "events.csv"), index_col=False)
+        events_df = pd.read_csv(os.path.join(args.subjects_root_path, subject, 'events.csv'), index_col=False,
+                                dtype={'HADM_ID': str, "ICUSTAY_ID": str})
         events_df.columns = events_df.columns.str.upper()
         n_events += events_df.shape[0]
 
@@ -61,8 +80,6 @@ def main():
 
         # if ICUSTAY_ID is empty in stays.csv, we try to recover it
         # we exclude all events for which we could not recover ICUSTAY_ID
-        # TODO: no_icustay is calculated wrong, as we drop events with HADM_ID not listed in stays.csv
-        #       we should calculate no_icustay, and then drop events with HADM_ID not listed in stays.csv
         cur_no_icustay = merged_df['ICUSTAY_ID'].isnull().sum()
         no_icustay += cur_no_icustay
         merged_df.loc[:, 'ICUSTAY_ID'] = merged_df['ICUSTAY_ID'].fillna(merged_df['ICUSTAY_ID_r'])
@@ -76,16 +93,17 @@ def main():
         icustay_missing_in_stays += (merged_df['ICUSTAY_ID'] != merged_df['ICUSTAY_ID_r']).sum()
         merged_df = merged_df[(merged_df['ICUSTAY_ID'] == merged_df['ICUSTAY_ID_r'])]
 
-        to_write = merged_df[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'ITEMID', 'CHARTTIME', 'VALUE', 'VALUEUOM']]
-        to_write.to_csv(os.path.join(args.subjects_root_path, subject, 'events.csv'))
+        to_write = merged_df[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'CHARTTIME', 'ITEMID', 'VALUE', 'VALUEUOM']]
+        to_write.to_csv(os.path.join(args.subjects_root_path, subject, 'events.csv'), index=False)
 
+    assert(could_not_recover == 0)
     print('n_events: {}'.format(n_events))
     print('empty_hadm: {}'.format(empty_hadm))
+    print('no_hadm_in_stay: {}'.format(no_hadm_in_stay))
     print('no_icustay: {}'.format(no_icustay))
     print('recovered: {}'.format(recovered))
     print('could_not_recover: {}'.format(could_not_recover))
     print('icustay_missing_in_stays: {}'.format(icustay_missing_in_stays))
-    print('no_hadm_in_stay: {}'.format(no_hadm_in_stay))
 
 
 if __name__ == "__main__":

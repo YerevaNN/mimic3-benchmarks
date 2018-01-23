@@ -173,14 +173,14 @@ Use the following command for testing:
 
 ## More on validating results
 
-Here are the problems identified by `validate_events.py` on randomly chosen 1000 subjects:
+Here are the problems identified by `validate_events.py`:
 
 | Type | Description | Number of rows |
 | --- | --- | --- |
-| `n_events` | total number of events | 5937206 |
-| `nohadminstay` | HADM_ID does not appear in `stays.csv` | 836341 |
-| `emptyhadm` | HADM_ID is empty | 126480 |
-| `icustaymissinginstays` | ICUSTAY_ID does not appear in `stays.csv` | 232624 |
-| `noicustay` | ICUSTAY_ID is empty | 347768 |
-| `recovered` | empty ICUSTAY_IDs are recovered according to `stays.csv` files (given `HADM_ID`) | 347768 |
-| `couldnotrecover` | empty ICUSTAY_IDs that are not recovered. This should be zero, because the unrecoverable ones are counted in `icustaymissinginstays` | 0 |
+| `n_events` | total number of events | 253116833 |
+| `empty_hadm` | HADM_ID is empty in `events.csv`. We exclude such events. | 5162703 |
+| `no_hadm_in_stay` | HADM_ID does not appear in `stays.csv`. We exclude such events. | 32266173 |
+| `no_icustay` | ICUSTAY_ID is empty in `events.csv`. We try to fix such events. | 15735688 |
+| `recovered` | empty ICUSTAY_IDs are recovered according to stays.csv files (given HADM_ID) | 15735688 |
+| `could_not_recover` | empty ICUSTAY_IDs that are not recovered. This should be zero. | 0 |
+| `icustay_missing_in_stays` | ICUSTAY_ID does not appear in stays.csv. We exclude such events. | 7115720 |
