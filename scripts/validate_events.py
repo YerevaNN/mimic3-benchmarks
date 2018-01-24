@@ -9,23 +9,7 @@ def is_subject_folder(x):
 
 
 def main():
-    """ Whit this code we try to assert some assumptions about the data;
-        find events with some problems and fix these problems if possible.
 
-        Assumptions we assert:
-            1. There is one-to-one mapping between HADM_ID and ICUSTAY_ID in `stays.csv` files.
-            2. HADM_ID and ICUSTAY_ID are not empty in `stays.csv` files.
-            3. `stays.csv`, `events.csv` files are always present.
-            4. There is no case, where after initial filtering we cannot recover empty ICUSTAY_ID problem.
-
-        Problems we fix (the order of this steps is fixed):
-            1. Remove all events for which HADM_ID is missing.
-            2. Remove all events for which HADM_ID is not present in `stays.csv`.
-            3. If ICUSTAY_ID is missing in an event and HADM_ID is not missing, then we look at
-               `stays.csv` and try to recover ICUSTAY_ID.
-            4. Remove all events for which we cannot recover ICUSTAY_ID.
-            5. Remove all events for which ICUSTAY_ID is not present in `stays.csv`.
-    """
     n_events = 0                   # total number of events
     empty_hadm = 0                 # HADM_ID is empty in events.csv. We exclude such events.
     no_hadm_in_stay = 0            # HADM_ID does not appear in stays.csv. We exclude such events.

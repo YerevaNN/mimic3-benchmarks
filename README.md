@@ -53,7 +53,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
 
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
-4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. 4741761 events (80%) remain after removing all suspicious rows.
+4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows.
 
        python scripts/validate_events.py data/root/
 
@@ -173,7 +173,21 @@ Use the following command for testing:
 
 ## More on validating results
 
-Here are the problems identified by `validate_events.py`:
+With `validate_events.py` try to assert some assumptions about the data; find events with some problems and fix these problems if possible.  
+Assumptions we assert:
+* There is one-to-one mapping between HADM_ID and ICUSTAY_ID in `stays.csv` files.
+* HADM_ID and ICUSTAY_ID are not empty in `stays.csv` files.
+* `stays.csv` and `events.csv` files are always present.
+* There is no case, where after initial filtering we cannot recover empty ICUSTAY_IDs.
+  
+Problems we fix (the order of this steps is fixed):
+* Remove all events for which HADM_ID is missing.
+* Remove all events for which HADM_ID is not present in `stays.csv`.
+* If ICUSTAY_ID is missing in an event and HADM_ID is not missing, then we look at `stays.csv` and try to recover ICUSTAY_ID.
+* Remove all events for which we cannot recover ICUSTAY_ID.
+* Remove all events for which ICUSTAY_ID is not present in `stays.csv`.
+
+Here is the output of `validate_events.py`:
 
 | Type | Description | Number of rows |
 | --- | --- | --- |
