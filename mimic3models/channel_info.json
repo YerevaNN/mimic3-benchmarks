@@ -1,11 +1,11 @@
 {
-    "Glucose": {
+    "glucose": {
         "possible_values": []
     },
-    "Systolic blood pressure": {
+    "systolic blood pressure": {
         "possible_values": []
     },
-    "Glascow coma scale verbal response": {
+    "glascow coma scale verbal response": {
         "possible_values": ["1 No Response", "1.0 ET/Trach", "2 Incomp sounds", "3 Inapprop words", "4 Confused", "5 Oriented", "Confused", "Inappropriate Words", "Incomprehensible sounds", "No Response", "No Response-ETT", "Oriented"],
         "values": {
             "No Response-ETT": 1,
@@ -22,19 +22,19 @@
             "Oriented": 5
         }
     },
-    "Temperature": {
+    "temperature": {
         "possible_values": []
     },
-    "Weight": {
+    "weight": {
         "possible_values": []
     },
-    "Diastolic blood pressure": {
+    "diastolic blood pressure": {
         "possible_values": []
     },
-    "Fraction inspired oxygen": {
+    "fraction inspired oxygen": {
         "possible_values": []
     },
-    "Glascow coma scale total": {
+    "glascow coma scale total": {
         "possible_values": ["10", "11", "12", "13", "14", "15", "3", "4", "5", "6", "7", "8", "9"],
         "values": {
             "3": 3,
@@ -52,29 +52,29 @@
             "15": 15
         }
     },
-    "Capillary refill rate": {
+    "capillary refill rate": {
         "possible_values": ["0.0", "1.0"],
         "values": {
             "0.0": 0,
             "1.0": 1
         }
     },
-    "Mean blood pressure": {
+    "mean blood pressure": {
         "possible_values": []
     },
-    "Heart Rate": {
+    "heart rate": {
         "possible_values": []
     },
-    "Oxygen saturation": {
+    "oxygen saturation": {
         "possible_values": []
     },
-    "pH": {
+    "ph": {
         "possible_values": []
     },
-    "Height": {
+    "height": {
         "possible_values": []
     },
-    "Glascow coma scale eye opening": {
+    "glascow coma scale eye opening": {
         "possible_values": ["1 No Response", "2 To pain", "3 To speech", "4 Spontaneously", "None", "Spontaneously", "To Pain", "To Speech"],
         "values": {
             "None": 0,
@@ -87,10 +87,10 @@
             "Spontaneously": 4
         }
     },
-    "Respiratory rate": {
+    "respiratory rate": {
         "possible_values": []
     },
-    "Glascow coma scale motor response": {
+    "glascow coma scale motor response": {
         "possible_values": ["1 No Response", "2 Abnorm extensn", "3 Abnorm flexion", "4 Flex-withdraws", "5 Localizes Pain", "6 Obeys Commands", "Abnormal Flexion", "Abnormal extension", "Flex-withdraws", "Localizes Pain", "No response", "Obeys Commands"],
         "values": {
             "1 No Response": 1,
