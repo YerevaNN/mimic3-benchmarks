@@ -39,3 +39,7 @@ def main():
     print "std = {}".format(np.std(kappas))
     print "2.5% percentile = {}".format(np.percentile(kappas, 2.5))
     print "97.5% percentile = {}".format(np.percentile(kappas, 97.5))
+
+
+if __name__ == "__main__":
+    main()

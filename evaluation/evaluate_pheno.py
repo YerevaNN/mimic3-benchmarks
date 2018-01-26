@@ -17,18 +17,17 @@ def main():
 
     n_tasks = 25
     labels_cols = ["label_{}".format(i) for i in range(1, n_tasks + 1)]
-    test_df.columns[2:] = labels_cols
+    test_df.columns = list(test_df.columns[:2]) + labels_cols
 
     df = test_df.merge(pred_df, left_on='stay', right_on='stay', how='left', suffixes=['_l', '_r'])
-    assert (df['prediction'].isnull().sum() == 0)
-    assert (df['y_true_l'].equals(df['y_true_r']))
-    assert (df['los'] == df['length of stay'])
+    assert (df['pred_1'].isnull().sum() == 0)
+    assert (df['period_length_l'].equals(df['period_length_r']))
 
     n_samples = df.shape[0]
     data = np.zeros((n_samples, 50))
     for i in range(1, n_tasks + 1):
-        data[:, i] = df['pred_{}'.format(i)]
-        data[:, 25 + i] = df['label_{}_l'.format(i)]
+        data[:, i-1] = df['pred_{}'.format(i)]
+        data[:, 25 + i-1] = df['label_{}_l'.format(i)]
 
     ave_auc_macro = metrics.print_metrics_multilabel(data[:, 25:], data[:, :25], verbose=0)["ave_auc_macro"]
     aucs = []
@@ -44,3 +43,7 @@ def main():
     print "std = {}".format(np.std(aucs))
     print "2.5% percentile = {}".format(np.percentile(aucs, 2.5))
     print "97.5% percentile = {}".format(np.percentile(aucs, 97.5))
+
+
+if __name__ == "__main__":
+    main()

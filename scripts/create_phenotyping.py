@@ -110,7 +110,7 @@ def process_partition(partition, eps=1e-6):
     codes_in_benchmark = [x for x in id_to_group
                           if definitions[x]['use_in_benchmark']]
 
-    listfile_header = "filename,length of stay," + ",".join(codes_in_benchmark)
+    listfile_header = "stay,period_length," + ",".join(codes_in_benchmark)
     with open(os.path.join(output_dir, "listfile.csv"), "w") as listfile:
         listfile.write(listfile_header + "\n")
         for (x, t, y) in xty_triples:
