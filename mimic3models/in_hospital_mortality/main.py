@@ -167,8 +167,8 @@ elif args.mode == 'test':
     if not os.path.exists("test_predictions"):
         os.makedirs("test_predictions")
 
-    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
-        fout.write("stay, prediction, y_true\n")
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv", "w") as fout:
+        fout.write("stay,prediction,y_true\n")
         for (name, x, y) in zip(names, predictions, labels):
             fout.write("{},{:.6f},{}\n".format(name, x, y))
 
