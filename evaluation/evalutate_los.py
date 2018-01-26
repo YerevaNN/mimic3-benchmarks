@@ -27,7 +27,7 @@ def main():
     kappa_score = metrics.print_metrics_regression(data[:, 1], data[:, 0], verbose=0)["kappa"]
 
     kappas = []
-    for i in range(n_iters):
+    for i in range(args.n_iters):
         cur_data = sk_utils.resample(data, n_samples=len(data))
         ret = metrics.print_metrics_regression(cur_data[:, 0], cur_data[:, 1], verbose=0)["kappa"]
         kappas += [ret]
