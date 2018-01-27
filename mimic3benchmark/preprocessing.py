@@ -80,7 +80,7 @@ def make_phenotype_label_matrix(phenotypes, stays=None):
 
 def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
     var_map = dataframe_from_csv(fn, index_col=None).fillna('').astype(str)
-    var_map[variable_column] = var_map[variable_column].apply(lambda s: s.lower())
+    #var_map[variable_column] = var_map[variable_column].apply(lambda s: s.lower())
     var_map.COUNT = var_map.COUNT.astype(int)
     var_map = var_map.ix[(var_map[variable_column] != '') & (var_map.COUNT>0)]
     var_map = var_map.ix[(var_map.STATUS == 'ready')]
@@ -96,7 +96,7 @@ def read_variable_ranges(fn, variable_column='LEVEL2'):
     to_rename = dict(zip(columns, [ c.replace(' ', '_') for c in columns ]))
     to_rename[variable_column] = 'VARIABLE'
     var_ranges = dataframe_from_csv(fn, index_col=None)
-    var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
+    #var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
     var_ranges = var_ranges[columns]
     var_ranges.rename_axis(to_rename, axis=1, inplace=True)
     var_ranges = var_ranges.drop_duplicates(subset='VARIABLE', keep='first')
@@ -144,7 +144,8 @@ def clean_crr(df):
 # FIO2: many 0s, some 0<x<0.2 or 1<x<20
 def clean_fio2(df):
     v = df.VALUE.astype(float)
-    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (v>1.0)
+    #idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (v>1.0)
+    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (df.VALUE>1.0)
     v.ix[idx] = v[idx] / 100.
     return v
 
