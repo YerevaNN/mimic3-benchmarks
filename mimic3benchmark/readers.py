@@ -13,6 +13,8 @@ class Reader(object):
             listfile_path = listfile
         with open(listfile_path, "r") as lfile:
             self._data = lfile.readlines()
+        self._listfile_header = self._data[0]
+        self._data = self._data[1:]
 
     def get_number_of_examples(self):
         return len(self._data)
@@ -214,8 +216,6 @@ class PhenotypingReader(Reader):
                             `dataset_dir/listfile.csv` will be used.
         """
         Reader.__init__(self, dataset_dir, listfile)
-        self._listfile_header = self._data[0]
-        self._data = self._data[1:]
         self._data = [line.split(',') for line in self._data]
         self._data = [(mas[0], float(mas[1]), map(int, mas[2:])) for mas in self._data]
 
@@ -271,8 +271,6 @@ class MultitaskReader(Reader):
                             `dataset_dir/listfile.csv` will be used.
         """
         Reader.__init__(self, dataset_dir, listfile)
-        self._listfile_header = self._data[0]
-        self._data = self._data[1:]
         self._data = [line.split(',') for line in self._data]
 
         def process_ihm(x):

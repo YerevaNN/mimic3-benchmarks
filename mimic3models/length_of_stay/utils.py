@@ -61,6 +61,7 @@ class BatchGen(object):
                     X = nn_utils.pad_zeros(data[0][i:i+B])
                     y = data[1][i:i+B]
                     y_true = np.array(y)
+                    batch_names = names[i:i+B]
 
                     if self.partition == 'log':
                         y = [metrics.get_bin_log(x, 10) for x in y]
@@ -77,7 +78,7 @@ class BatchGen(object):
                     if not self.return_names:
                         yield batch_data
                     else:
-                        yield {"data": batch_data, "names": names, "ts": ts}
+                        yield {"data": batch_data, "names": batch_names, "ts": ts}
 
     def __iter__(self):
         return self.generator

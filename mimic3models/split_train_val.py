@@ -17,16 +17,10 @@ with open("mimic3models/valset.csv", "r") as valset_file:
         if int(y) == 1:
             val_patients.add(x)
 
-has_header = False
-if args.task in ['phenotyping', 'multitask']:
-    has_header = True
-
-header = None
 with open("data/%s/train/listfile.csv" % args.task) as listfile:
     lines = listfile.readlines()
-    if has_header:
-        header = lines[0]
-        lines = lines[1:]
+    header = lines[0]
+    lines = lines[1:]
 
 train_lines = [x for x in lines if x[:x.find("_")] not in val_patients]
 val_lines = [x for x in lines if x[:x.find("_")] in val_patients]
@@ -34,14 +28,12 @@ assert len(train_lines) + len(val_lines) == len(lines)
 
 
 with open("data/%s/train_listfile.csv" % args.task, "w") as train_listfile:
-    if has_header:
-        train_listfile.write(header)
+    train_listfile.write(header)
     for line in train_lines:
         train_listfile.write(line)
 
 with open("data/%s/val_listfile.csv" % args.task, "w") as val_listfile:
-    if has_header:
-        val_listfile.write(header)
+    val_listfile.write(header)
     for line in val_lines:
         val_listfile.write(line)
 

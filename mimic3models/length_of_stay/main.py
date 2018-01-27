@@ -71,7 +71,7 @@ suffix = "{}.bs{}{}{}.ts{}.partition={}".format("" if not args.deep_supervision 
                                                 ".L2{}".format(args.l2) if args.l2 > 0 else "",
                                                 args.timestep,
                                                 args.partition)
-model.final_name = args.prefix + model.say_name() + suffix                              
+model.final_name = args.prefix + model.say_name() + suffix
 print "==> model.final_name:", model.final_name
 
 
@@ -239,8 +239,8 @@ elif args.mode == 'test':
     if not os.path.exists("test_predictions"):
         os.makedirs("test_predictions")
 
-    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
-        fout.write("stay, period_length, prediction, y_true\n")
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv", "w") as fout:
+        fout.write("stay,period_length,prediction,y_true\n")
         for (name, t, x, y) in zip(names, ts, predictions, labels):
             fout.write("{},{:.6f},{:.6f},{:.6f}\n".format(name, t, x, y))
 

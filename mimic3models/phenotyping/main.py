@@ -59,7 +59,7 @@ suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
                                    ".L2{}".format(args.l2) if args.l2 > 0 else "",
                                    args.timestep,
                                    ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
-model.final_name = args.prefix + model.say_name() + suffix                              
+model.final_name = args.prefix + model.say_name() + suffix
 print "==> model.final_name:", model.final_name
 
 
@@ -170,7 +170,7 @@ elif args.mode == 'test':
         header += "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
         header += ','.join(["auc_%d" % i for i in range(args_dict['num_classes'])])
         resfile.write(header + "\n")
-        
+
         resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f," % (
             ret['ave_prec_micro'], ret['ave_prec_macro'], ret['ave_prec_weighted'],
             ret['ave_recall_micro'], ret['ave_recall_macro'], ret['ave_recall_weighted'],
@@ -180,7 +180,7 @@ elif args.mode == 'test':
     if not os.path.exists("test_predictions"):
         os.makedirs("test_predictions")
 
-    with open(os.path.join("test_predictions", os.path.basename(args.load_state)), "w") as fout:
+    with open(os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv", "w") as fout:
         header = ["stay", "period_length"]
         header += ["pred_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
         header += ["label_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
