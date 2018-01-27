@@ -32,7 +32,7 @@ def read_and_extract_features(reader, count):
     Xs = []
     ys = []
     for i in range(count // read_chunk_size):
-        ret = utils.read_chunk(reader, read_chunk_size)
+        ret = common_utils.read_chunk(reader, read_chunk_size)
         chunk = ret["X"]
         y = ret["y"]
         header = ret["header"]

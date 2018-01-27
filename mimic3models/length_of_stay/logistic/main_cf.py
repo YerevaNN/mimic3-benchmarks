@@ -51,7 +51,7 @@ def read_and_extract_features(reader, count):
     Xs = []
     ys = []
     for i in range(count // read_chunk_size):
-        ret = utils.read_chunk(reader, read_chunk_size)
+        ret = common_utils.read_chunk(reader, read_chunk_size)
         chunk = ret["X"]
         y = ret["y"]
         header = ret["header"]
@@ -97,6 +97,12 @@ scaler.fit(train_X)
 train_X = scaler.transform(train_X)
 val_X = scaler.transform(val_X)
 test_X = scaler.transform(test_X)
+
+if not os.path.exists("cf_activations"):
+    os.mkdir("cf_activations")
+
+if not os.path.exists("cf_results"):
+    os.mkdir("cf_results")
 
 for (penalty, C) in zip(penalties, Cs):
     model_name = "%s.%s.%s.C%f" % (args.period, args.features,

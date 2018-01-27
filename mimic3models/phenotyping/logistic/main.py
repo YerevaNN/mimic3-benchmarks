@@ -33,8 +33,8 @@ test_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/test/',
                                 listfile='../../../data/phenotyping/test_listfile.csv')
 
 def read_and_extract_features(reader):
-    ret = utils.read_chunk(reader, reader.get_number_of_examples())
-    # ret = utils.read_chunk(reader, 100)
+    ret = common_utils.read_chunk(reader, reader.get_number_of_examples())
+    # ret = common_utils.read_chunk(reader, 100)
     chunk = ret["X"]
     y = ret["y"]
     header = ret["header"]
