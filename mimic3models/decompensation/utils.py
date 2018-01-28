@@ -59,11 +59,12 @@ class BatchGen(object):
                     X = nn_utils.pad_zeros(data[0][i:i + B])
                     y = np.array(data[1][i:i + B])
                     batch_names = names[i:i+B]
+                    batch_ts = ts[i:i+B]
                     batch_data = (X, y)
                     if not self.return_names:
                         yield batch_data
                     else:
-                        yield {"data": batch_data, "names": batch_names, "ts": ts}
+                        yield {"data": batch_data, "names": batch_names, "ts": batch_ts}
 
     def __iter__(self):
         return self.generator
