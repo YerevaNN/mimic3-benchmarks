@@ -7,21 +7,21 @@ from sklearn import metrics
 def print_metrics_binary(y_true, predictions, verbose=1):
     predictions = np.array(predictions)
     if (len(predictions.shape) == 1):
-        predictions = np.stack([1-predictions, predictions]).transpose((1, 0))
-    
+        predictions = np.stack([1 - predictions, predictions]).transpose((1, 0))
+
     cf = metrics.confusion_matrix(y_true, predictions.argmax(axis=1))
     if verbose:
         print "confusion matrix:"
         print cf
     cf = cf.astype(np.float32)
-    
+
     acc = (cf[0][0] + cf[1][1]) / np.sum(cf)
     prec0 = cf[0][0] / (cf[0][0] + cf[1][0])
     prec1 = cf[1][1] / (cf[1][1] + cf[0][1])
     rec0 = cf[0][0] / (cf[0][0] + cf[0][1])
     rec1 = cf[1][1] / (cf[1][1] + cf[1][0])
     auroc = metrics.roc_auc_score(y_true, predictions[:, 1])
-    
+
     (precisions, recalls, thresholds) = metrics.precision_recall_curve(y_true, predictions[:, 1])
     auprc = metrics.auc(recalls, precisions)
     minpse = np.max([min(x, y) for (x, y) in zip(precisions, recalls)])
@@ -35,7 +35,7 @@ def print_metrics_binary(y_true, predictions, verbose=1):
         print "AUC of ROC =", auroc
         print "AUC of PRC =", auprc
         print "min(+P, Se) =", minpse
-    
+
     return {"acc": acc,
             "prec0": prec0,
             "prec1": prec1,
@@ -51,26 +51,12 @@ def print_metrics_binary(y_true, predictions, verbose=1):
 def print_metrics_multilabel(y_true, predictions, verbose=1):
     y_true = np.array(y_true)
     predictions = np.array(predictions)
-    
-    ave_prec_micro = metrics.precision_score(y_true > 0.5, predictions > 0.5,
-                                                     average="micro")
-    ave_prec_macro = metrics.precision_score(y_true > 0.5, predictions > 0.5,
-                                                     average="macro")                                                 
-    ave_prec_weighted = metrics.precision_score(y_true > 0.5, predictions > 0.5,
-                                                     average="weighted")    
-    
-    ave_recall_micro = metrics.recall_score(y_true > 0.5, predictions > 0.5,
-                                                     average="micro")
-    ave_recall_macro = metrics.recall_score(y_true > 0.5, predictions > 0.5,
-                                                     average="macro")                                                 
-    ave_recall_weighted = metrics.recall_score(y_true > 0.5, predictions > 0.5,
-                                                     average="weighted")    
-    
+
     auc_scores = metrics.roc_auc_score(y_true, predictions, average=None)
     ave_auc_micro = metrics.roc_auc_score(y_true, predictions,
-                                             average="micro")
+                                          average="micro")
     ave_auc_macro = metrics.roc_auc_score(y_true, predictions,
-                                             average="macro")
+                                          average="macro")
     ave_auc_weighted = metrics.roc_auc_score(y_true, predictions,
                                              average="weighted")
 
@@ -80,21 +66,15 @@ def print_metrics_multilabel(y_true, predictions, verbose=1):
         print "ave_auc_macro =", ave_auc_macro
         print "ave_auc_weighted =", ave_auc_weighted
 
-    return {"ave_prec_micro": ave_prec_micro,
-            "ave_prec_macro": ave_prec_macro,
-            "ave_prec_weighted": ave_prec_weighted,
-            "ave_recall_micro": ave_recall_micro,
-            "ave_recall_macro": ave_recall_macro,
-            "ave_recall_weighted": ave_recall_weighted,
-            "auc_scores": auc_scores,
+    return {"auc_scores": auc_scores,
             "ave_auc_micro": ave_auc_micro,
             "ave_auc_macro": ave_auc_macro,
             "ave_auc_weighted": ave_auc_weighted}
-            
+
 
 # for length of stay
 
-def mean_absolute_percentage_error(y_true, y_pred): 
+def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / (y_true + 0.1))) * 100
 
 
@@ -130,25 +110,23 @@ def print_metrics_regression(y_true, predictions, verbose=1):
 
 class LogBins:
     nbins = 10
-    means = [0.611848, 2.587614, 6.977417, 16.465430, 37.053745, 
+    means = [0.611848, 2.587614, 6.977417, 16.465430, 37.053745,
              81.816438, 182.303159, 393.334856, 810.964040, 1715.702848]
 
-    
+
 def get_bin_log(x, nbins, one_hot=False):
     binid = int(np.log(x + 1) / 8.0 * nbins)
     if (binid < 0):
         binid = 0
     if (binid >= nbins):
         binid = nbins - 1
-    
+
     if one_hot:
         ret = np.zeros((LogBins.nbins,))
         ret[binid] = 1
         return ret
     return binid
 
-
-# TODO: think about fix print_metrics_log_bins and print_metrics_custom_bins
 
 def get_estimate_log(prediction, nbins):
     binid = np.argmax(prediction)
@@ -170,7 +148,7 @@ class CustomBins:
     bins = [(-inf, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 14), (14, +inf)]
     nbins = len(bins)
     means = [11.450379, 35.070846, 59.206531, 83.382723, 107.487817,
-            131.579534, 155.643957, 179.660558, 254.306624, 585.325890]
+             131.579534, 155.643957, 179.660558, 254.306624, 585.325890]
 
 
 def get_bin_custom(x, nbins, one_hot=False):
