@@ -48,18 +48,17 @@ class BatchGen(object):
                 remaining -= current_size
 
                 ret = common_utils.read_chunk(self.reader, current_size)
-                data = ret["X"]
+                Xs = ret["X"]
                 ts = ret["t"]
-                labels = ret["y"]
+                ys = ret["y"]
                 names = ret["name"]
 
-                data = preprocess_chunk(data, ts, self.discretizer, self.normalizer)
-                data = (data, labels)
-                data = common_utils.sort_and_shuffle(data, B)
+                Xs = preprocess_chunk(Xs, ts, self.discretizer, self.normalizer)
+                (Xs, ys, ts, names) = common_utils.sort_and_shuffle([Xs, ys, ts, names], B)
 
                 for i in range(0, current_size, B):
-                    X = nn_utils.pad_zeros(data[0][i:i+B])
-                    y = data[1][i:i+B]
+                    X = nn_utils.pad_zeros(Xs[i:i+B])
+                    y = ys[i:i+B]
                     y_true = np.array(y)
                     batch_names = names[i:i+B]
                     batch_ts = ts[i:i+B]
