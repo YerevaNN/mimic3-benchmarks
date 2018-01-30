@@ -42,7 +42,7 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1]
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('ph_ts%s.input_str:previous.start_time:zero.normalizer' % args.timestep)
+normalizer.load_params('ph_ts{}.input_str:previous.start_time:zero.normalizer'.format(args.timestep))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -162,20 +162,7 @@ elif args.mode == 'test':
         names += list(cur_names)
         ts += list(cur_ts)
 
-    ret = metrics.print_metrics_multilabel(labels, predictions)
-
-    with open("results.txt", "w") as resfile:
-        header = "ave_prec_micro,ave_prec_macro,ave_prec_weighted,"
-        header += "ave_recall_micro,ave_recall_macro,ave_recall_weighted,"
-        header += "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
-        header += ','.join(["auc_%d" % i for i in range(args_dict['num_classes'])])
-        resfile.write(header + "\n")
-
-        resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f," % (
-            ret['ave_prec_micro'], ret['ave_prec_macro'], ret['ave_prec_weighted'],
-            ret['ave_recall_micro'], ret['ave_recall_macro'], ret['ave_recall_weighted'],
-            ret['ave_auc_micro'], ret['ave_auc_macro'], ret['ave_auc_weighted']))
-        resfile.write(",".join(["%.6f" % x for x in ret['auc_scores']]) + "\n")
+    metrics.print_metrics_multilabel(labels, predictions)
 
     if not os.path.exists("test_predictions"):
         os.makedirs("test_predictions")

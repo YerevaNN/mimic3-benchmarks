@@ -73,7 +73,7 @@ train_X = scaler.transform(train_X)
 val_X = scaler.transform(val_X)
 test_X = scaler.transform(test_X)
 
-NTASKS = 25
+n_tasks = 25
 
 if not os.path.exists("activations"):
     os.mkdir("activations")
@@ -82,14 +82,13 @@ if not os.path.exists("results"):
     os.mkdir("results")
 
 for (penalty, C) in zip(penalties, Cs):
-    model_name = "%s.%s.%s.C%f" % (args.period, args.features,
-                                  penalty, C)
+    model_name = "%s.%s.%s.C%f" % (args.period, args.features, penalty, C)
 
     train_activations = np.zeros(shape=train_y.shape, dtype=float)
     val_activations = np.zeros(shape=val_y.shape, dtype=float)
     test_activations = np.zeros(shape=test_y.shape, dtype=float)
 
-    for task_id in range(NTASKS):
+    for task_id in range(n_tasks):
         print "==> starting task %d" % task_id
 
         file_name = ("task%d." % task_id) + model_name
@@ -136,17 +135,12 @@ for (penalty, C) in zip(penalties, Cs):
                 actfile.write("%.6f %d\n" % (x, y))
 
     with open(os.path.join("results", model_name + ".txt"), "w") as resfile:
-        header = "ave_prec_micro,ave_prec_macro,ave_prec_weighted,"
-        header += "ave_recall_micro,ave_recall_macro,ave_recall_weighted,"
-        header += "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
-        header += ','.join(["auc_%d" % i for i in range(NTASKS)])
+        header = "ave_auc_micro,ave_auc_macro,ave_auc_weighted,"
+        header += ','.join(["auc_%d" % i for i in range(n_tasks)])
         resfile.write(header + "\n")
 
         def write_results(resfile, ret):
-            resfile.write("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f," % (
-                ret['ave_prec_micro'], ret['ave_prec_macro'], ret['ave_prec_weighted'],
-                ret['ave_recall_micro'], ret['ave_recall_macro'], ret['ave_recall_weighted'],
-                ret['ave_auc_micro'], ret['ave_auc_macro'], ret['ave_auc_weighted']))
+            resfile.write("%.6f,%.6f,%.6f," % (ret['ave_auc_micro'], ret['ave_auc_macro'], ret['ave_auc_weighted']))
             resfile.write(",".join(["%.6f" % x for x in ret['auc_scores']]) + "\n")
 
         print "\nAverage results on train"
