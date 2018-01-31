@@ -92,3 +92,21 @@ class BatchGen(object):
 
     def __next__(self):
         return self.generator.__next__()
+
+
+def save_results(names, ts, predictions, labels, path):
+    n_tasks = 25
+    common_utils.create_directory(path)
+    with open(path, 'w') as f:
+        header = ["stay", "period_length"]
+        header += ["pred_{}".format(x) for x in range(1, n_tasks + 1)]
+        header += ["label_{}".format(x) for x in range(1, n_tasks + 1)]
+        header = ",".join(header)
+        f.write(header + '\n')
+        for name, t, pred, y in zip(names, ts, predictions, labels):
+            line = [name]
+            line += ["{:.6f}".format(t)]
+            line += ["{:.6f}".format(a) for a in pred]
+            line += [str(a) for a in y]
+            line = ",".join(line)
+            f.write(line + '\n')

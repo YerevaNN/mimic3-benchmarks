@@ -1,7 +1,7 @@
-import numpy as np
 from mimic3models import metrics
 from mimic3models import nn_utils
 from mimic3models import common_utils
+import numpy as np
 import threading
 import random
 
@@ -25,31 +25,33 @@ class BatchGen(object):
         self.lock = threading.Lock()
 
         ret = common_utils.read_chunk(reader, N)
-        Xs = ret["X"]
-        ts = ret["t"]
-        ihms = ret["ihm"]
-        loss = ret["los"]
-        phenos = ret["pheno"]
-        decomps = ret["decomp"]
+        Xs = ret['X']
+        ts = ret['t']
+        ihms = ret['ihm']
+        loss = ret['los']
+        phenos = ret['pheno']
+        decomps = ret['decomp']
 
         self.data = dict()
-        self.data["decomp_ts"] = [x[0] for x in decomps]
-        self.data["los_ts"] = [x[0] for x in loss]
+        self.data['pheno_ts'] = ts
+        self.data['names'] = ret['name']
+        self.data['decomp_ts'] = []
+        self.data['los_ts'] = []
 
         for i in range(N):
+            self.data['decomp_ts'].append([pos for pos, m in enumerate(decomps[i][0]) if m == 1])
+            self.data['los_ts'].append([pos for pos, m in enumerate(loss[i][0]) if m == 1])
             (Xs[i], ihms[i], decomps[i], loss[i], phenos[i]) = \
                 self._preprocess_single(Xs[i], ts[i], ihms[i], decomps[i], loss[i], phenos[i])
 
-        self.data["X"] = Xs
-        self.data["ihm_M"] = [x[0] for x in ihms]
-        self.data["ihm_y"] = [x[1] for x in ihms]
-        self.data["decomp_M"] = [x[0] for x in decomps]
-        self.data["decomp_y"] = [x[1] for x in decomps]
-        self.data["los_M"] = [x[0] for x in loss]
-        self.data["los_y"] = [x[1] for x in loss]
-        self.data["pheno_y"] = phenos
-        self.data["names"] = ret["name"]
-        self.data["ts"] = ts
+        self.data['X'] = Xs
+        self.data['ihm_M'] = [x[0] for x in ihms]
+        self.data['ihm_y'] = [x[1] for x in ihms]
+        self.data['decomp_M'] = [x[0] for x in decomps]
+        self.data['decomp_y'] = [x[1] for x in decomps]
+        self.data['los_M'] = [x[0] for x in loss]
+        self.data['los_y'] = [x[1] for x in loss]
+        self.data['pheno_y'] = phenos
 
         self.generator = self._generator()
 
@@ -60,18 +62,13 @@ class BatchGen(object):
         def get_bin(t):
             return int(t / timestep - eps)
 
-        sample_times = np.arange(0.0, max_time - eps, 1.0)
-        sample_times = np.array([int(x+eps) for x in sample_times])
-        assert len(sample_times) == len(decomp[0])
-        assert len(sample_times) == len(los[0])
-
-        nsteps = get_bin(max_time) + 1
+        n_steps = get_bin(max_time) + 1
 
         # X
         X = self.discretizer.transform(X, end=max_time)[0]
         if self.normalizer is not None:
             X = self.normalizer.transform(X)
-        assert len(X) == nsteps
+        assert len(X) == n_steps
 
         # ihm
         # NOTE: when mask is 0, we set y to be 0. This is important
@@ -82,22 +79,22 @@ class BatchGen(object):
         ihm = (np.int32(ihm[1]), np.int32(ihm[2]))  # mask, label
 
         # decomp
-        decomp_M = [0] * nsteps
-        decomp_y = [0] * nsteps
-        for (t, m, y) in zip(sample_times, decomp[0], decomp[1]):
-            pos = get_bin(t)
-            decomp_M[pos] = m
-            decomp_y[pos] = y
+        decomp_M = [0] * n_steps
+        decomp_y = [0] * n_steps
+        for i in range(len(decomp[0])):
+            pos = get_bin(i)
+            decomp_M[pos] = decomp[0][i]
+            decomp_y[pos] = decomp[1][i]
         decomp = (np.array(decomp_M, dtype=np.int32),
                   np.array(decomp_y, dtype=np.int32))
 
         # los
-        los_M = [0] * nsteps
-        los_y = [0] * nsteps
-        for (t, m, y) in zip(sample_times, los[0], los[1]):
-            pos = get_bin(t)
-            los_M[pos] = m
-            los_y[pos] = y
+        los_M = [0] * n_steps
+        los_y = [0] * n_steps
+        for i in range(len(los[0])):
+            pos = get_bin(i)
+            los_M[pos] = los[0][i]
+            los_y[pos] = los[1][i]
         los = (np.array(los_M, dtype=np.int32),
                np.array(los_y, dtype=np.float32))
 
@@ -110,8 +107,8 @@ class BatchGen(object):
         B = self.batch_size
         while True:
             # convert to right format for sort_and_shuffle
-            kvpairs = self.data.items()
-            mas = [kv[1] for kv in kvpairs]
+            kv_pairs = self.data.items()
+            mas = [kv[1] for kv in kv_pairs]
 
             if self.shuffle:
                 N = len(self.data['X'])
@@ -122,13 +119,13 @@ class BatchGen(object):
                     tmp[mas_idx] = [None] * len(mas[mas_idx])
                     for i in range(N):
                         tmp[mas_idx][i] = mas[mas_idx][order[i]]
-                for i in range(len(kvpairs)):
-                    self.data[kvpairs[i][0]] = tmp[i]
+                for i in range(len(kv_pairs)):
+                    self.data[kv_pairs[i][0]] = tmp[i]
             else:
                 # sort entirely
                 mas = common_utils.sort_and_shuffle(mas, B)
-                for i in range(len(kvpairs)):
-                    self.data[kvpairs[i][0]] = mas[i]
+                for i in range(len(kv_pairs)):
+                    self.data[kv_pairs[i][0]] = mas[i]
 
             for i in range(0, len(self.data['X']), B):
                 outputs = []
@@ -187,9 +184,11 @@ class BatchGen(object):
                 if not self.return_names:
                     yield batch_data
                 else:
-                    yield {"data": batch_data, "names": self.data["names"][i:i+B],
-                           "ts": self.data["ts"][i:i+B], "decomp_ts": self.data["decomp_ts"][i:i+B],
-                           "los_ts": self.data["los_ts"][i:i+B]}
+                    yield {'data': batch_data,
+                           'names': self.data['names'][i:i+B],
+                           'decomp_ts': self.data['decomp_ts'][i:i+B],
+                           'los_ts': self.data['los_ts'][i:i+B],
+                           'pheno_ts': self.data['pheno_ts'][i:i + B]}
 
     def __iter__(self):
         return self.generator

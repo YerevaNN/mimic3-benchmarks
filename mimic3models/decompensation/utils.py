@@ -192,3 +192,11 @@ class BatchGenDeepSupervision(object):
 
     def __next__(self):
         return self.generator.__next__()
+
+
+def save_results(names, ts, pred, y_true, path):
+    common_utils.create_directory(path)
+    with open(path, 'w') as f:
+        f.write("stay,period_length,prediction,y_true\n")
+        for (name, t, x, y) in zip(names, ts, pred, y_true):
+            f.write("{},{:.6f},{:.6f},{}\n".format(name, t, x, y))

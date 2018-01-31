@@ -163,23 +163,8 @@ elif args.mode == 'test':
         ts += list(cur_ts)
 
     metrics.print_metrics_multilabel(labels, predictions)
-
-    if not os.path.exists("test_predictions"):
-        os.makedirs("test_predictions")
-
-    with open(os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv", "w") as fout:
-        header = ["stay", "period_length"]
-        header += ["pred_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
-        header += ["label_{}".format(x) for x in range(1, args_dict['num_classes'] + 1)]
-        header = ",".join(header)
-        fout.write(header + '\n')
-        for name, t, pred, y in zip(names, ts, predictions, labels):
-            line = [name]
-            line += ["{:.6f}".format(t)]
-            line += ["{:.6f}".format(a) for a in pred]
-            line += [str(a) for a in y]
-            line = ",".join(line)
-            fout.write(line + '\n')
+    path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
+    utils.save_results(names, ts, predictions, labels, path)
 
 else:
     raise ValueError("Wrong value for args.mode")

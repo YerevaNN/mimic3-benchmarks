@@ -169,3 +169,8 @@ class DeepSupervisionDataLoader:
                 mas = line.strip().split(',')
                 ret.append(np.array(mas))
         return (np.stack(ret), header)
+
+
+def create_directory(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
