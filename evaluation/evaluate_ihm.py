@@ -49,7 +49,7 @@ def main():
         results[m]['median'] = np.median(runs)
         results[m]['std'] = np.std(runs)
         results[m]['2.5% percentile'] = np.percentile(runs, 2.5)
-        results[m]['2.5% percentile'] = np.percentile(runs, 97.5)
+        results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
     print "Saving the results in {} ...".format(args.save_file)

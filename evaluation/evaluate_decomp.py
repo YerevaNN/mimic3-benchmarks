@@ -14,8 +14,8 @@ def main():
     parser.add_argument('--save_file', type=str, default='decomp_results.json')
     args = parser.parse_args()
 
-    pred_df = pd.read_csv(args.prediction, index_col=False)
-    test_df = pd.read_csv(args.test_listfile, index_col=False)
+    pred_df = pd.read_csv(args.prediction, index_col=False, dtype={'period_length': np.float32})
+    test_df = pd.read_csv(args.test_listfile, index_col=False, dtype={'period_length': np.float32})
 
     df = test_df.merge(pred_df, left_on=['stay', 'period_length'], right_on=['stay', 'period_length'],
                        how='left', suffixes=['_l', '_r'])
@@ -50,7 +50,7 @@ def main():
         results[m]['median'] = np.median(runs)
         results[m]['std'] = np.std(runs)
         results[m]['2.5% percentile'] = np.percentile(runs, 2.5)
-        results[m]['2.5% percentile'] = np.percentile(runs, 97.5)
+        results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
     print "Saving the results in {} ...".format(args.save_file)

@@ -14,8 +14,8 @@ def main():
     parser.add_argument('--save_file', type=str, default='pheno_results.json')
     args = parser.parse_args()
 
-    pred_df = pd.read_csv(args.prediction, index_col=False)
-    test_df = pd.read_csv(args.test_listfile, index_col=False)
+    pred_df = pd.read_csv(args.prediction, index_col=False, dtype={'period_length': np.float32})
+    test_df = pd.read_csv(args.test_listfile, index_col=False, dtype={'period_length': np.float32})
 
     n_tasks = 25
     labels_cols = ["label_{}".format(i) for i in range(1, n_tasks + 1)]
@@ -69,7 +69,7 @@ def main():
         results[m]['median'] = np.median(runs)
         results[m]['std'] = np.std(runs)
         results[m]['2.5% percentile'] = np.percentile(runs, 2.5)
-        results[m]['2.5% percentile'] = np.percentile(runs, 97.5)
+        results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
     print "Saving the results (including task specific metrics) in {} ...".format(args.save_file)
