@@ -88,9 +88,9 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                 ts_lines = ts_lines[1:]
                 event_times = [float(line.split(',')[0]) for line in ts_lines]
                 ts_lines = [line for (line, t) in zip(ts_lines, event_times)
-                                if t > -eps and t < los - eps]
+                                if t > -eps and t < los + eps]
                 event_times = [t for t in event_times
-                                if t > -eps and t < los - eps]
+                                if t > -eps and t < los + eps]
 
                 if (len(ts_lines) == 0):
                     print("\n\t(no events in ICU) ", patient, ts_filename)
@@ -128,7 +128,7 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                 fixed_mort_positions.append(fm_position)
 
                 # create length of stay
-                sample_times = np.arange(0.0, los - eps, sample_rate)
+                sample_times = np.arange(0.0, los + eps, sample_rate)
                 sample_times = np.array([int(x+eps) for x in sample_times])
                 cur_los_masks = map(int, (sample_times > shortest_length) & (sample_times > event_times[0]))
                 cur_los_labels = los - sample_times
@@ -163,10 +163,9 @@ def process_partition(partition, sample_rate=1.0, shortest_length=4,
                     lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -\
                                   datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
 
-                sample_times = np.arange(0.0, los - eps, sample_rate)
+                sample_times = np.arange(0.0, min(los, lived_time) + eps, sample_rate)
                 sample_times = np.array([int(x+eps) for x in sample_times])
-                cur_swat_masks = map(int, (sample_times > shortest_length) & (sample_times > event_times[0]) &
-                                          (sample_times < lived_time + eps))
+                cur_swat_masks = map(int, (sample_times > shortest_length) & (sample_times > event_times[0]))
                 cur_swat_labels = [(mortality & int(lived_time - t < future_time_interval))
                                        for t in sample_times]
                 swat_masks.append(cur_swat_masks)
