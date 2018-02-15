@@ -287,14 +287,12 @@ elif args.mode == 'test':
         ihm_ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
 
     # decomp
-    print len(decomp_names), len(decomp_ts), len(decomp_pred), len(decomp_y_true)
     if args.decomp_C > 0:
         print "\n ================ decompensation ================"
         decomp_pred = np.array(decomp_pred)
         decomp_ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
 
     # los
-    print len(los_names), len(los_ts), len(los_pred), len(los_y_true)
     if args.los_C > 0:
         print "\n ================ length of stay ================"
         if args.partition == 'log':
@@ -307,7 +305,6 @@ elif args.mode == 'test':
             los_ret = metrics.print_metrics_regression(los_y_true, los_pred)
 
     # pheno
-    print len(pheno_names), len(pheno_ts), len(pheno_pred), len(pheno_y_true)
     if args.pheno_C > 0:
         print "\n =================== phenotype =================="
         pheno_pred = np.array(pheno_pred)

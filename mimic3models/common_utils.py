@@ -172,5 +172,6 @@ class DeepSupervisionDataLoader:
 
 
 def create_directory(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
+    dir_name = os.path.dirname(path)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
