@@ -127,7 +127,7 @@ class DeepSupervisionDataLoader:
         else:
             listfile_path = listfile
         with open(listfile_path, "r") as lfile:
-            self._data = lfile.readlines()
+            self._data = lfile.readlines()[1:]  # skip the header
 
         self._data = [line.split(',') for line in self._data]
         self._data = [(x, float(t), y) for (x, t, y) in self._data]

@@ -235,6 +235,7 @@ elif args.mode == 'test':
         metrics.print_metrics_custom_bins(labels, predictions)
     if args.partition == 'none':
         metrics.print_metrics_regression(labels, predictions)
+        predictions = [x[0] for x in predictions]
 
     path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
     utils.save_results(names, ts, predictions, labels, path)
