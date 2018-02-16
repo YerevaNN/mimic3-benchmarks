@@ -8,7 +8,6 @@ if K.backend() == 'tensorflow':
     import tensorflow as tf
 
 from keras.layers import Layer, LSTM
-from keras.layers.recurrent import _time_distributed_dense
 
 
 # ===================== METRICS ===================== #
