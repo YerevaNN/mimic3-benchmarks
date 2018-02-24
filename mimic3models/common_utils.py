@@ -171,7 +171,6 @@ class DeepSupervisionDataLoader:
         return (np.stack(ret), header)
 
 
-def create_directory(path):
-    dir_name = os.path.dirname(path)
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+def create_directory(directory):
+    if not os.path.exists(directory):
+        os.makedirs(directory)

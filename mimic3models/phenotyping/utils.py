@@ -3,6 +3,7 @@ from mimic3models import nn_utils
 from mimic3models import common_utils
 import threading
 import random
+import os
 
 
 class BatchGen(object):
@@ -96,7 +97,7 @@ class BatchGen(object):
 
 def save_results(names, ts, predictions, labels, path):
     n_tasks = 25
-    common_utils.create_directory(path)
+    common_utils.create_directory(os.path.dirname(path))
     with open(path, 'w') as f:
         header = ["stay", "period_length"]
         header += ["pred_{}".format(x) for x in range(1, n_tasks + 1)]
