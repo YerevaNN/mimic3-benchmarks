@@ -89,14 +89,10 @@ Use the following command to extract validation set from the traning set. This s
 
 ### In-hospital mortality prediction
 
-Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 8 epochs.
+Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 28 epochs.
        
        cd mimic3models/in_hospital_mortality/
-       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode train --batch_size 8 --log_every 30        
-
-To test the model use the following:
-       
-       python -u main.py --network lstm --dim 256 --timestep 2.0 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       python -u main.py --network ../common_keras_models/lstm.py --dim 16 --timestep 1.0 --depth 2 --dropout 0.3 --mode train --batch_size 8
 
 Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
        
@@ -105,14 +101,10 @@ Use the following command to train logistic regression. The best model we got us
 
 ### Decompensation prediction
 
-The best model we got for this task was trained for 110 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
+The best model we got for this task was trained for 36 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
        
        cd mimic3models/decompensation/
-       python -u main.py --network lstm --dim 256 --mode train --batch_size 8 --log_every 30
-
-Here is the command to test:
-       
-       python -u main.py --network lstm --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       python -u main.py --network ../common_keras_models/lstm.py --dim 128 --timestep 1.0 --depth 1 --mode train --batch_size 8
 
 Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
        
@@ -121,14 +113,10 @@ Use the following command to train a logistic regression. It will do a grid sear
 
 ### Length of stay prediction
 
-The best model we got for this task was trained for 15 chunks.
+The best model we got for this task was trained for 19 chunks.
        
        cd mimic3models/length_of_stay/
-       python -u main.py --network lstm_cf_custom --dim 256 --mode train --batch_size 8 --log_every 30
-
-Run the following command to test the best pretrained neural network.
-       
-       python -u main.py --network lstm_cf_custom --dim 256 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       python -u main.py --network ../common_keras_models/lstm.py --dim 64 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8 --partition custom
 
 Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
        
@@ -137,14 +125,10 @@ Use the following command to train a logistic regression. It will do a grid sear
 
 ### Phenotype classification
 
-The best model we got for this task was trained for 30 epochs.
+The best model we got for this task was trained for 20 epochs.
        
        cd mimic3models/phenotyping/
-       python -u main.py --network lstm_2layer --dim 512 --mode train --batch_size 8 --log_every 30
-
-Use the following command for testing:
-       
-       python -u main.py --network lstm_2layer --dim 512 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       python -u main.py --network ../common_keras_models/lstm.py --dim 256 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8
 
 Use the following command for logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
        
@@ -153,20 +137,18 @@ Use the following command for logistic regression. It will do a grid search over
 
 ### Multitask learning
 
-`ihm_C`, `decomp_C`, `los_C` and `ph_C` coefficients control the relative weight of the tasks in the multitask model. Default is `1.0`. The best model we got was trained for 12 epochs.
+`ihm_C`, `decomp_C`, `los_C` and `ph_C` coefficients control the relative weight of the tasks in the multitask model. Default is `1.0`. Multitask network architectures are stored in `mimic3models/multitask/keras_models`. Here is a sample command for running a multitask model.
        
        cd mimic3models/multitask/
-       python -u main.py --network lstm --dim 1024 --mode train --batch_size 8 --log_every 30 --ihm_C 0.02 --decomp_C 0.1 --los_C 0.5
-
-Use the following command for testing:
-       
-       python -u main.py --network lstm --dim 1024 --mode test --batch_size 8 --log_every 30 --load_state best_model.state
+       python -u main.py --network keras_models/lstm.py --dim 512 --timestep 1 --mode train --batch_size 16 --dropout 0.3 --ihm_C 0.2 --decomp_C 1.0 --los_C 1.5 --pheno_C 1.0
        
 
 ## General todos:
 
 - Test and debug
 - Add comments and documentation
+- Add comments about channel-wise LSTMs and deep superivison
+- Add the best state files for each baseline
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
