@@ -11,7 +11,7 @@ Python suite to construct benchmark machine learning datasets from the MIMIC-III
 
 ## Citation
 
-If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). This paper is currently under review for SIGKDD and if accepted, the citation will change. **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
+If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). The second version of the preprint is under preparation and will be posted soon. **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 ## Motivation
 
@@ -106,14 +106,14 @@ For more information about using readers view the [`mimic3benchmark/more_on_read
 
 
 ## Evaluation
-For each of the 4 tasks we provide scripts for evaluating models.
+For each of the four tasks we provide scripts for evaluating models.
 These scripts receive a `csv` file containing the predictions and produce a `json` file containing the scores and confidence intervals for different metrics.
 We highly encourage to use these scripts to prevent any mistake in the evaluation step.
 For details about the usage of the evaluation scripts view the [`evaluation/README.md`](evaluation/README.md) file.
 
 
 ## Baselines
-For each of the 4 main tasks we provide 6 baselines:  
+For each of the four main tasks we provide 7 baselines:  
 * Linear/logistic regression
 * Standard LSTM
 * Standard LSTM + deep supervision
@@ -122,16 +122,18 @@ For each of the 4 main tasks we provide 6 baselines:
 * Multitask standard LSTM
 * Multitask channel-wise LSTM
 
-Linear models can be found in `mimic3modes/{task}/logistic` directories.  
+The detailed descriptions of the baselines will appear in the next version of the paper.
+
+Linear models can be found in `mimic3models/{task}/logistic` directories.  
 Non-multitask models are in `mimic3models/common_keras_models` directory and
     multitask models are in `mimic3models/multitask/keras_models` directory.
 
 Please note that running linear models can take hours because of extensive grid search and feature extraction.
-You can change the size of training data of linear models in codes and they will became faster (of course the performance will not be the same).
+You can change the size of the training data of linear models in the scripts and they will became faster (of course the performance will not be the same).
 
 ### Train / validation split
 
-Use the following command to extract validation set from the training set. This step is required for running the baseline models. Likewise the train/test split, the train/validation split is the same for tasks.
+Use the following command to extract validation set from the training set. This step is required for running the baseline models. Likewise the train/test split, the train/validation split is the same for all tasks.
 
        python mimic3models/split_train_val.py [TASK]
        
@@ -202,10 +204,13 @@ Use the following command for logistic regression. It will have L1 regularizatio
 
 ## General todos:
 
-- Test and debug
-- Add comments and documentation
+- Improve comments and documentation
 - Add comments about channel-wise LSTMs and deep superivison
 - Add the best state files for each baseline
+- Add https://zenodo.org/ 
+- Release 1.0
+- Update citation section with Zenodo DOI
+- Add to MIMIC's derived data repo
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
