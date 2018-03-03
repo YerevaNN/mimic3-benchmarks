@@ -69,7 +69,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
 
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
-4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [scripts/more_on_validating_events.md](scripts/more_on_validating_events.md)).
+4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [`scripts/more_on_validating_events.md`](scripts/more_on_validating_events.md)).
 
        python scripts/validate_events.py data/root/
 
@@ -102,7 +102,7 @@ To simplify the reading of benchmark data we wrote special classes.
 The `mimic3benchmark/readers.py` contains class `Reader` and five other task-specific classes derived from it.
 These are designed to simplify reading of benchmark data. The classes require a directory containing ICU stays and a listfile specifying the samples.
 Again, we encourage to use these readers to avoid mistakes in the reading step (for example using events that happened after the first `period_length` hours).  
-For more information about using readers view the [mimic3benchmark/more_on_readers.md](mimic3models/more_on_readers.md) file.
+For more information about using readers view the [`mimic3benchmark/more_on_readers.md`](mimic3benchmark/more_on_readers.md) file.
 
 
 ## Evaluation
