@@ -4,6 +4,7 @@ MIMIC-III Benchmarks
 [![Join the chat at https://gitter.im/YerevaNN/mimic3-benchmarks](https://badges.gitter.im/YerevaNN/mimic3-benchmarks.svg)](https://gitter.im/YerevaNN/mimic3-benchmarks?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Python suite to construct benchmark machine learning datasets from the MIMIC-III clinical database. Currently, we are focused on building a multitask learning benchmark dataset that includes four key inpatient clinical prediction tasks that map onto core machine learning problems: prediction of mortality from early admission data (classification), real-time detection of decompensation (time series classification), forecasting length of stay (regression), and phenotype classification (multilabel sequence classification).
 
+
 ## News
 
 * 2017 March 23: We are pleased to announce the first official release of these benchmarks. We expect to release a revision within the coming months that will add at least ~50 additional input variables. We are likewise pleased to announce that the manuscript associated with these benchmarks is now [available on arXiv](https://arxiv.org/abs/1703.07771).
@@ -28,6 +29,20 @@ Here we present four public benchmarks for machine learning researchers interest
 
 In [Harutyunyan, Khachatrian, Kale, and Galstyan 2017](https://arxiv.org/abs/1703.07771), we propose a multitask RNN architecture to solve these four tasks simultaneously and show that this model generally outperforms strong single task baselines.
 
+## Structure
+The content of this repository can be divided into four big parts:
+* Tools for creating the benchmark datasets.  
+* Tools for reading the data.
+* Evaluation scripts.
+* Baseline models and helper tools.
+
+The `scripts` directory contains scripts for creating the benchmark datasets.
+The reading tools are in `mimic3benchmark/readers.py`.
+All evaluation scripts are stored in the `evaluation` folder.
+The `mimic3models` directory contains the code for working with baseline models along with some helper tools.
+Those tools include discretizers, normalizers, functions too compute metrics.
+
+
 ## Requirements
 
 We do not provide the MIMIC-III data itself. You must acquire the data yourself from https://mimic.physionet.org/. Specifically, download the CSVs. Otherwise, generally we make liberal use of the following packages:
@@ -36,6 +51,7 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 - pandas
 
 For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use [Keras](https://keras.io/).
+
 
 ## Building a benchmark
 
@@ -53,7 +69,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
 
        python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
 
-4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows.
+4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [scripts/more_on_validating_events.md](scripts/more_on_validating_events.md)).
 
        python scripts/validate_events.py data/root/
 
@@ -61,7 +77,7 @@ Here are the required steps to build the benchmark. It assumes that you already 
 
        python scripts/extract_episodes_from_subjects.py data/root/
 
-6. The next command splits the whole dataset into training and testing sets. Note that all benchmarks use the same split:
+6. The next command splits the whole dataset into training and testing sets. Note that the train/test split is the same of all tasks.
 
        python scripts/split_train_and_test.py data/root/
 	
@@ -72,15 +88,50 @@ Here are the required steps to build the benchmark. It assumes that you already 
        python scripts/create_length_of_stay.py data/root/ data/length-of-stay/
        python scripts/create_phenotyping.py data/root/ data/phenotyping/
        python scripts/create_multitask.py data/root/ data/multitask/
-        
-## Working with baseline models
 
-For each of the 4 main tasks we provide logistic regression and LSTM baselines. 
-Please note that running linear models can take hours because of extensive grid search. You can change the `chunk_size` parameter in codes and they will became faster (of course the performance will not be the same).
+After the above commands are done, there will be a directory `data/{task}` for each created benchmark task.
+These directories have two sub-directories: `train` and `test`.
+Each of them contains bunch of ICU stays and one file with name `listfile.csv`, which lists all samples in that particular set.
+Each row of `listfile.csv` has the following form: `icu_stay, period_length, label(s)`.
+A row specifies a sample for which the input is the collection of ICU event of `icu_stay` that occurred in the first `period_length` hours of the stay and the target is/are `label(s)`.
+In in-hospital mortality prediction task `period_length` is always 48 hours, so it is not listed in corresponding listfiles.
+
+
+## Readers
+To simplify the reading of benchmark data we wrote special classes.
+The `mimic3benchmark/readers.py` contains class `Reader` and five other task-specific classes derived from it.
+These are designed to simplify reading of benchmark data. The classes require a directory containing ICU stays and a listfile specifying the samples.
+Again, we encourage to use these readers to avoid mistakes in the reading step (for example using events that happened after the first `period_length` hours).  
+For more information about using readers view the [mimic3benchmark/more_on_readers.md](mimic3models/more_on_readers.md) file.
+
+
+## Evaluation
+For each of the 4 tasks we provide scripts for evaluating models.
+These scripts receive a `.csv` file containing the predictions and produce a `.json` file containing the scores and confidence intervals for different metrics.
+We highly encourage to use these scripts to prevent any mistake in the evaluation step.
+For details about the usage of the evaluation scripts view the [`evaluation/README.md`](evaluation/README.md) file.
+
+
+## Baselines
+For each of the 4 main tasks we provide 6 baselines:  
+* Linear/logistic regression
+* Standard LSTM
+* Standard LSTM + deep supervision
+* Channel-wise LSTM
+* Channel-wise LSTM + deep supervision
+* Multitask standard LSTM
+* Multitask channel-wise LSTM
+
+Linear models can be found in `mimic3modes/{task}/logistic` directories.  
+Non-multitask models are in `mimic3models/common_keras_models` directory and
+    multitask models are in `mimic3models/multitask/keras_models` directory.
+
+Please note that running linear models can take hours because of extensive grid search and feature extraction.
+You can change the size of training data of linear models in codes and they will became faster (of course the performance will not be the same).
 
 ### Train / validation split
 
-Use the following command to extract validation set from the traning set. This step is required for running the baseline models.
+Use the following command to extract validation set from the training set. This step is required for running the baseline models. Likewise the train/test split, the train/validation split is the same for tasks.
 
        python mimic3models/split_train_val.py [TASK]
        
@@ -153,30 +204,3 @@ Use the following command for logistic regression. It will do a grid search over
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
 
-## More on validating results
-
-With `validate_events.py` try to assert some assumptions about the data; find events with some problems and fix these problems if possible.  
-Assumptions we assert:
-* There is one-to-one mapping between HADM_ID and ICUSTAY_ID in `stays.csv` files.
-* HADM_ID and ICUSTAY_ID are not empty in `stays.csv` files.
-* `stays.csv` and `events.csv` files are always present.
-* There is no case, where after initial filtering we cannot recover empty ICUSTAY_IDs.
-  
-Problems we fix (the order of this steps is fixed):
-* Remove all events for which HADM_ID is missing.
-* Remove all events for which HADM_ID is not present in `stays.csv`.
-* If ICUSTAY_ID is missing in an event and HADM_ID is not missing, then we look at `stays.csv` and try to recover ICUSTAY_ID.
-* Remove all events for which we cannot recover ICUSTAY_ID.
-* Remove all events for which ICUSTAY_ID is not present in `stays.csv`.
-
-Here is the output of `validate_events.py`:
-
-| Type | Description | Number of rows |
-| --- | --- | --- |
-| `n_events` | total number of events | 253116833 |
-| `empty_hadm` | HADM_ID is empty in `events.csv`. We exclude such events. | 5162703 |
-| `no_hadm_in_stay` | HADM_ID does not appear in `stays.csv`. We exclude such events. | 32266173 |
-| `no_icustay` | ICUSTAY_ID is empty in `events.csv`. We try to fix such events. | 15735688 |
-| `recovered` | empty ICUSTAY_IDs are recovered according to stays.csv files (given HADM_ID) | 15735688 |
-| `could_not_recover` | empty ICUSTAY_IDs that are not recovered. This should be zero. | 0 |
-| `icustay_missing_in_stays` | ICUSTAY_ID does not appear in stays.csv. We exclude such events. | 7115720 |
