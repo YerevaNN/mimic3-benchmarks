@@ -107,7 +107,7 @@ For more information about using readers view the [`mimic3benchmark/more_on_read
 
 ## Evaluation
 For each of the 4 tasks we provide scripts for evaluating models.
-These scripts receive a `.csv` file containing the predictions and produce a `.json` file containing the scores and confidence intervals for different metrics.
+These scripts receive a `csv` file containing the predictions and produce a `json` file containing the scores and confidence intervals for different metrics.
 We highly encourage to use these scripts to prevent any mistake in the evaluation step.
 For details about the usage of the evaluation scripts view the [`evaluation/README.md`](evaluation/README.md) file.
 
@@ -157,7 +157,7 @@ The best model we got for this task was trained for 36 chunks (that's less than 
        cd mimic3models/decompensation/
        python -u main.py --network ../common_keras_models/lstm.py --dim 128 --timestep 1.0 --depth 1 --mode train --batch_size 8
 
-Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+Use the following command to train a logistic regression. It will have L2 regularization with `C=0.001`, which gave us the best result. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
        cd mimic3models/decompensation/logistic/
        python -u main.py
@@ -169,10 +169,16 @@ The best model we got for this task was trained for 19 chunks.
        cd mimic3models/length_of_stay/
        python -u main.py --network ../common_keras_models/lstm.py --dim 64 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8 --partition custom
 
-Use the following command to train a logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+Use the following command to train a logistic regression. It will have L1 regularization with `C=0.00001`. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
        cd mimic3models/length_of_stay/logistic/
        python -u main_cf.py
+
+To run a linear regression use this command:
+
+        cd mimic3models/length_of_stay/logistic/
+        python -u main.py
+
 
 ### Phenotype classification
 
@@ -181,7 +187,7 @@ The best model we got for this task was trained for 20 epochs.
        cd mimic3models/phenotyping/
        python -u main.py --network ../common_keras_models/lstm.py --dim 256 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8
 
-Use the following command for logistic regression. It will do a grid search over a small space of hyperparameters and will report the scores for every case.
+Use the following command for logistic regression. It will have L1 regularization with `C=0.1`. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
        cd mimic3models/phenotyping/logistic/
        python -u main.py

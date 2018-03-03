@@ -36,13 +36,18 @@ def main():
                         choices=['first4days', 'first8days', 'last12hours', 'first25percent', 'first50percent', 'all'])
     parser.add_argument('--features', type=str, default='all', help='specifies what features to extract',
                         choices=['all', 'len', 'all_but_len'])
+    parser.add_argument('--grid-search', dest='grid_search', action='store_true')
+    parser.add_argument('--no-grid-search', dest='grid_search', action='store_false')
+    parser.set_defaults(grid_search=False)
     args = parser.parse_args()
     print(args)
 
-    # penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
-    # Cs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
-    penalties = ['l2']
-    Cs = [0.001]
+    if args.grid_search:
+        penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
+        coefs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
+    else:
+        penalties = ['l2']
+        coefs = [0.001]
 
     train_reader = DecompensationReader(dataset_dir='../../../data/decompensation/train/',
                                         listfile='../../../data/decompensation/train_listfile.csv')
@@ -82,7 +87,7 @@ def main():
 
     common_utils.create_directory('results')
 
-    for (penalty, C) in zip(penalties, Cs):
+    for (penalty, C) in zip(penalties, coefs):
         file_name = '{}.{}.{}.C{}'.format(args.period, args.features, penalty, C)
 
         logreg = LogisticRegression(penalty=penalty, C=C, random_state=42)
