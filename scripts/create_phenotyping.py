@@ -88,7 +88,7 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
         listfile.write(listfile_header + "\n")
         for (x, t, y) in xty_triples:
             labels = ','.join(map(str, y))
-            listfile.write("%s,%.6f,%s\n" % (x, t, labels))
+            listfile.write('{},{:.6f},{}\n'.format(x, t, labels))
 
 
 def main():

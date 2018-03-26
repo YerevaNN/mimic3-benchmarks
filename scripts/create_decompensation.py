@@ -95,7 +95,7 @@ def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
     with open(os.path.join(output_dir, "listfile.csv"), "w") as listfile:
         listfile.write('stay,period_length,y_true\n')
         for (x, t, y) in xty_triples:
-            listfile.write("%s,%.6f,%d\n" % (x, t, y))
+            listfile.write('{},{:.6f},{:d}\n'.format(x, t, y))
 
 
 def main():

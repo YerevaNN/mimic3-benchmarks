@@ -69,7 +69,7 @@ def process_partition(args, partition, eps=1e-6, n_hours=48):
     with open(os.path.join(output_dir, "listfile.csv"), "w") as listfile:
         listfile.write('stay,y_true\n')
         for (x, y) in xy_pairs:
-            listfile.write("%s,%d\n" % (x, y))
+            listfile.write('{},{:d}\n'.format(x, y))
 
 
 def main():

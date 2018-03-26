@@ -185,7 +185,7 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
             ihm_task = '{:d};{:d};{:d}'.format(ihm_positions[index], ihm_masks[index], ihm_labels[index])
 
             ls1 = ";".join(map(str, los_masks[index]))
-            ls2 = ";".join(map(lambda x: "%.6f" % x, los_labels[index]))
+            ls2 = ";".join(map(lambda x: '{:.6f}'.format(x), los_labels[index]))
             los_task = '{};{}'.format(ls1, ls2)
 
             pheno_task = ';'.join(map(str, phenotype_labels[index]))
