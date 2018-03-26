@@ -1,6 +1,6 @@
 from __future__ import print_function
 import numpy as np
-import cPickle as pickle
+import pickle
 import json
 import os
 
@@ -13,11 +13,7 @@ class Discretizer:
             config = json.load(f)
             self._id_to_channel = config['id_to_channel']
             self._channel_to_id = dict(zip(self._id_to_channel, range(len(self._id_to_channel))))
-
             self._is_categorical_channel = config['is_categorical_channel']
-            for k, v in self._is_categorical_channel.items():
-                self._is_categorical_channel[k] = (v == 'True')
-
             self._possible_values = config['possible_values']
             self._normal_values = config['normal_values']
 
