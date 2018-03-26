@@ -1,6 +1,6 @@
+from __future__ import print_function
 import numpy as np
 import argparse
-import time
 import os
 import imp
 import re
@@ -21,7 +21,7 @@ common_utils.add_common_arguments(parser)
 parser.add_argument('--deep_supervision', dest='deep_supervision', action='store_true')
 parser.set_defaults(deep_supervision=False)
 args = parser.parse_args()
-print args
+print(args)
 
 if args.small_part:
     args.save_every = 2**30
@@ -42,7 +42,7 @@ else:
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
 if args.deep_supervision:
@@ -60,7 +60,7 @@ args_dict['task'] = 'decomp'
 
 
 # Build the model
-print "==> using model {}".format(args.network)
+print("==> using model {}".format(args.network))
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 suffix = "{}.bs{}{}{}.ts{}".format("" if not args.deep_supervision else ".dsup",
@@ -69,11 +69,11 @@ suffix = "{}.bs{}{}{}.ts{}".format("" if not args.deep_supervision else ".dsup",
                                    ".L2{}".format(args.l2) if args.l2 > 0 else "",
                                    args.timestep)
 model.final_name = args.prefix + model.say_name() + suffix
-print "==> model.final_name:", model.final_name
+print("==> model.final_name:", model.final_name)
 
 
 # Compile the model
-print "==> compiling the model"
+print("==> compiling the model")
 optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
@@ -130,7 +130,7 @@ if args.mode == 'train':
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
 
-    print "==> training"
+    print("==> training")
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
@@ -162,7 +162,7 @@ elif args.mode == 'test':
                                                       shuffle=False, return_names=True)
 
         for i in range(test_data_gen.steps):
-            print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+            print("\tdone {}/{}".format(i, test_data_gen.steps), end='\r')
             ret = next(test_data_gen)
             (x, y) = ret["data"]
             cur_names = np.array(ret["names"]).repeat(x[0].shape[1], axis=-1)
@@ -176,7 +176,7 @@ elif args.mode == 'test':
                     labels.append(t)
                     predictions.append(p)
                     names.append(name)
-        print "\n"
+        print('\n')
     else:
         del train_reader
         del val_reader
@@ -188,7 +188,7 @@ elif args.mode == 'test':
                                        None, shuffle=False, return_names=True)  # put steps = None for a full test
 
         for i in range(test_data_gen.steps):
-            print "\rpredicting {} / {}".format(i, test_data_gen.steps),
+            print("predicting {} / {}".format(i, test_data_gen.steps), end='\r')
             ret = next(test_data_gen)
             x, y = ret["data"]
             cur_names = ret["names"]

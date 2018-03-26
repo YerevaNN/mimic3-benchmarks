@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import argparse
 import os
@@ -22,7 +23,7 @@ parser.set_defaults(deep_supervision=False)
 parser.add_argument('--partition', type=str, default='custom',
                     help="log, custom, none")
 args = parser.parse_args()
-print args
+print(args)
 
 if args.small_part:
     args.save_every = 2**30
@@ -43,7 +44,7 @@ else:
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
 if args.deep_supervision:
@@ -62,7 +63,7 @@ args_dict['num_classes'] = (1 if args.partition == 'none' else 10)
 
 
 # Build the model
-print "==> using model {}".format(args.network)
+print("==> using model {}".format(args.network))
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 suffix = "{}.bs{}{}{}.ts{}.partition={}".format("" if not args.deep_supervision else ".dsup",
@@ -72,11 +73,11 @@ suffix = "{}.bs{}{}{}.ts{}.partition={}".format("" if not args.deep_supervision 
                                                 args.timestep,
                                                 args.partition)
 model.final_name = args.prefix + model.say_name() + suffix
-print "==> model.final_name:", model.final_name
+print("==> model.final_name:", model.final_name)
 
 
 # Compile the model
-print "==> compiling the model"
+print("==> compiling the model")
 optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
@@ -149,7 +150,7 @@ if args.mode == 'train':
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
 
-    print "==> training"
+    print("==> training")
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
@@ -179,7 +180,7 @@ elif args.mode == 'test':
                                                       discretizer, normalizer, args.batch_size,
                                                       shuffle=False, return_names=True)
         for i in range(test_data_gen.steps):
-            print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+            print("\tdone {}/{}".format(i, test_data_gen.steps), end='\r')
 
             ret = test_data_gen.next(return_y_true=True)
             (x, y_processed, y) = ret["data"]
@@ -213,7 +214,7 @@ elif args.mode == 'test':
                                        return_names=True)
 
         for i in range(test_data_gen.steps):
-            print "\rpredicting {} / {}".format(i, test_data_gen.steps),
+            print("predicting {} / {}".format(i, test_data_gen.steps), end='\r')
 
             ret = test_data_gen.next(return_y_true=True)
             (x, y_processed, y) = ret["data"]

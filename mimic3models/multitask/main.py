@@ -1,3 +1,4 @@
+from __future__ import print_function
 from mimic3models.multitask import utils
 from mimic3benchmark.readers import MultitaskReader
 from mimic3models.preprocessing import Discretizer, Normalizer
@@ -13,7 +14,6 @@ import mimic3models.phenotyping.utils as pheno_utils
 
 import numpy as np
 import argparse
-import time
 import os
 import imp
 import re
@@ -27,7 +27,7 @@ parser.add_argument('--los_C', type=float, default=1.0)
 parser.add_argument('--pheno_C', type=float, default=1.0)
 parser.add_argument('--decomp_C', type=float, default=1.0)
 args = parser.parse_args()
-print args
+print(args)
 
 if args.small_part:
     args.save_every = 2 ** 30
@@ -43,7 +43,7 @@ val_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
 discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
@@ -58,7 +58,7 @@ args_dict['ihm_pos'] = int(48.0 / args.timestep - 1e-6)
 args_dict['target_repl'] = target_repl
 
 # Build the model
-print "==> using model {}".format(args.network)
+print("==> using model {}".format(args.network))
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_pheno={}".format(
@@ -73,10 +73,10 @@ suffix = ".bs{}{}{}.ts{}{}_partition={}_ihm={}_decomp={}_los={}_pheno={}".format
     args.los_C,
     args.pheno_C)
 model.final_name = args.prefix + model.say_name() + suffix
-print "==> model.final_name:", model.final_name
+print("==> model.final_name:", model.final_name)
 
 # Compile the model
-print "==> compiling the model"
+print("==> compiling the model")
 optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
@@ -169,7 +169,7 @@ if args.mode == 'train':
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
 
-    print "==> training"
+    print("==> training")
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
@@ -219,7 +219,7 @@ elif args.mode == 'test':
     pheno_ts = []
 
     for i in range(test_data_gen.steps):
-        print "\r\tdone {}/{}".format(i, test_data_gen.steps),
+        print("\tdone {}/{}".format(i, test_data_gen.steps), end='\r')
         ret = test_data_gen.next(return_y_true=True)
         (X, y, los_y_reg) = ret["data"]
         outputs = model.predict(X, batch_size=args.batch_size)
@@ -278,23 +278,23 @@ elif args.mode == 'test':
         for (t, p) in zip(pheno_t.reshape((-1, 25)), pheno_p.reshape((-1, 25))):
             pheno_y_true.append(t)
             pheno_pred.append(p)
-    print "\n"
+    print('\n')
 
     # ihm
     if args.ihm_C > 0:
-        print "\n ================= 48h mortality ================"
+        print("\n ================= 48h mortality ================")
         ihm_pred = np.array(ihm_pred)
         ihm_ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
 
     # decomp
     if args.decomp_C > 0:
-        print "\n ================ decompensation ================"
+        print("\n ================ decompensation ================")
         decomp_pred = np.array(decomp_pred)
         decomp_ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
 
     # los
     if args.los_C > 0:
-        print "\n ================ length of stay ================"
+        print("\n ================ length of stay ================")
         if args.partition == 'log':
             los_pred = [metrics.get_estimate_log(x, 10) for x in los_pred]
             los_ret = metrics.print_metrics_log_bins(los_y_true, los_pred)
@@ -306,11 +306,11 @@ elif args.mode == 'test':
 
     # pheno
     if args.pheno_C > 0:
-        print "\n =================== phenotype =================="
+        print("\n =================== phenotype ==================")
         pheno_pred = np.array(pheno_pred)
         pheno_ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
 
-    print "Saving the predictions in test_predictions/task directories ..."
+    print("Saving the predictions in test_predictions/task directories ...")
 
     # ihm
     ihm_path = os.path.join("test_predictions/ihm", os.path.basename(args.load_state)) + ".csv"

@@ -9,7 +9,7 @@ import random
 
 def preprocess_chunk(data, ts, discretizer, normalizer=None):
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
-    if (normalizer is not None):
+    if normalizer is not None:
         data = [normalizer.transform(X) for X in data]
     return data
 
@@ -139,7 +139,7 @@ class BatchGenDeepSupervision(object):
                 y[get_bin(pos)] = z
 
             X = discretizer.transform(X, end=T)[0]
-            if (normalizer is not None):
+            if normalizer is not None:
                 X = normalizer.transform(X)
 
             Xs.append(X)

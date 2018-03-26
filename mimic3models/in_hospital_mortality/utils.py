@@ -13,7 +13,7 @@ def load_data(reader, discretizer, normalizer, small_part=False, return_names=Fa
     labels = ret["y"]
     names = ret["name"]
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
-    if (normalizer is not None):
+    if normalizer is not None:
         data = [normalizer.transform(X) for X in data]
     whole_data = (np.array(data), labels)
     if not return_names:

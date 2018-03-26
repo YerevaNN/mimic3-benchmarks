@@ -1,6 +1,6 @@
+from __future__ import print_function
 import numpy as np
 import argparse
-import time
 import os
 import imp
 import re
@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--target_repl_coef', type=float, default=0.0)
 args = parser.parse_args()
-print args
+print(args)
 
 if args.small_part:
     args.save_every = 2**30
@@ -35,7 +35,7 @@ val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
 discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
@@ -51,7 +51,7 @@ args_dict['num_classes'] = 25
 args_dict['target_repl'] = target_repl
 
 # Build the model
-print "==> using model {}".format(args.network)
+print("==> using model {}".format(args.network))
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
@@ -60,11 +60,11 @@ suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
                                    args.timestep,
                                    ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
 model.final_name = args.prefix + model.say_name() + suffix
-print "==> model.final_name:", model.final_name
+print("==> model.final_name:", model.final_name)
 
 
 # Compile the model
-print "==> compiling the model"
+print("==> compiling the model")
 optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
@@ -118,7 +118,7 @@ if args.mode == 'train':
     csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
                            append=True, separator=';')
 
-    print "==> training"
+    print("==> training")
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
@@ -149,7 +149,7 @@ elif args.mode == 'test':
     labels = []
     predictions = []
     for i in range(test_data_gen.steps):
-        print "\rpredicting {} / {}".format(i, test_data_gen.steps),
+        print("predicting {} / {}".format(i, test_data_gen.steps), end='\r')
         ret = next(test_data_gen)
         x = ret["data"][0]
         y = ret["data"][1]

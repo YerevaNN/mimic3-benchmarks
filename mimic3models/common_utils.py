@@ -12,7 +12,7 @@ def convert_to_dict(data, header, channel_info):
     for i in range(1, data.shape[1]):
         ret[i-1] = [(t, x) for (t, x) in zip(data[:, 0], data[:, i]) if x != ""]
         channel = header[i]
-        if (len(channel_info[channel]['possible_values']) != 0):
+        if len(channel_info[channel]['possible_values']) != 0:
             ret[i-1] = map(lambda x: (x[0], channel_info[channel]['values'][x[1]]), ret[i-1])
         ret[i-1] = map(lambda x: (float(x[0]), float(x[1])), ret[i-1])
     return ret
@@ -55,7 +55,7 @@ def sort_and_shuffle(data, batch_size):
 
     head.sort(key=(lambda x: x[0].shape[0]))
 
-    mas = [head[i : i+batch_size] for i in range(0, len(head), batch_size)]
+    mas = [head[i: i+batch_size] for i in range(0, len(head), batch_size)]
     random.shuffle(mas)
 
     for x in mas:
@@ -115,7 +115,7 @@ class DeepSupervisionDataLoader:
     ----------
     dataset_dir : str
         Directory where timeseries files are stored.
-    listilfe : str
+    listfile : str
         Path to a listfile. If this parameter is left `None` then
         `dataset_dir/listfile.csv` will be used.
     """
