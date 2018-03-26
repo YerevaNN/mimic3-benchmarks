@@ -33,3 +33,7 @@ def main():
 
     move_to_partition(args, train_patients, "train")
     move_to_partition(args, test_patients, "test")
+
+
+if __name__ == '__main__':
+    main()
