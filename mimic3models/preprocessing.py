@@ -209,7 +209,7 @@ class Normalizer:
             pickle.dump(obj={'means': self._means,
                              'stds': self._stds},
                         file=save_file,
-                        protocol=-1)
+                        protocol=2)
 
     def load_params(self, load_file_path):
         with open(load_file_path, "rb") as load_file:
