@@ -50,7 +50,7 @@ class Network(Model):
         channels = []  # each channel is a list of columns
         for ch in channel_names:
             indices = range(len(header))
-            indices = filter(lambda i: header[i].find(ch) != -1, indices)
+            indices = list(filter(lambda i: header[i].find(ch) != -1, indices))
             channels.append(indices)
 
         # Input layers and masking

@@ -13,8 +13,8 @@ def convert_to_dict(data, header, channel_info):
         ret[i-1] = [(t, x) for (t, x) in zip(data[:, 0], data[:, i]) if x != ""]
         channel = header[i]
         if len(channel_info[channel]['possible_values']) != 0:
-            ret[i-1] = map(lambda x: (x[0], channel_info[channel]['values'][x[1]]), ret[i-1])
-        ret[i-1] = map(lambda x: (float(x[0]), float(x[1])), ret[i-1])
+            ret[i-1] = list(map(lambda x: (x[0], channel_info[channel]['values'][x[1]]), ret[i-1]))
+        ret[i-1] = list(map(lambda x: (float(x[0]), float(x[1])), ret[i-1]))
     return ret
 
 
@@ -43,7 +43,7 @@ def sort_and_shuffle(data, batch_size):
         Usually data = (X, y).
     """
     assert len(data) >= 2
-    data = zip(*data)
+    data = list(zip(*data))
 
     random.shuffle(data)
 
@@ -62,7 +62,7 @@ def sort_and_shuffle(data, batch_size):
         data += x
     data += tail
 
-    data = zip(*data)
+    data = list(zip(*data))
     return data
 
 
