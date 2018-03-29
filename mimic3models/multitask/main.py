@@ -28,6 +28,10 @@ parser.add_argument('--ihm_C', type=float, default=1.0)
 parser.add_argument('--los_C', type=float, default=1.0)
 parser.add_argument('--pheno_C', type=float, default=1.0)
 parser.add_argument('--decomp_C', type=float, default=1.0)
+parser.add_argument('--data', type=str, help='Path to the data of multitasking',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/multitask/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default=os.path.dirname(__file__))
 args = parser.parse_args()
 print(args)
 
@@ -37,11 +41,11 @@ if args.small_part:
 target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
-train_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
-                               listfile='../../data/multitask/train_listfile.csv')
+train_reader = MultitaskReader(dataset_dir=os.path.join(args.data, 'train'),
+                               listfile=os.path.join(args.data, 'train_listfile.csv'))
 
-val_reader = MultitaskReader(dataset_dir='../../data/multitask/train/',
-                             listfile='../../data/multitask/val_listfile.csv')
+val_reader = MultitaskReader(dataset_dir=os.path.join(args.data, 'train'),
+                             listfile=os.path.join(args.data, 'val_listfile.csv'))
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -52,7 +56,8 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1]
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('mult_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
+normalizer_state = 'mult_ts{}.input_str:{}.start_time:zero.normalizer'.format(args.timestep, args.imputation)
+normalizer.load_params()
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -153,7 +158,7 @@ val_data_gen = utils.BatchGen(reader=val_reader,
 
 if args.mode == 'train':
     # Prepare training
-    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state')
 
     metrics_callback = keras_utils.MultitaskMetrics(train_data_gen=train_data_gen,
                                                     val_data_gen=val_data_gen,
@@ -166,9 +171,10 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
 
-    if not os.path.exists('keras_logs'):
-        os.makedirs('keras_logs')
-    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
                            append=True, separator=';')
 
     print("==> training")
@@ -188,8 +194,8 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
 
-    test_reader = MultitaskReader(dataset_dir='../../data/multitask/test/',
-                                  listfile='../../data/multitask/test_listfile.csv')
+    test_reader = MultitaskReader(dataset_dir=os.path.join(args.data, 'test'),
+                                  listfile=os.path.join(args.data, 'test_listfile.csv'))
 
     test_data_gen = utils.BatchGen(reader=test_reader,
                                    discretizer=discretizer,
@@ -315,19 +321,23 @@ elif args.mode == 'test':
     print("Saving the predictions in test_predictions/task directories ...")
 
     # ihm
-    ihm_path = os.path.join("test_predictions/ihm", os.path.basename(args.load_state)) + ".csv"
+    ihm_path = os.path.join(os.path.join(args.output_dir,
+                                         "test_predictions/ihm", os.path.basename(args.load_state)) + ".csv")
     ihm_utils.save_results(ihm_names, ihm_pred, ihm_y_true, ihm_path)
 
     # decomp
-    decomp_path = os.path.join("test_predictions/decomp", os.path.basename(args.load_state)) + ".csv"
+    decomp_path = os.path.join(os.path.join(args.output_dir,
+                                            "test_predictions/decomp", os.path.basename(args.load_state)) + ".csv")
     decomp_utils.save_results(decomp_names, decomp_ts, decomp_pred, decomp_y_true, decomp_path)
 
     # los
-    los_path = os.path.join("test_predictions/los", os.path.basename(args.load_state)) + ".csv"
+    los_path = os.path.join(os.path.join(args.output_dir,
+                                         "test_predictions/los", os.path.basename(args.load_state)) + ".csv")
     los_utils.save_results(los_names, los_ts, los_pred, los_y_true, los_path)
 
     # pheno
-    pheno_path = os.path.join("test_predictions/pheno", os.path.basename(args.load_state)) + ".csv"
+    pheno_path = os.path.join(os.path.join(args.output_dir,
+                                           "test_predictions/pheno", os.path.basename(args.load_state)) + ".csv")
     pheno_utils.save_results(pheno_names, pheno_ts, pheno_pred, pheno_y_true, pheno_path)
 
 else:

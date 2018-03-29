@@ -115,7 +115,7 @@ class BatchGen(object):
 
             if self.shuffle:
                 N = len(self.data['X'])
-                order = range(N)
+                order = list(range(N))
                 random.shuffle(order)
                 tmp = [None] * len(mas)
                 for mas_idx in range(len(mas)):

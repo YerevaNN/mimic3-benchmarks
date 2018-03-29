@@ -21,6 +21,10 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--deep_supervision', dest='deep_supervision', action='store_true')
+parser.add_argument('--data', type=str, help='Path to the data of decompensation task',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/decompensation/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default=os.path.dirname(__file__))
 parser.set_defaults(deep_supervision=False)
 args = parser.parse_args()
 print(args)
@@ -30,17 +34,17 @@ if args.small_part:
 
 # Build readers, discretizers, normalizers
 if args.deep_supervision:
-    train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/train/',
-                                                               listfile='../../data/decompensation/train_listfile.csv',
+    train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'train'),
+                                                               listfile=os.path.join(args.data, 'train_listfile.csv'),
                                                                small_part=args.small_part)
-    val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/train/',
-                                                             listfile='../../data/decompensation/val_listfile.csv',
+    val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'train'),
+                                                             listfile=os.path.join(args.data, 'val_listfile.csv'),
                                                              small_part=args.small_part)
 else:
-    train_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                                        listfile='../../data/decompensation/train_listfile.csv')
-    val_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                                      listfile='../../data/decompensation/val_listfile.csv')
+    train_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                        listfile=os.path.join(args.data, 'train_listfile.csv'))
+    val_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                      listfile=os.path.join(args.data, 'val_listfile.csv'))
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
@@ -54,7 +58,8 @@ else:
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep))
+normalizer_state = 'decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep)
+normalizer.load_params(os.path.join(os.path.dirname(__file__), normalizer_state))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -114,7 +119,7 @@ else:
 if args.mode == 'train':
 
     # Prepare training
-    path = 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state'
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state')
 
     metrics_callback = keras_utils.DecompensationMetrics(train_data_gen=train_data_gen,
                                                          val_data_gen=val_data_gen,
@@ -127,9 +132,10 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
 
-    if not os.path.exists('keras_logs'):
-        os.makedirs('keras_logs')
-    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
                            append=True, separator=';')
 
     print("==> training")
@@ -156,8 +162,8 @@ elif args.mode == 'test':
     if args.deep_supervision:
         del train_data_loader
         del val_data_loader
-        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir='../../data/decompensation/test/',
-                                                                  listfile='../../data/decompensation/test_listfile.csv',
+        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'test'),
+                                                                  listfile=os.path.join(args.data, 'test_listfile.csv'),
                                                                   small_part=args.small_part)
         test_data_gen = utils.BatchGenDeepSupervision(test_data_loader, discretizer,
                                                       normalizer, args.batch_size,
@@ -182,8 +188,8 @@ elif args.mode == 'test':
     else:
         del train_reader
         del val_reader
-        test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
-                                           listfile='../../data/decompensation/test_listfile.csv')
+        test_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'test'),
+                                           listfile=os.path.join(args.data, 'test_listfile.csv'))
 
         test_data_gen = utils.BatchGen(test_reader, discretizer,
                                        normalizer, args.batch_size,
@@ -204,7 +210,7 @@ elif args.mode == 'test':
             ts += list(cur_ts)
 
     metrics.print_metrics_binary(labels, predictions)
-    path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
+    path = os.path.join(args.output_dir, 'test_predictions', os.path.basename(args.load_state)) + '.csv'
     utils.save_results(names, ts, predictions, labels, path)
 
 else:

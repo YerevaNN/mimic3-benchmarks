@@ -20,6 +20,10 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--target_repl_coef', type=float, default=0.0)
+parser.add_argument('--data', type=str, help='Path to the data of phenotyping task',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/phenotyping/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default=os.path.dirname(__file__))
 args = parser.parse_args()
 print(args)
 
@@ -29,11 +33,11 @@ if args.small_part:
 target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
-train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                 listfile='../../data/phenotyping/train_listfile.csv')
+train_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                                 listfile=os.path.join(args.data, 'train_listfile.csv'))
 
-val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                               listfile='../../data/phenotyping/val_listfile.csv')
+val_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                               listfile=os.path.join(args.data, 'val_listfile.csv'))
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
@@ -44,7 +48,8 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1]
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('ph_ts{}.input_str:previous.start_time:zero.normalizer'.format(args.timestep))
+normalizer_state = 'ph_ts{}.input_str:previous.start_time:zero.normalizer'.format(args.timestep)
+normalizer.load_params(os.path.join(os.path.dirname(__file__), normalizer_state))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -103,7 +108,7 @@ val_data_gen = utils.BatchGen(val_reader, discretizer,
 
 if args.mode == 'train':
     # Prepare training
-    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state')
 
     metrics_callback = keras_utils.PhenotypingMetrics(train_data_gen=train_data_gen,
                                                       val_data_gen=val_data_gen,
@@ -115,9 +120,10 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
 
-    if not os.path.exists('keras_logs'):
-        os.makedirs('keras_logs')
-    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
                            append=True, separator=';')
 
     print("==> training")
@@ -138,8 +144,8 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
 
-    test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
-                                    listfile='../../data/phenotyping/test_listfile.csv')
+    test_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'test'),
+                                    listfile=os.path.join(args.data, 'test_listfile.csv'))
 
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                    normalizer, args.batch_size,
@@ -165,7 +171,7 @@ elif args.mode == 'test':
         ts += list(cur_ts)
 
     metrics.print_metrics_multilabel(labels, predictions)
-    path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
+    path = os.path.join(args.output_dir, "test_predictions", os.path.basename(args.load_state)) + ".csv"
     utils.save_results(names, ts, predictions, labels, path)
 
 else:

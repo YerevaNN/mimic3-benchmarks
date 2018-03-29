@@ -20,6 +20,10 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--target_repl_coef', type=float, default=0.0)
+parser.add_argument('--data', type=str, help='Path to the data of in-hospital mortality task',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/in-hospital-mortality/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default=os.path.dirname(__file__))
 args = parser.parse_args()
 print(args)
 
@@ -29,12 +33,12 @@ if args.small_part:
 target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
-train_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                         listfile='../../data/in-hospital-mortality/train_listfile.csv',
+train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(args.data, 'train'),
+                                         listfile=os.path.join(args.data, 'train_listfile.csv'),
                                          period_length=48.0)
 
-val_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/train/',
-                                       listfile='../../data/in-hospital-mortality/val_listfile.csv',
+val_reader = InHospitalMortalityReader(dataset_dir=os.path.join(args.data, 'train'),
+                                       listfile=os.path.join(args.data, 'val_listfile.csv'),
                                        period_length=48.0)
 
 discretizer = Discretizer(timestep=float(args.timestep),
@@ -46,7 +50,8 @@ discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1]
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
 normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('ihm_ts%s.input_str:%s.start_time:zero.normalizer' % (args.timestep, args.imputation))
+normalizer_state = 'ihm_ts{}.input_str:{}.start_time:zero.normalizer'.format(args.timestep, args.imputation)
+normalizer.load_params(os.path.join(os.path.dirname(__file__), normalizer_state))
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -115,7 +120,7 @@ if target_repl:
 if args.mode == 'train':
 
     # Prepare training
-    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state')
 
     metrics_callback = keras_utils.InHospitalMortalityMetrics(train_data=train_raw,
                                                               val_data=val_raw,
@@ -128,9 +133,10 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
 
-    if not os.path.exists('keras_logs'):
-        os.makedirs('keras_logs')
-    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
                            append=True, separator=';')
 
     print("==> training")
@@ -152,8 +158,8 @@ elif args.mode == 'test':
     del train_raw
     del val_raw
 
-    test_reader = InHospitalMortalityReader(dataset_dir='../../data/in-hospital-mortality/test/',
-                                            listfile='../../data/in-hospital-mortality/test_listfile.csv',
+    test_reader = InHospitalMortalityReader(dataset_dir=os.path.join(args.data, 'test'),
+                                            listfile=os.path.join(args.data, 'test_listfile.csv'),
                                             period_length=48.0)
     ret = utils.load_data(test_reader, discretizer, normalizer, args.small_part,
                           return_names=True)
@@ -166,7 +172,7 @@ elif args.mode == 'test':
     predictions = np.array(predictions)[:, 0]
     metrics.print_metrics_binary(labels, predictions)
 
-    path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
+    path = os.path.join(args.output_dir, "test_predictions", os.path.basename(args.load_state)) + ".csv"
     utils.save_results(names, predictions, labels, path)
 
 else:
