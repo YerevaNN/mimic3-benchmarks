@@ -40,7 +40,7 @@ def get_events_for_stay(events, icustayid, intime=None, outtime=None):
 def add_hours_elpased_to_events(events, dt, remove_charttime=True):
     events['HOURS'] = (events.CHARTTIME - dt).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60
     if remove_charttime:
-    	del events['CHARTTIME']
+        del events['CHARTTIME']
     return events
 
 def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[]):
@@ -57,9 +57,9 @@ def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[
     return timeseries
 
 def get_first_valid_from_timeseries(timeseries, variable):
-	if variable in timeseries:
-		idx = timeseries[variable].notnull()
-		if idx.any():
-			loc = np.where(idx)[0][0]
-			return timeseries[variable].iloc[loc]
-	return np.nan
+    if variable in timeseries:
+        idx = timeseries[variable].notnull()
+        if idx.any():
+            loc = np.where(idx)[0][0]
+            return timeseries[variable].iloc[loc]
+    return np.nan

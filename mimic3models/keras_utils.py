@@ -47,7 +47,7 @@ class DecompensationMetrics(keras.callbacks.Callback):
         predictions = np.array(predictions)
         predictions = np.stack([1 - predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
@@ -97,7 +97,7 @@ class InHospitalMortalityMetrics(keras.callbacks.Callback):
         predictions = np.array(predictions)
         predictions = np.stack([1 - predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
@@ -143,7 +143,7 @@ class PhenotypingMetrics(keras.callbacks.Callback):
         print('\n')
         predictions = np.array(predictions)
         ret = metrics.print_metrics_multilabel(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
@@ -206,7 +206,7 @@ class LengthOfStayMetrics(keras.callbacks.Callback):
             ret = metrics.print_metrics_custom_bins(y_true, predictions)
         if self.partition == 'none':
             ret = metrics.print_metrics_regression(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
@@ -302,7 +302,7 @@ class MultitaskMetrics(keras.callbacks.Callback):
         ihm_pred = np.array(ihm_pred)
         ihm_pred = np.stack([1 - ihm_pred, ihm_pred], axis=1)
         ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_ihm_' + k] = v
 
         # decomp
@@ -310,7 +310,7 @@ class MultitaskMetrics(keras.callbacks.Callback):
         decomp_pred = np.array(decomp_pred)
         decomp_pred = np.stack([1 - decomp_pred, decomp_pred], axis=1)
         ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_decomp_' + k] = v
 
         # los
@@ -323,14 +323,14 @@ class MultitaskMetrics(keras.callbacks.Callback):
             ret = metrics.print_metrics_custom_bins(los_y_true, los_pred)
         if self.partition == 'none':
             ret = metrics.print_metrics_regression(los_y_true, los_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_los_' + k] = v
 
         # pheno
         print("\n =================== phenotype ==================")
         pheno_pred = np.array(pheno_pred)
         ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_pheno_' + k] = v
 
         history.append(logs)
