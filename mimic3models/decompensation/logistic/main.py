@@ -41,6 +41,10 @@ def main():
     parser.add_argument('--grid-search', dest='grid_search', action='store_true')
     parser.add_argument('--no-grid-search', dest='grid_search', action='store_false')
     parser.set_defaults(grid_search=False)
+    parser.add_argument('--data', type=str, help='Path to the data of decompensation task',
+                        default=os.path.join(os.path.dirname(__file__), '../../../data/decompensation/'))
+    parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                        default=os.path.dirname(__file__))
     args = parser.parse_args()
     print(args)
 
@@ -51,14 +55,14 @@ def main():
         penalties = ['l2']
         coefs = [0.001]
 
-    train_reader = DecompensationReader(dataset_dir='../../../data/decompensation/train/',
-                                        listfile='../../../data/decompensation/train_listfile.csv')
+    train_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                        listfile=os.path.join(args.data, 'train_listfile.csv'))
 
-    val_reader = DecompensationReader(dataset_dir='../../../data/decompensation/train/',
-                                      listfile='../../../data/decompensation/val_listfile.csv')
+    val_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                      listfile=os.path.join(args.data, 'val_listfile.csv'))
 
-    test_reader = DecompensationReader(dataset_dir='../../../data/decompensation/test/',
-                                       listfile='../../../data/decompensation/test_listfile.csv')
+    test_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'test'),
+                                       listfile=os.path.join(args.data, 'test_listfile.csv'))
 
     print('Reading data and extracting features ...')
     n_train = min(100000, train_reader.get_number_of_examples())
@@ -87,7 +91,8 @@ def main():
     val_X = scaler.transform(val_X)
     test_X = scaler.transform(test_X)
 
-    common_utils.create_directory('results')
+    result_dir = os.path.join(args.output_dir, 'results')
+    common_utils.create_directory(result_dir)
 
     for (penalty, C) in zip(penalties, coefs):
         file_name = '{}.{}.{}.C{}'.format(args.period, args.features, penalty, C)
@@ -95,24 +100,25 @@ def main():
         logreg = LogisticRegression(penalty=penalty, C=C, random_state=42)
         logreg.fit(train_X, train_y)
 
-        with open(os.path.join('results', 'train_{}.json'.format(file_name)), "w") as res_file:
+        with open(os.path.join(result_dir, 'train_{}.json'.format(file_name)), "w") as res_file:
             ret = print_metrics_binary(train_y, logreg.predict_proba(train_X))
             ret = {k: float(v) for k, v in ret.items()}
             json.dump(ret, res_file)
 
-        with open(os.path.join('results', 'val_{}.json'.format(file_name)), 'w') as res_file:
+        with open(os.path.join(result_dir, 'val_{}.json'.format(file_name)), 'w') as res_file:
             ret = print_metrics_binary(val_y, logreg.predict_proba(val_X))
             ret = {k: float(v) for k, v in ret.items()}
             json.dump(ret, res_file)
 
         prediction = logreg.predict_proba(test_X)[:, 1]
 
-        with open(os.path.join('results', 'test_{}.json'.format(file_name)), 'w') as res_file:
+        with open(os.path.join(result_dir, 'test_{}.json'.format(file_name)), 'w') as res_file:
             ret = print_metrics_binary(test_y, prediction)
             ret = {k: float(v) for k, v in ret.items()}
             json.dump(ret, res_file)
 
-        save_results(test_names, test_ts, prediction, test_y, os.path.join('predictions', file_name + '.csv'))
+        save_results(test_names, test_ts, prediction, test_y,
+                     os.path.join(args.output_dir, 'predictions', file_name + '.csv'))
 
 
 if __name__ == '__main__':
