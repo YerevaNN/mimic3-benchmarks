@@ -15,8 +15,10 @@ def read_stays(subject_path):
     stays.sort_values(by=['INTIME', 'OUTTIME'], inplace=True)
     return stays
 
+
 def read_diagnoses(subject_path):
     return dataframe_from_csv(os.path.join(subject_path, 'diagnoses.csv'), index_col=None)
+
 
 def read_events(subject_path, remove_null=True):
     events = dataframe_from_csv(os.path.join(subject_path, 'events.csv'), index_col=None)
@@ -26,8 +28,9 @@ def read_events(subject_path, remove_null=True):
     events.HADM_ID = events.HADM_ID.fillna(value=-1).astype(int)
     events.ICUSTAY_ID = events.ICUSTAY_ID.fillna(value=-1).astype(int)
     events.VALUEUOM = events.VALUEUOM.fillna('').astype(str)
-#    events.sort_values(by=['CHARTTIME', 'ITEMID', 'ICUSTAY_ID'], inplace=True)
+    # events.sort_values(by=['CHARTTIME', 'ITEMID', 'ICUSTAY_ID'], inplace=True)
     return events
+
 
 def get_events_for_stay(events, icustayid, intime=None, outtime=None):
     idx = (events.ICUSTAY_ID == icustayid)
@@ -37,11 +40,13 @@ def get_events_for_stay(events, icustayid, intime=None, outtime=None):
     del events['ICUSTAY_ID']
     return events
 
+
 def add_hours_elpased_to_events(events, dt, remove_charttime=True):
     events['HOURS'] = (events.CHARTTIME - dt).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60
     if remove_charttime:
         del events['CHARTTIME']
     return events
+
 
 def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[]):
     metadata = events[['CHARTTIME', 'ICUSTAY_ID']].sort_values(by=['CHARTTIME', 'ICUSTAY_ID'])\
@@ -55,6 +60,7 @@ def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[
         if v not in timeseries:
             timeseries[v] = np.nan
     return timeseries
+
 
 def get_first_valid_from_timeseries(timeseries, variable):
     if variable in timeseries:
