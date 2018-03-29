@@ -7,12 +7,14 @@ import numpy as np
 import pandas as pd
 import argparse
 import json
+import os
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('prediction', type=str)
-    parser.add_argument('--test_listfile', type=str, default='../data/phenotyping/test/listfile.csv')
+    parser.add_argument('--test_listfile', type=str,
+                        default=os.path.join(os.path.dirname(__file__), '../data/phenotyping/test/listfile.csv'))
     parser.add_argument('--n_iters', type=int, default=10000)
     parser.add_argument('--save_file', type=str, default='pheno_results.json')
     args = parser.parse_args()

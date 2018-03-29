@@ -202,7 +202,8 @@ def main():
     parser = argparse.ArgumentParser(description="Create data for multitask prediction.")
     parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
     parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-    parser.add_argument('--phenotype_definitions', '-p', type=str, default='resources/hcup_ccs_2015_definitions.yaml',
+    parser.add_argument('--phenotype_definitions', '-p', type=str,
+                        default=os.path.join(os.path.dirname(__file__), '../resources/hcup_ccs_2015_definitions.yaml'),
                         help='YAML file with phenotype definitions.')
     args, _ = parser.parse_known_args()
 

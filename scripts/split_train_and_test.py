@@ -21,7 +21,7 @@ def main():
     args, _ = parser.parse_known_args()
 
     test_set = set()
-    with open("resources/testset.csv", "r") as test_set_file:
+    with open(os.path.join(os.path.dirname(__file__), '../resources/testset.csv'), "r") as test_set_file:
         for line in test_set_file:
             x, y = line.split(',')
             if int(y) == 1:
