@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 import numpy as np
 import pickle
 import json
@@ -210,7 +212,7 @@ class Normalizer:
 
     def load_params(self, load_file_path):
         with open(load_file_path, "rb") as load_file:
-            dct = pickle.load(load_file)
+            dct = pickle.load(load_file, encoding='latin1')
             self._means = dct['means']
             self._stds = dct['stds']
 

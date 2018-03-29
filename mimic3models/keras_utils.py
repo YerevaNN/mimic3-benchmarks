@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 import numpy as np
-import metrics
+from mimic3models import metrics
 
 import keras
 import keras.backend as K

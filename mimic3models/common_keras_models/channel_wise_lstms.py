@@ -1,6 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from keras import backend as K
+
 from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
 from keras.layers.wrappers import Bidirectional, TimeDistributed

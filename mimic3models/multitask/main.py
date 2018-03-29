@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 from mimic3models.multitask import utils
 from mimic3benchmark.readers import MultitaskReader
 from mimic3models.preprocessing import Discretizer, Normalizer

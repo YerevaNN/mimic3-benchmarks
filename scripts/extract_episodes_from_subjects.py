@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import argparse
 
 import os
@@ -55,7 +58,7 @@ for subject_dir in os.listdir(args.subjects_root_path):
         sys.stdout.write('no valid events!\n')
         continue
     timeseries = convert_events_to_timeseries(events, variables=variables)
-    
+
     sys.stdout.write('extracting separate episodes...')
     sys.stdout.flush()
 
