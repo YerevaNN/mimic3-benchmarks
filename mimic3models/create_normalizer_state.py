@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 from mimic3benchmark.readers import InHospitalMortalityReader
 from mimic3benchmark.readers import DecompensationReader
 from mimic3benchmark.readers import LengthOfStayReader
@@ -7,9 +9,6 @@ from mimic3benchmark.readers import MultitaskReader
 from mimic3models.preprocessing import Discretizer, Normalizer
 
 import os
-import numpy as np
-import random
-import pickle
 import argparse
 
 
@@ -32,7 +31,7 @@ def main():
                         help='Store masks that specify observed/imputed values.')
     parser.add_argument('--no-masks', dest='store_masks', action='store_false',
                         help='Do not store that specify specifying observed/imputed values.')
-    parser.add_argument('--n_samples', type=int, default=-1, help='How many samples to use to estimates means and '\
+    parser.add_argument('--n_samples', type=int, default=-1, help='How many samples to use to estimates means and '
                         'standard deviations. Set -1 to use all training samples.')
     parser.add_argument('--output_dir', type=str, help='Directory where the output file will be saved.',
                         default=os.path.dirname(__file__))
