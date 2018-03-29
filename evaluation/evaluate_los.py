@@ -1,3 +1,4 @@
+from __future__ import print_function
 from mimic3models.metrics import print_metrics_regression
 import sklearn.utils as sk_utils
 import numpy as np
@@ -56,11 +57,11 @@ def main():
         results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
-    print "Saving the results in {} ...".format(args.save_file)
+    print("Saving the results in {} ...".format(args.save_file))
     with open(args.save_file, 'w') as f:
         json.dump(results, f)
 
-    print results
+    print(results)
 
 
 if __name__ == "__main__":

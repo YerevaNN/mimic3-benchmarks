@@ -1,3 +1,4 @@
+from __future__ import print_function
 from mimic3models.metrics import print_metrics_multilabel, print_metrics_binary
 import sklearn.utils as sk_utils
 import numpy as np
@@ -72,15 +73,15 @@ def main():
         results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
-    print "Saving the results (including task specific metrics) in {} ...".format(args.save_file)
+    print("Saving the results (including task specific metrics) in {} ...".format(args.save_file))
     with open(args.save_file, 'w') as f:
         json.dump(results, f)
 
-    print "Printing the summary of results (task specific metrics are skipped) ..."
+    print("Printing the summary of results (task specific metrics are skipped) ...")
     for i in range(1, n_tasks + 1):
         m = 'ROC AUC of task {}'.format(i)
         del results[m]
-    print results
+    print(results)
 
 
 if __name__ == "__main__":
