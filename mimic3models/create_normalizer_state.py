@@ -34,7 +34,7 @@ def main():
     parser.add_argument('--n_samples', type=int, default=-1, help='How many samples to use to estimates means and '
                         'standard deviations. Set -1 to use all training samples.')
     parser.add_argument('--output_dir', type=str, help='Directory where the output file will be saved.',
-                        default=os.path.dirname(__file__))
+                        default='.')
     parser.add_argument('--data', type=str, required=True, help='Path to the task data.')
     parser.set_defaults(store_masks=True)
 

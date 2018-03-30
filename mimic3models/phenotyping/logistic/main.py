@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--data', type=str, help='Path to the data of phenotyping task',
                         default=os.path.join(os.path.dirname(__file__), '../../../data/phenotyping/'))
     parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
-                        default=os.path.dirname(__file__))
+                        default='.')
     args = parser.parse_args()
     print(args)
 

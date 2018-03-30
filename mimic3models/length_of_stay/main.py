@@ -27,7 +27,7 @@ parser.add_argument('--partition', type=str, default='custom',
 parser.add_argument('--data', type=str, help='Path to the data of length-of-stay task',
                     default=os.path.join(os.path.dirname(__file__), '../../data/length-of-stay/'))
 parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
-                    default=os.path.dirname(__file__))
+                    default='.')
 args = parser.parse_args()
 print(args)
 
