@@ -8,7 +8,7 @@ import os
 
 def main():
     parser = argparse.ArgumentParser(description="Split train data into train and validation sets.")
-    parser.add_argument('dataset_dir', type='str', help='Path to the directory which contains the dataset')
+    parser.add_argument('dataset_dir', type=str, help='Path to the directory which contains the dataset')
     args, _ = parser.parse_known_args()
 
     val_patients = set()
