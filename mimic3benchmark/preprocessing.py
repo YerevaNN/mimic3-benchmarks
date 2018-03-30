@@ -174,8 +174,24 @@ def clean_crr(df):
 # FIO2: many 0s, some 0<x<0.2 or 1<x<20
 def clean_fio2(df):
     v = df.VALUE.astype(float)
+
+    ''' The line below is the correct way of doing the cleaning, since we will not compare 'str' to 'float'.
+    If we use that line it will create mismatches from the data of the paper in ~50 ICU stays.
+    The next releases of the benchmark should use this line.
+    '''
     # idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (v>1.0)
-    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (df.VALUE > 1.0)
+
+    ''' The line below was used to create the benchmark dataset that the paper used. Note this line will not work
+    in python 3, since it may try to compare 'str' to 'float'.
+    '''
+    # idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (df.VALUE > 1.0)
+
+    ''' The two following lines implement the code that was used to create the benchmark dataset that the paper used.
+    This works with both python 2 and python 3.
+    '''
+    is_str = np.array(map(lambda x: type(x) == str, list(df.VALUE)), dtype=np.bool)
+    idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (is_str | (~is_str & (v > 1.0)))
+
     v.ix[idx] = v[idx] / 100.
     return v
 
