@@ -106,6 +106,9 @@ def add_common_arguments(parser):
                         help='beta_1 param for Adam optimizer')
     parser.add_argument('--verbose', type=int, default=2)
     parser.add_argument('--size_coef', type=float, default=4.0)
+    parser.add_argument('--normalizer_state', type=str, default=None,
+                        help='Path to a state file of a normalizer. Leave none if you want to '
+                             'use one of the provided ones.')
     parser.set_defaults(small_part=False)
 
 

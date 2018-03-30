@@ -59,8 +59,10 @@ else:
     discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer_state = 'los_ts{}.input_str:previous.start_time:zero.n5e4.normalizer'.format(args.timestep)
+normalizer = Normalizer(fields=cont_channels)  # choose here which columns to standardize
+normalizer_state = args.normalizer_state
+if normalizer_state is None:
+    normalizer_state = 'los_ts{}.input_str:previous.start_time:zero.n5e4.normalizer'.format(args.timestep)
 normalizer.load_params(os.path.join(os.path.dirname(__file__), normalizer_state))
 
 args_dict = dict(args._get_kwargs())
