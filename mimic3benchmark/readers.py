@@ -220,7 +220,7 @@ class PhenotypingReader(Reader):
         """
         Reader.__init__(self, dataset_dir, listfile)
         self._data = [line.split(',') for line in self._data]
-        self._data = [(mas[0], float(mas[1]), map(int, mas[2:])) for mas in self._data]
+        self._data = [(mas[0], float(mas[1]), list(map(int, mas[2:]))) for mas in self._data]
 
     def _read_timeseries(self, ts_filename):
         ret = []
@@ -277,22 +277,22 @@ class MultitaskReader(Reader):
         self._data = [line.split(',') for line in self._data]
 
         def process_ihm(x):
-            return map(int, x.split(';'))
+            return list(map(int, x.split(';')))
 
         def process_los(x):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (map(int, x[:len(x)/2]), map(float, x[len(x)/2:]))
+            return (list(map(int, x[:len(x)/2])), list(map(float, x[len(x)/2:])))
 
         def process_ph(x):
-            return map(int, x.split(';'))
+            return list(map(int, x.split(';')))
 
         def process_decomp(x):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (map(int, x[:len(x)/2]), map(int, x[len(x)/2:]))
+            return (list(map(int, x[:len(x)/2])), list(map(int, x[len(x)/2:])))
 
         self._data = [(fname, float(t), process_ihm(ihm), process_los(los),
                        process_ph(pheno), process_decomp(decomp))
