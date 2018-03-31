@@ -61,33 +61,29 @@ Here are the required steps to build the benchmark. It assumes that you already 
        git clone https://github.com/YerevaNN/mimic3-benchmarks/
        cd mimic3-benchmarks/
     
-2. Add the path to the `PYTHONPATH` (sorry for this).
- 
-       export PYTHONPATH=$PYTHONPATH:[PATH TO THIS REPOSITORY]
+2. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/{SUBJECT_ID}/stays.csv`, diagnoses to `data/{SUBJECT_ID}/diagnoses.csv`, and events to `data/{SUBJECT_ID}/events.csv`. This step might take around an hour.
 
-3. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/[SUBJECT_ID/stays.csv`, diagnoses to `data/[SUBJECT_ID]/diagnoses.csv`, and events to `data/[SUBJECT_ID]/events.csv`. This step might take around an hour.
+       python -m scripts.extract_subjects {PATH TO MIMIC-III CSVs} data/root/
 
-       python scripts/extract_subjects.py [PATH TO MIMIC-III CSVs] data/root/
+3. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [`scripts/more_on_validating_events.md`](scripts/more_on_validating_events.md)).
 
-4. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [`scripts/more_on_validating_events.md`](scripts/more_on_validating_events.md)).
+       python -m scripts.validate_events data/root/
 
-       python scripts/validate_events.py data/root/
+4. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```{SUBJECT_ID}/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```{SUBJECT_ID}/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
 
-5. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```[SUBJECT_ID]/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```[SUBJECT_ID]/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
+       python -m scripts.extract_episodes_from_subjects data/root/
 
-       python scripts/extract_episodes_from_subjects.py data/root/
+5. The next command splits the whole dataset into training and testing sets. Note that the train/test split is the same of all tasks.
 
-6. The next command splits the whole dataset into training and testing sets. Note that the train/test split is the same of all tasks.
-
-       python scripts/split_train_and_test.py data/root/
+       python -m scripts.split_train_and_test data/root/
 	
-7. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
+6. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
 
-       python scripts/create_in_hospital_mortality.py data/root/ data/in-hospital-mortality/
-       python scripts/create_decompensation.py data/root/ data/decompensation/
-       python scripts/create_length_of_stay.py data/root/ data/length-of-stay/
-       python scripts/create_phenotyping.py data/root/ data/phenotyping/
-       python scripts/create_multitask.py data/root/ data/multitask/
+       python -m scripts.create_in_hospital_mortality data/root/ data/in-hospital-mortality/
+       python -m scripts.create_decompensation data/root/ data/decompensation/
+       python -m scripts.create_length_of_stay data/root/ data/length-of-stay/
+       python -m scripts.create_phenotyping data/root/ data/phenotyping/
+       python -m scripts.create_multitask data/root/ data/multitask/
 
 After the above commands are done, there will be a directory `data/{task}` for each created benchmark task.
 These directories have two sub-directories: `train` and `test`.
@@ -124,9 +120,8 @@ For each of the four main tasks we provide 7 baselines:
 
 The detailed descriptions of the baselines will appear in the next version of the paper.
 
-Linear models can be found in `mimic3models/{task}/logistic` directories.  
-Non-multitask models are in `mimic3models/common_keras_models` directory and
-    multitask models are in `mimic3models/multitask/keras_models` directory.
+Linear models can be found in `mimic3models/{task}/logistic` directories.
+LSTM-based models are in `mimic3models/keras_models` directory.
 
 Please note that running linear models can take hours because of extensive grid search and feature extraction.
 You can change the size of the training data of linear models in the scripts and they will became faster (of course the performance will not be the same).
@@ -135,7 +130,7 @@ You can change the size of the training data of linear models in the scripts and
 
 Use the following command to extract validation set from the training set. This step is required for running the baseline models. Likewise the train/test split, the train/validation split is the same for all tasks.
 
-       python mimic3models/split_train_val.py {dataset-directory}
+       python -m mimic3models.split_train_val {dataset-directory}
        
 `{dataset-directory}` can be either `data/in-hospital-mortality`, `data/decompensation`, `data/length-of-stay`, `data/phenotyping` or `data/multitask`.
 
@@ -144,62 +139,52 @@ Use the following command to extract validation set from the training set. This 
 
 Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 28 epochs.
        
-       cd mimic3models/in_hospital_mortality/
-       python -u main.py --network ../common_keras_models/lstm.py --dim 16 --timestep 1.0 --depth 2 --dropout 0.3 --mode train --batch_size 8
+       python -um mimic3models.in_hospital_mortality.main --network mimic3models/keras_models/lstm.py --dim 16 --timestep 1.0 --depth 2 --dropout 0.3 --mode train --batch_size 8 --output_dir mimic3models/in_hospital_mortality
 
 Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
        
-       cd mimic3models/in_hospital_mortality/logistic/
-       python -u main.py --l2 --C 0.001
+       python -um mimic3models.in_hospital_mortality.logistic.main --l2 --C 0.001 --output_dir mimic3models/in_hospital_mortality/logistic
 
 ### Decompensation prediction
 
 The best model we got for this task was trained for 36 chunks (that's less than one epoch; it overfits before reaching one epoch because there are many training samples for the same patient with different lengths).
        
-       cd mimic3models/decompensation/
-       python -u main.py --network ../common_keras_models/lstm.py --dim 128 --timestep 1.0 --depth 1 --mode train --batch_size 8
+       python -um mimic3models.decompensation.main --network mimic3models/keras_models/lstm.py --dim 128 --timestep 1.0 --depth 1 --mode train --batch_size 8 --output_dir mimic3models/decompensation
 
 Use the following command to train a logistic regression. It will have L2 regularization with `C=0.001`, which gave us the best result. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
-       cd mimic3models/decompensation/logistic/
-       python -u main.py
+       python -um mimic3models.decompensation.logistic.main --output_dir mimic3models/decompensation/logistic
 
 ### Length of stay prediction
 
 The best model we got for this task was trained for 19 chunks.
        
-       cd mimic3models/length_of_stay/
-       python -u main.py --network ../common_keras_models/lstm.py --dim 64 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8 --partition custom
+       python -um mimic3models.length_of_stay.main --network mimic3models/keras_models/lstm.py --dim 64 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8 --partition custom --output_dir mimic3models/length_of_stay
 
 Use the following command to train a logistic regression. It will have L1 regularization with `C=0.00001`. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
-       cd mimic3models/length_of_stay/logistic/
-       python -u main_cf.py
+       python -um mimic3models.length_of_stay.logistic.main_cf --output_dir mimic3models/length_of_stay/logistic
 
 To run a linear regression use this command:
 
-        cd mimic3models/length_of_stay/logistic/
-        python -u main.py
+        python -um mimic3models.length_of_stay.logistic.main --output_dir mimic3models/length_of_stay/logistic
 
 
 ### Phenotype classification
 
 The best model we got for this task was trained for 20 epochs.
        
-       cd mimic3models/phenotyping/
-       python -u main.py --network ../common_keras_models/lstm.py --dim 256 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8
+       python -um mimic3models.phenotyping.main --network mimic3models/keras_models/lstm.py --dim 256 --timestep 1.0 --depth 1 --dropout 0.3 --mode train --batch_size 8 --output_dir mimic3models/phenotyping
 
 Use the following command for logistic regression. It will have L1 regularization with `C=0.1`. To run a grid search over a space of hyper-parameters add `--grid-search` to the command.
        
-       cd mimic3models/phenotyping/logistic/
-       python -u main.py
+       python -um mimic3models.phenotyping.logistic.main --output_dir mimic3models/phenotyping/logistic
 
 ### Multitask learning
 
 `ihm_C`, `decomp_C`, `los_C` and `ph_C` coefficients control the relative weight of the tasks in the multitask model. Default is `1.0`. Multitask network architectures are stored in `mimic3models/multitask/keras_models`. Here is a sample command for running a multitask model.
        
-       cd mimic3models/multitask/
-       python -u main.py --network keras_models/lstm.py --dim 512 --timestep 1 --mode train --batch_size 16 --dropout 0.3 --ihm_C 0.2 --decomp_C 1.0 --los_C 1.5 --pheno_C 1.0
+       python -um mimic3models.multitask.main --network mimic3models/keras_models/multitask_lstm.py --dim 512 --timestep 1 --mode train --batch_size 16 --dropout 0.3 --ihm_C 0.2 --decomp_C 1.0 --los_C 1.5 --pheno_C 1.0 --output_dir mimic3models/multitask
        
 
 ## General todos:
