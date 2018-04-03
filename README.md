@@ -32,15 +32,15 @@ In [Harutyunyan, Khachatrian, Kale, and Galstyan 2017](https://arxiv.org/abs/170
 ## Structure
 The content of this repository can be divided into four big parts:
 * Tools for creating the benchmark datasets.  
-* Tools for reading the data.
+* Tools for reading the benchmark datasets.
 * Evaluation scripts.
 * Baseline models and helper tools.
 
-The `scripts` directory contains scripts for creating the benchmark datasets.
+The `mimic3benchmark/scripts` directory contains scripts for creating the benchmark datasets.
 The reading tools are in `mimic3benchmark/readers.py`.
-All evaluation scripts are stored in the `evaluation` folder.
-The `mimic3models` directory contains the code for working with baseline models along with some helper tools.
-Those tools include discretizers, normalizers, functions too compute metrics.
+All evaluation scripts are stored in the `mimic3benchmark/evaluation` directory.
+The `mimic3models` directory contains the baselines models along with some helper tools.
+Those tools include discretizers, normalizers and functions for computing metrics.
 
 
 ## Requirements
@@ -63,27 +63,27 @@ Here are the required steps to build the benchmark. It assumes that you already 
     
 2. The following command takes MIMIC-III CSVs, generates one directory per `SUBJECT_ID` and writes ICU stay information to `data/{SUBJECT_ID}/stays.csv`, diagnoses to `data/{SUBJECT_ID}/diagnoses.csv`, and events to `data/{SUBJECT_ID}/events.csv`. This step might take around an hour.
 
-       python -m scripts.extract_subjects {PATH TO MIMIC-III CSVs} data/root/
+       python -m mimic3benchmark.scripts.extract_subjects {PATH TO MIMIC-III CSVs} data/root/
 
-3. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [`scripts/more_on_validating_events.md`](scripts/more_on_validating_events.md)).
+3. The following command attempts to fix some issues (ICU stay ID is missing) and removes the events that have missing information. About 80% of events remain after removing all suspicious rows (more information can be found in [`mimic3benchmark/scripts/more_on_validating_events.md`](mimic3benchmark/scripts/more_on_validating_events.md)).
 
-       python -m scripts.validate_events data/root/
+       python -m mimic3benchmark.scripts.validate_events data/root/
 
 4. The next command breaks up per-subject data into separate episodes (pertaining to ICU stays). Time series of events are stored in ```{SUBJECT_ID}/episode{#}_timeseries.csv``` (where # counts distinct episodes) while episode-level information (patient age, gender, ethnicity, height, weight) and outcomes (mortality, length of stay, diagnoses) are stores in ```{SUBJECT_ID}/episode{#}.csv```. This script requires two files, one that maps event ITEMIDs to clinical variables and another that defines valid ranges for clinical variables (for detecting outliers, etc.).
 
-       python -m scripts.extract_episodes_from_subjects data/root/
+       python -m mimic3benchmark.scripts.extract_episodes_from_subjects data/root/
 
 5. The next command splits the whole dataset into training and testing sets. Note that the train/test split is the same of all tasks.
 
-       python -m scripts.split_train_and_test data/root/
+       python -m mimic3benchmark.scripts.split_train_and_test data/root/
 	
 6. The following commands will generate task-specific datasets, which can later be used in models. These commands are independent, if you are going to work only on one benchmark task, you can run only the corresponding command.
 
-       python -m scripts.create_in_hospital_mortality data/root/ data/in-hospital-mortality/
-       python -m scripts.create_decompensation data/root/ data/decompensation/
-       python -m scripts.create_length_of_stay data/root/ data/length-of-stay/
-       python -m scripts.create_phenotyping data/root/ data/phenotyping/
-       python -m scripts.create_multitask data/root/ data/multitask/
+       python -m mimic3benchmark.scripts.create_in_hospital_mortality data/root/ data/in-hospital-mortality/
+       python -m mimic3benchmark.scripts.create_decompensation data/root/ data/decompensation/
+       python -m mimic3benchmark.scripts.create_length_of_stay data/root/ data/length-of-stay/
+       python -m mimic3benchmark.scripts.create_phenotyping data/root/ data/phenotyping/
+       python -m mimic3benchmark.scripts.create_multitask data/root/ data/multitask/
 
 After the above commands are done, there will be a directory `data/{task}` for each created benchmark task.
 These directories have two sub-directories: `train` and `test`.
@@ -105,7 +105,7 @@ For more information about using readers view the [`mimic3benchmark/more_on_read
 For each of the four tasks we provide scripts for evaluating models.
 These scripts receive a `csv` file containing the predictions and produce a `json` file containing the scores and confidence intervals for different metrics.
 We highly encourage to use these scripts to prevent any mistake in the evaluation step.
-For details about the usage of the evaluation scripts view the [`evaluation/README.md`](evaluation/README.md) file.
+For details about the usage of the evaluation scripts view the [`mimic3benchmark/evaluation/README.md`](mimic3benchmark/evaluation/README.md) file.
 
 
 ## Baselines
