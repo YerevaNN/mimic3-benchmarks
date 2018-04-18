@@ -63,7 +63,8 @@ normalizer = Normalizer(fields=cont_channels)  # choose here which columns to st
 normalizer_state = args.normalizer_state
 if normalizer_state is None:
     normalizer_state = 'los_ts{}.input_str:previous.start_time:zero.n5e4.normalizer'.format(args.timestep)
-normalizer.load_params(os.path.join(os.path.dirname(__file__), normalizer_state))
+    normalizer_state = os.path.join(os.path.dirname(__file__), normalizer_state)
+normalizer.load_params(normalizer_state)
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header

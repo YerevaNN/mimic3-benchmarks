@@ -89,10 +89,10 @@ class BatchGen(object):
     def next(self, return_y_true=False):
         with self.lock:
             self.return_y_true = return_y_true
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()
 
 
 class BatchGenDeepSupervision(object):
@@ -223,10 +223,10 @@ class BatchGenDeepSupervision(object):
     def next(self, return_y_true=False):
         with self.lock:
             self.return_y_true = return_y_true
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()
 
 
 def save_results(names, ts, pred, y_true, path):

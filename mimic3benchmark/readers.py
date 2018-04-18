@@ -283,7 +283,7 @@ class MultitaskReader(Reader):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (list(map(int, x[:len(x)/2])), list(map(float, x[len(x)/2:])))
+            return (list(map(int, x[:len(x)//2])), list(map(float, x[len(x)//2:])))
 
         def process_ph(x):
             return list(map(int, x.split(';')))
@@ -292,7 +292,7 @@ class MultitaskReader(Reader):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (list(map(int, x[:len(x)/2])), list(map(int, x[len(x)/2:])))
+            return (list(map(int, x[:len(x)//2])), list(map(int, x[len(x)//2:])))
 
         self._data = [(fname, float(t), process_ihm(ihm), process_los(los),
                        process_ph(pheno), process_decomp(decomp))
