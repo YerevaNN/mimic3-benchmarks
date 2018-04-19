@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-from mimic3models import nn_utils
+
 from mimic3models import common_utils
 import threading
 import random
@@ -73,7 +73,7 @@ class BatchGen(object):
                 names = self.names[i:i + B]
                 ts = self.ts[i:i + B]
 
-                x = nn_utils.pad_zeros(x)
+                x = common_utils.pad_zeros(x)
                 y = np.array(y)  # (B, 25)
 
                 if self.target_repl:
