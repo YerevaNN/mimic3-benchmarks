@@ -12,7 +12,7 @@ def main():
     args, _ = parser.parse_known_args()
 
     val_patients = set()
-    with open(os.path.join(os.path.dirname(__file__), 'valset.csv'), 'r') as valset_file:
+    with open(os.path.join(os.path.dirname(__file__), 'resources/valset.csv'), 'r') as valset_file:
         for line in valset_file:
             x, y = line.split(',')
             if int(y) == 1:

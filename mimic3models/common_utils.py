@@ -22,7 +22,7 @@ def convert_to_dict(data, header, channel_info):
 
 
 def extract_features_from_rawdata(chunk, header, period, features):
-    with open(os.path.join(os.path.dirname(__file__), "channel_info.json")) as channel_info_file:
+    with open(os.path.join(os.path.dirname(__file__), "resources/channel_info.json")) as channel_info_file:
         channel_info = json.loads(channel_info_file.read())
     data = [convert_to_dict(X, header, channel_info) for X in chunk]
     return extract_features(data, period, features)
