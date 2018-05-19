@@ -1,5 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
-from mimic3models import nn_utils
+
 from mimic3models import common_utils
 import threading
 import random
@@ -43,7 +46,7 @@ class BatchGen(object):
         while True:
             if self.shuffle:
                 N = len(self.data[1])
-                order = range(N)
+                order = list(range(N))
                 random.shuffle(order)
                 tmp_data = [[None] * N, [None] * N]
                 tmp_names = [None] * N
@@ -70,7 +73,7 @@ class BatchGen(object):
                 names = self.names[i:i + B]
                 ts = self.ts[i:i + B]
 
-                x = nn_utils.pad_zeros(x)
+                x = common_utils.pad_zeros(x)
                 y = np.array(y)  # (B, 25)
 
                 if self.target_repl:
@@ -89,10 +92,10 @@ class BatchGen(object):
 
     def next(self):
         with self.lock:
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()
 
 
 def save_results(names, ts, predictions, labels, path):

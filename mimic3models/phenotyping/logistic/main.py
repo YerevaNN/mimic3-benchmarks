@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 from sklearn.preprocessing import Imputer, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from mimic3benchmark.readers import PhenotypingReader
@@ -8,7 +10,6 @@ from mimic3models.phenotyping.utils import save_results
 
 import numpy as np
 import argparse
-import time
 import os
 import json
 
@@ -26,22 +27,31 @@ def main():
                         choices=['first4days', 'first8days', 'last12hours', 'first25percent', 'first50percent', 'all'])
     parser.add_argument('--features', type=str, default='all', help='specifies what features to extract',
                         choices=['all', 'len', 'all_but_len'])
+    parser.add_argument('--grid-search', dest='grid_search', action='store_true')
+    parser.add_argument('--no-grid-search', dest='grid_search', action='store_false')
+    parser.set_defaults(grid_search=False)
+    parser.add_argument('--data', type=str, help='Path to the data of phenotyping task',
+                        default=os.path.join(os.path.dirname(__file__), '../../../data/phenotyping/'))
+    parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                        default='.')
     args = parser.parse_args()
     print(args)
 
-    # penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
-    # Cs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
-    penalties = ['l1']
-    Cs = [0.1]
+    if args.grid_search:
+        penalties = ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l1', 'l1', 'l1', 'l1', 'l1']
+        coefs = [1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 1.0, 0.1, 0.01, 0.001, 0.0001]
+    else:
+        penalties = ['l1']
+        coefs = [0.1]
 
-    train_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/train/',
-                                     listfile='../../../data/phenotyping/train_listfile.csv')
+    train_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                                     listfile=os.path.join(args.data, 'train_listfile.csv'))
 
-    val_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/train/',
-                                   listfile='../../../data/phenotyping/val_listfile.csv')
+    val_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                                   listfile=os.path.join(args.data, 'val_listfile.csv'))
 
-    test_reader = PhenotypingReader(dataset_dir='../../../data/phenotyping/test/',
-                                    listfile='../../../data/phenotyping/test_listfile.csv')
+    test_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'test'),
+                                    listfile=os.path.join(args.data, 'test_listfile.csv'))
 
     print('Reading data and extracting features ...')
 
@@ -73,9 +83,10 @@ def main():
     test_X = scaler.transform(test_X)
 
     n_tasks = 25
-    common_utils.create_directory('results')
+    result_dir = os.path.join(args.output_dir, 'results')
+    common_utils.create_directory(result_dir)
 
-    for (penalty, C) in zip(penalties, Cs):
+    for (penalty, C) in zip(penalties, coefs):
         model_name = '{}.{}.{}.C{}'.format(args.period, args.features, penalty, C)
 
         train_activations = np.zeros(shape=train_y.shape, dtype=float)
@@ -97,22 +108,23 @@ def main():
             test_preds = logreg.predict_proba(test_X)
             test_activations[:, task_id] = test_preds[:, 1]
 
-        with open(os.path.join('results', 'train_{}.json'.format(model_name)), 'w') as f:
+        with open(os.path.join(result_dir, 'train_{}.json'.format(model_name)), 'w') as f:
             ret = metrics.print_metrics_multilabel(train_y, train_activations)
             ret = {k: float(v) for k, v in ret.items() if k != 'auc_scores'}
             json.dump(ret, f)
 
-        with open(os.path.join('results', 'val_{}.json'.format(model_name)), 'w') as f:
+        with open(os.path.join(result_dir, 'val_{}.json'.format(model_name)), 'w') as f:
             ret = metrics.print_metrics_multilabel(val_y, val_activations)
             ret = {k: float(v) for k, v in ret.items() if k != 'auc_scores'}
             json.dump(ret, f)
 
-        with open(os.path.join('results', 'test_{}.json'.format(model_name)), 'w') as f:
+        with open(os.path.join(result_dir, 'test_{}.json'.format(model_name)), 'w') as f:
             ret = metrics.print_metrics_multilabel(test_y, test_activations)
             ret = {k: float(v) for k, v in ret.items() if k != 'auc_scores'}
             json.dump(ret, f)
 
-        save_results(test_names, test_ts, test_activations, test_y, os.path.join('predictions', model_name + '.csv'))
+        save_results(test_names, test_ts, test_activations, test_y,
+                     os.path.join(args.output_dir, 'predictions', model_name + '.csv'))
 
 
 if __name__ == '__main__':

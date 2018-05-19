@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import os
 import numpy as np
 import random
@@ -20,7 +23,7 @@ class Reader(object):
         return len(self._data)
 
     def random_shuffle(self, seed=None):
-        if (seed is not None):
+        if seed is not None:
             random.seed(seed)
         random.shuffle(self._data)
 
@@ -30,7 +33,7 @@ class Reader(object):
     def read_next(self):
         to_read_index = self._current_index
         self._current_index += 1
-        if (self._current_index == self.get_number_of_examples()):
+        if self._current_index == self.get_number_of_examples():
             self._current_index = 0
         return self.read_example(to_read_index)
 
@@ -77,7 +80,7 @@ class DecompensationReader(Reader):
                 Names of the columns. The ordering of the columns is always the same.
             name: Name of the sample.
         """
-        if (index < 0 or index >= len(self._data)):
+        if index < 0 or index >= len(self._data):
             raise ValueError("Index must be from 0 (inclusive) to number of examples (exclusive).")
 
         name = self._data[index][0]
@@ -134,7 +137,7 @@ class InHospitalMortalityReader(Reader):
                 Names of the columns. The ordering of the columns is always the same.
             name: Name of the sample.
         """
-        if (index < 0 or index >= len(self._data)):
+        if index < 0 or index >= len(self._data):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
         name = self._data[index][0]
@@ -192,7 +195,7 @@ class LengthOfStayReader(Reader):
                 Names of the columns. The ordering of the columns is always the same.
             name: Name of the sample.
         """
-        if (index < 0 or index >= len(self._data)):
+        if index < 0 or index >= len(self._data):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
         name = self._data[index][0]
@@ -217,7 +220,7 @@ class PhenotypingReader(Reader):
         """
         Reader.__init__(self, dataset_dir, listfile)
         self._data = [line.split(',') for line in self._data]
-        self._data = [(mas[0], float(mas[1]), map(int, mas[2:])) for mas in self._data]
+        self._data = [(mas[0], float(mas[1]), list(map(int, mas[2:]))) for mas in self._data]
 
     def _read_timeseries(self, ts_filename):
         ret = []
@@ -247,7 +250,7 @@ class PhenotypingReader(Reader):
                 Names of the columns. The ordering of the columns is always the same.
             name: Name of the sample.
         """
-        if (index < 0 or index >= len(self._data)):
+        if index < 0 or index >= len(self._data):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
         name = self._data[index][0]
@@ -274,22 +277,22 @@ class MultitaskReader(Reader):
         self._data = [line.split(',') for line in self._data]
 
         def process_ihm(x):
-            return map(int, x.split(';'))
+            return list(map(int, x.split(';')))
 
         def process_los(x):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (map(int, x[:len(x)/2]), map(float, x[len(x)/2:]))
+            return (list(map(int, x[:len(x)//2])), list(map(float, x[len(x)//2:])))
 
         def process_ph(x):
-            return map(int, x.split(';'))
+            return list(map(int, x.split(';')))
 
         def process_decomp(x):
             x = x.split(';')
             if x[0] == '':
                 return ([], [])
-            return (map(int, x[:len(x)/2]), map(int, x[len(x)/2:]))
+            return (list(map(int, x[:len(x)//2])), list(map(int, x[len(x)//2:])))
 
         self._data = [(fname, float(t), process_ihm(ihm), process_los(los),
                        process_ph(pheno), process_decomp(decomp))
@@ -329,7 +332,7 @@ class MultitaskReader(Reader):
                 Names of the columns. The ordering of the columns is always the same.
             name: Name of the sample.
         """
-        if (index < 0 or index >= len(self._data)):
+        if index < 0 or index >= len(self._data):
             raise ValueError("Index must be from 0 (inclusive) to number of lines (exclusive).")
 
         name = self._data[index][0]

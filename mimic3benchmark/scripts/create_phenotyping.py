@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import print_function
 
 import os
@@ -5,36 +6,11 @@ import argparse
 import pandas as pd
 import yaml
 import random
-
 random.seed(49297)
 
-parser = argparse.ArgumentParser(description="Create data for phenotype classification task.")
-parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
-parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-parser.add_argument('--phenotype_definitions', '-p', type=str, default='resources/hcup_ccs_2015_definitions.yaml',
-                    help='YAML file with phenotype definitions.')
-args, _ = parser.parse_known_args()
 
-with open(args.phenotype_definitions) as definitions_file:
-    definitions = yaml.load(definitions_file)
-
-code_to_group = {}
-for group in definitions:
-    codes = definitions[group]['codes']
-    for code in codes:
-        if (code not in code_to_group):
-            code_to_group[code] = group
-        else:
-            assert code_to_group[code] == group
-
-id_to_group = sorted(definitions.keys())
-group_to_id = dict((x, i) for (i, x) in enumerate(id_to_group))
-
-if not os.path.exists(args.output_path):
-    os.makedirs(args.output_path)
-
-
-def process_partition(partition, eps=1e-6):
+def process_partition(args, definitions, code_to_group, id_to_group, group_to_id,
+                      partition, eps=1e-6):
     output_dir = os.path.join(args.output_path, partition)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -51,11 +27,11 @@ def process_partition(partition, eps=1e-6):
                 label_df = pd.read_csv(os.path.join(patient_folder, lb_filename))
 
                 # empty label file
-                if (label_df.shape[0] == 0):
+                if label_df.shape[0] == 0:
                     continue
 
                 los = 24.0 * label_df.iloc[0]['Length of Stay']  # in hours
-                if (pd.isnull(los)):
+                if pd.isnull(los):
                     print("\n\t(length of stay is missing)", patient, ts_filename)
                     continue
 
@@ -65,12 +41,10 @@ def process_partition(partition, eps=1e-6):
                 event_times = [float(line.split(',')[0]) for line in ts_lines]
 
                 ts_lines = [line for (line, t) in zip(ts_lines, event_times)
-                            if t > -eps and t < los + eps]
-                event_times = [t for t in event_times
-                               if t > -eps and t < los + eps]
+                            if -eps < t < los + eps]
 
                 # no measurements in ICU
-                if (len(ts_lines) == 0):
+                if len(ts_lines) == 0:
                     print("\n\t(no events in ICU) ", patient, ts_filename)
                     continue
 
@@ -98,8 +72,8 @@ def process_partition(partition, eps=1e-6):
 
                 xty_triples.append((output_ts_filename, los, cur_labels))
 
-        if ((patient_index + 1) % 100 == 0):
-            print("\rprocessed {} / {} patients".format(patient_index + 1, len(patients)))
+        if (patient_index + 1) % 100 == 0:
+            print("processed {} / {} patients".format(patient_index + 1, len(patients)), end='\r')
 
     print("\n", len(xty_triples))
     if partition == "train":
@@ -115,8 +89,39 @@ def process_partition(partition, eps=1e-6):
         listfile.write(listfile_header + "\n")
         for (x, t, y) in xty_triples:
             labels = ','.join(map(str, y))
-            listfile.write("%s,%.6f,%s\n" % (x, t, labels))
+            listfile.write('{},{:.6f},{}\n'.format(x, t, labels))
 
 
-process_partition("test")
-process_partition("train")
+def main():
+    parser = argparse.ArgumentParser(description="Create data for phenotype classification task.")
+    parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
+    parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
+    parser.add_argument('--phenotype_definitions', '-p', type=str,
+                        default=os.path.join(os.path.dirname(__file__), '../resources/hcup_ccs_2015_definitions.yaml'),
+                        help='YAML file with phenotype definitions.')
+    args, _ = parser.parse_known_args()
+
+    with open(args.phenotype_definitions) as definitions_file:
+        definitions = yaml.load(definitions_file)
+
+    code_to_group = {}
+    for group in definitions:
+        codes = definitions[group]['codes']
+        for code in codes:
+            if code not in code_to_group:
+                code_to_group[code] = group
+            else:
+                assert code_to_group[code] == group
+
+    id_to_group = sorted(definitions.keys())
+    group_to_id = dict((x, i) for (i, x) in enumerate(id_to_group))
+
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
+
+    process_partition(args, definitions, code_to_group, id_to_group, group_to_id, "test")
+    process_partition(args, definitions, code_to_group, id_to_group, group_to_id, "train")
+
+
+if __name__ == '__main__':
+    main()
