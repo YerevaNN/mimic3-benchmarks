@@ -1,5 +1,7 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 from mimic3models import metrics
-from mimic3models import nn_utils
 from mimic3models import common_utils
 import numpy as np
 import threading
@@ -107,12 +109,15 @@ class BatchGen(object):
         B = self.batch_size
         while True:
             # convert to right format for sort_and_shuffle
-            kv_pairs = self.data.items()
+            kv_pairs = list(self.data.items())
+            data_index = [pair[0] for pair in kv_pairs].index('X')
+            if data_index > 0:
+                kv_pairs[0], kv_pairs[data_index] = kv_pairs[data_index], kv_pairs[0]
             mas = [kv[1] for kv in kv_pairs]
 
             if self.shuffle:
                 N = len(self.data['X'])
-                order = range(N)
+                order = list(range(N))
                 random.shuffle(order)
                 tmp = [None] * len(mas)
                 for mas_idx in range(len(mas)):
@@ -132,7 +137,7 @@ class BatchGen(object):
 
                 # X
                 X = self.data['X'][i:i+B]
-                X = nn_utils.pad_zeros(X, min_length=self.ihm_pos+1)
+                X = common_utils.pad_zeros(X, min_length=self.ihm_pos + 1)
                 T = X.shape[1]
 
                 # ihm
@@ -147,23 +152,23 @@ class BatchGen(object):
 
                 # decomp
                 decomp_M = self.data['decomp_M'][i:i+B]
-                decomp_M = nn_utils.pad_zeros(decomp_M, min_length=self.ihm_pos+1)
+                decomp_M = common_utils.pad_zeros(decomp_M, min_length=self.ihm_pos + 1)
                 decomp_y = self.data['decomp_y'][i:i+B]
-                decomp_y = nn_utils.pad_zeros(decomp_y, min_length=self.ihm_pos+1)
+                decomp_y = common_utils.pad_zeros(decomp_y, min_length=self.ihm_pos + 1)
                 decomp_y = np.expand_dims(decomp_y, axis=-1)  # (B, T, 1)
                 outputs.append(decomp_y)
 
                 # los
                 los_M = self.data['los_M'][i:i+B]
-                los_M = nn_utils.pad_zeros(los_M, min_length=self.ihm_pos+1)
+                los_M = common_utils.pad_zeros(los_M, min_length=self.ihm_pos + 1)
                 los_y = self.data['los_y'][i:i+B]
-                los_y_true = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
+                los_y_true = common_utils.pad_zeros(los_y, min_length=self.ihm_pos + 1)
 
                 if self.partition == 'log':
                     los_y = [np.array([metrics.get_bin_log(x, 10) for x in z]) for z in los_y]
                 if self.partition == 'custom':
                     los_y = [np.array([metrics.get_bin_custom(x, 10) for x in z]) for z in los_y]
-                los_y = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
+                los_y = common_utils.pad_zeros(los_y, min_length=self.ihm_pos + 1)
                 los_y = np.expand_dims(los_y, axis=-1)  # (B, T, 1)
                 outputs.append(los_y)
 
@@ -196,7 +201,7 @@ class BatchGen(object):
     def next(self, return_y_true=False):
         with self.lock:
             self.return_y_true = return_y_true
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()

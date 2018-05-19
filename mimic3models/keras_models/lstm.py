@@ -1,5 +1,6 @@
 from __future__ import absolute_import
-from keras import backend as K
+from __future__ import print_function
+
 from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
 from keras.layers.wrappers import Bidirectional, TimeDistributed
@@ -8,12 +9,12 @@ from mimic3models.keras_utils import ExtendMask
 
 
 class Network(Model):
-    
-    def __init__(self, dim, batch_norm, dropout, rec_dropout, task,
-                target_repl=False, deep_supervision=False, num_classes=1,
-                depth=1, input_dim=76, **kwargs):
 
-        print "==> not used params in network class:", kwargs.keys()
+    def __init__(self, dim, batch_norm, dropout, rec_dropout, task,
+                 target_repl=False, deep_supervision=False, num_classes=1,
+                 depth=1, input_dim=76, **kwargs):
+
+        print("==> not used params in network class:", kwargs.keys())
 
         self.dim = dim
         self.batch_norm = batch_norm
@@ -29,7 +30,7 @@ class Network(Model):
             else:
                 final_activation = 'softmax'
         else:
-            return ValueError("Wrong value for task")
+            raise ValueError("Wrong value for task")
 
         # Input layers and masking
         X = Input(shape=(None, input_dim), name='X')
@@ -52,10 +53,10 @@ class Network(Model):
                 num_units = num_units // 2
 
             lstm = LSTM(units=num_units,
-                       activation='tanh',
-                       return_sequences=True,
-                       recurrent_dropout=rec_dropout,
-                       dropout=dropout)
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=rec_dropout,
+                        dropout=dropout)
 
             if is_bidirectional:
                 mX = Bidirectional(lstm)(mX)
@@ -80,20 +81,18 @@ class Network(Model):
             outputs = [y_last, y]
         elif deep_supervision:
             y = TimeDistributed(Dense(num_classes, activation=final_activation))(L)
-            y = ExtendMask()([y, M]) # this way we extend mask of y to M
+            y = ExtendMask()([y, M])  # this way we extend mask of y to M
             outputs = [y]
         else:
             y = Dense(num_classes, activation=final_activation)(L)
             outputs = [y]
 
-        return super(Network, self).__init__(inputs=inputs,
-                                             outputs=outputs)
+        super(Network, self).__init__(inputs=inputs, outputs=outputs)
 
     def say_name(self):
-        self.network_class_name = "k_lstm"
-        return "{}.n{}{}{}{}.dep{}".format(self.network_class_name,
-                    self.dim,
-                    ".bn" if self.batch_norm else "",
-                    ".d{}".format(self.dropout) if self.dropout > 0 else "",
-                    ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
-                    self.depth)
+        return "{}.n{}{}{}{}.dep{}".format('k_lstm',
+                                           self.dim,
+                                           ".bn" if self.batch_norm else "",
+                                           ".d{}".format(self.dropout) if self.dropout > 0 else "",
+                                           ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
+                                           self.depth)

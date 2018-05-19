@@ -38,8 +38,8 @@ The calculated statistics are stored in a `json` file similar to the following.
 
 The usage of the scrips is the following:
 ```
-python evaluate_{task}.py [-h] [--test_listfile TEST_LISTFILE] [--n_iters N_ITERS]\
-                          [--save_file SAVE_FILE] prediction
+python -m mimic3benchmark.evaluation.evaluate_{task} [-h] [--test_listfile TEST_LISTFILE] [--n_iters N_ITERS]\
+                                                     [--save_file SAVE_FILE] prediction
 ```
 
 * `test_listile` should be a `csv` file similar to `data/{task}/train/listfile.csv` files.

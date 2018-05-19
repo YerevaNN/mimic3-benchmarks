@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 import argparse
 from mimic3models import parse_utils
 import json
@@ -185,7 +187,6 @@ def process_single(filename, verbose, select):
             "filename": filename}
 
 
-# TODO: mark in the file that the file is reruned already
 def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument('logs', type=str, nargs='+')

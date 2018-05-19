@@ -1,18 +1,18 @@
 from __future__ import absolute_import
-from keras import backend as K
+from __future__ import print_function
+
 from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
-from keras.layers.wrappers import Bidirectional, TimeDistributed
+from keras.layers.wrappers import TimeDistributed
 from mimic3models.keras_utils import ExtendMask, GetTimestep, LastTimestep
 from keras.layers.merge import Multiply
 
 
 class Network(Model):
-
     def __init__(self, dim, batch_norm, dropout, rec_dropout, partition,
-                ihm_pos, target_repl=False, depth=1, input_dim=76, **kwargs):
+                 ihm_pos, target_repl=False, depth=1, input_dim=76, **kwargs):
 
-        print "==> not used params in network class:", kwargs.keys()
+        print("==> not used params in network class:", kwargs.keys())
 
         self.dim = dim
         self.batch_norm = batch_norm
@@ -34,10 +34,10 @@ class Network(Model):
         # Main part of the network
         for i in range(depth):
             mX = LSTM(units=dim,
-                    activation='tanh',
-                    return_sequences=True,
-                    recurrent_dropout=rec_dropout,
-                    dropout=dropout)(mX)
+                      activation='tanh',
+                      return_sequences=True,
+                      recurrent_dropout=rec_dropout,
+                      dropout=dropout)(mX)
         L = mX
 
         if dropout > 0:
@@ -46,7 +46,7 @@ class Network(Model):
         # Output modules
         outputs = []
 
-        ## ihm output
+        # ihm output
 
         # NOTE: masking for ihm prediction works this way:
         #   if ihm_M = 1 then we will calculate an error term
@@ -63,12 +63,12 @@ class Network(Model):
             ihm_y = Multiply(name='ihm')([ihm_y, ihm_M])
             outputs += [ihm_y]
 
-        ## decomp output
+        # decomp output
         decomp_y = TimeDistributed(Dense(1, activation='sigmoid'))(L)
         decomp_y = ExtendMask(name='decomp', add_epsilon=True)([decomp_y, decomp_M])
         outputs += [decomp_y]
 
-        ## los output
+        # los output
         if partition == 'none':
             los_y = TimeDistributed(Dense(1, activation='relu'))(L)
         else:
@@ -76,7 +76,7 @@ class Network(Model):
         los_y = ExtendMask(name='los', add_epsilon=True)([los_y, los_M])
         outputs += [los_y]
 
-        ## pheno output
+        # pheno output
         if target_repl:
             pheno_seq = TimeDistributed(Dense(25, activation='sigmoid'), name='pheno_seq')(L)
             pheno_y = LastTimestep(name='pheno_single')(pheno_seq)
@@ -86,14 +86,12 @@ class Network(Model):
             pheno_y = LastTimestep(name='pheno')(pheno_seq)
             outputs += [pheno_y]
 
-        return super(Network, self).__init__(inputs=inputs,
-                                             outputs=outputs)
+        super(Network, self).__init__(inputs=inputs, outputs=outputs)
 
     def say_name(self):
-        self.network_class_name = "k_lstm"
-        return "{}.n{}{}{}{}.dep{}".format(self.network_class_name,
-                    self.dim,
-                    ".bn" if self.batch_norm else "",
-                    ".d{}".format(self.dropout) if self.dropout > 0 else "",
-                    ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
-                    self.depth)
+        return "{}.n{}{}{}{}.dep{}".format('k_lstm',
+                                           self.dim,
+                                           ".bn" if self.batch_norm else "",
+                                           ".d{}".format(self.dropout) if self.dropout > 0 else "",
+                                           ".rd{}".format(self.rec_dropout) if self.rec_dropout > 0 else "",
+                                           self.depth)

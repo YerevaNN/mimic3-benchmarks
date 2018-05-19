@@ -1,4 +1,6 @@
-from mimic3models import nn_utils
+from __future__ import absolute_import
+from __future__ import print_function
+
 from mimic3models import common_utils
 import threading
 import os
@@ -8,7 +10,7 @@ import random
 
 def preprocess_chunk(data, ts, discretizer, normalizer=None):
     data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
-    if (normalizer is not None):
+    if normalizer is not None:
         data = [normalizer.transform(X) for X in data]
     return data
 
@@ -55,7 +57,7 @@ class BatchGen(object):
                 (Xs, ys, ts, names) = common_utils.sort_and_shuffle([Xs, ys, ts, names], B)
 
                 for i in range(0, current_size, B):
-                    X = nn_utils.pad_zeros(Xs[i:i + B])
+                    X = common_utils.pad_zeros(Xs[i:i + B])
                     y = np.array(ys[i:i + B])
                     batch_names = names[i:i+B]
                     batch_ts = ts[i:i+B]
@@ -70,10 +72,10 @@ class BatchGen(object):
 
     def next(self):
         with self.lock:
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()
 
 
 class BatchGenDeepSupervision(object):
@@ -122,7 +124,7 @@ class BatchGenDeepSupervision(object):
                 y[get_bin(pos)] = z
 
             X = discretizer.transform(X, end=T)[0]
-            if (normalizer is not None):
+            if normalizer is not None:
                 X = normalizer.transform(X)
 
             Xs.append(X)
@@ -143,7 +145,7 @@ class BatchGenDeepSupervision(object):
         while True:
             if self.shuffle:
                 N = len(self.data[1])
-                order = range(N)
+                order = list(range(N))
                 random.shuffle(order)
                 tmp_data = [[[None]*N, [None]*N], [None]*N]
                 tmp_names = [None] * N
@@ -173,9 +175,9 @@ class BatchGenDeepSupervision(object):
                 names = self.names[i:i + B]
                 ts = self.ts[i:i + B]
 
-                X = nn_utils.pad_zeros(X)  # (B, T, D)
-                mask = nn_utils.pad_zeros(mask)  # (B, T)
-                y = nn_utils.pad_zeros(y)
+                X = common_utils.pad_zeros(X)  # (B, T, D)
+                mask = common_utils.pad_zeros(mask)  # (B, T)
+                y = common_utils.pad_zeros(y)
                 y = np.expand_dims(y, axis=-1)  # (B, T, 1)
                 batch_data = ([X, mask], y)
                 if not self.return_names:
@@ -188,10 +190,10 @@ class BatchGenDeepSupervision(object):
 
     def next(self):
         with self.lock:
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()
 
 
 def save_results(names, ts, pred, y_true, path):

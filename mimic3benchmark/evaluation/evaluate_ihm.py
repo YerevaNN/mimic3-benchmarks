@@ -1,15 +1,21 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 from mimic3models.metrics import print_metrics_binary
 import sklearn.utils as sk_utils
 import numpy as np
 import pandas as pd
 import argparse
 import json
+import os
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('prediction', type=str)
-    parser.add_argument('--test_listfile', type=str, default='../data/in-hospital-mortality/test/listfile.csv')
+    parser.add_argument('--test_listfile', type=str,
+                        default=os.path.join(os.path.dirname(__file__),
+                                             '../../data/in-hospital-mortality/test/listfile.csv'))
     parser.add_argument('--n_iters', type=int, default=10000)
     parser.add_argument('--save_file', type=str, default='ihm_results.json')
     args = parser.parse_args()
@@ -52,11 +58,11 @@ def main():
         results[m]['97.5% percentile'] = np.percentile(runs, 97.5)
         del results[m]['runs']
 
-    print "Saving the results in {} ...".format(args.save_file)
+    print("Saving the results in {} ...".format(args.save_file))
     with open(args.save_file, 'w') as f:
         json.dump(results, f)
 
-    print results
+    print(results)
 
 
 if __name__ == "__main__":

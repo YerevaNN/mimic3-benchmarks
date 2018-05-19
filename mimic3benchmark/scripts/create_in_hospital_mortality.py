@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import print_function
 
 import os
@@ -7,18 +8,9 @@ import random
 random.seed(49297)
 
 
-parser = argparse.ArgumentParser(description="Create data for in-hospital mortality prediction task.")
-parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
-parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
-args, _ = parser.parse_known_args()
-
-if not os.path.exists(args.output_path):
-    os.makedirs(args.output_path)
-
-
-def process_partition(partition, eps=1e-6, n_hours=48):
+def process_partition(args, partition, eps=1e-6, n_hours=48):
     output_dir = os.path.join(args.output_path, partition)
-    if (not os.path.exists(output_dir)):
+    if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     xy_pairs = []
@@ -33,16 +25,16 @@ def process_partition(partition, eps=1e-6, n_hours=48):
                 label_df = pd.read_csv(os.path.join(patient_folder, lb_filename))
 
                 # empty label file
-                if (label_df.shape[0] == 0):
+                if label_df.shape[0] == 0:
                     continue
 
                 mortality = int(label_df.iloc[0]["Mortality"])
-                los = 24.0 * label_df.iloc[0]['Length of Stay'] # in hours
-                if (pd.isnull(los)):
+                los = 24.0 * label_df.iloc[0]['Length of Stay']  # in hours
+                if pd.isnull(los):
                     print("\n\t(length of stay is missing)", patient, ts_filename)
                     continue
 
-                if (los < n_hours - eps):
+                if los < n_hours - eps:
                     continue
 
                 ts_lines = tsfile.readlines()
@@ -51,12 +43,10 @@ def process_partition(partition, eps=1e-6, n_hours=48):
                 event_times = [float(line.split(',')[0]) for line in ts_lines]
 
                 ts_lines = [line for (line, t) in zip(ts_lines, event_times)
-                                     if (t > -eps and t < n_hours + eps)]
-                event_times = [t for t in event_times
-                                     if (t > -eps and t < n_hours + eps)]
+                            if -eps < t < n_hours + eps]
 
                 # no measurements in ICU
-                if (len(ts_lines) == 0):
+                if len(ts_lines) == 0:
                     print("\n\t(no events in ICU) ", patient, ts_filename)
                     continue
 
@@ -68,8 +58,8 @@ def process_partition(partition, eps=1e-6, n_hours=48):
 
                 xy_pairs.append((output_ts_filename, mortality))
 
-        if ((patient_index + 1) % 100 == 0):
-            print("\rprocessed {} / {} patients".format(patient_index + 1, len(patients)))
+        if (patient_index + 1) % 100 == 0:
+            print("processed {} / {} patients".format(patient_index + 1, len(patients)), end='\r')
 
     print("\n", len(xy_pairs))
     if partition == "train":
@@ -80,8 +70,21 @@ def process_partition(partition, eps=1e-6, n_hours=48):
     with open(os.path.join(output_dir, "listfile.csv"), "w") as listfile:
         listfile.write('stay,y_true\n')
         for (x, y) in xy_pairs:
-            listfile.write("%s,%d\n" % (x, y))
+            listfile.write('{},{:d}\n'.format(x, y))
 
 
-process_partition("test")
-process_partition("train")
+def main():
+    parser = argparse.ArgumentParser(description="Create data for in-hospital mortality prediction task.")
+    parser.add_argument('root_path', type=str, help="Path to root folder containing train and test sets.")
+    parser.add_argument('output_path', type=str, help="Directory where the created data should be stored.")
+    args, _ = parser.parse_known_args()
+
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
+
+    process_partition(args, "test")
+    process_partition(args, "train")
+
+
+if __name__ == '__main__':
+    main()

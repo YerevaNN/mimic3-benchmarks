@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
 import argparse
-import time
 import os
 import imp
 import re
@@ -18,8 +20,12 @@ from keras.callbacks import ModelCheckpoint, CSVLogger
 parser = argparse.ArgumentParser()
 common_utils.add_common_arguments(parser)
 parser.add_argument('--target_repl_coef', type=float, default=0.0)
+parser.add_argument('--data', type=str, help='Path to the data of phenotyping task',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/phenotyping/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default='.')
 args = parser.parse_args()
-print args
+print(args)
 
 if args.small_part:
     args.save_every = 2**30
@@ -27,22 +33,26 @@ if args.small_part:
 target_repl = (args.target_repl_coef > 0.0 and args.mode == 'train')
 
 # Build readers, discretizers, normalizers
-train_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                                 listfile='../../data/phenotyping/train_listfile.csv')
+train_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                                 listfile=os.path.join(args.data, 'train_listfile.csv'))
 
-val_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/train/',
-                               listfile='../../data/phenotyping/val_listfile.csv')
+val_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'train'),
+                               listfile=os.path.join(args.data, 'val_listfile.csv'))
 
 discretizer = Discretizer(timestep=float(args.timestep),
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
 discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels)  # choose here onlycont vs all
-normalizer.load_params('ph_ts{}.input_str:previous.start_time:zero.normalizer'.format(args.timestep))
+normalizer = Normalizer(fields=cont_channels)  # choose here which columns to standardize
+normalizer_state = args.normalizer_state
+if normalizer_state is None:
+    normalizer_state = 'ph_ts{}.input_str:previous.start_time:zero.normalizer'.format(args.timestep)
+    normalizer_state = os.path.join(os.path.dirname(__file__), normalizer_state)
+normalizer.load_params(normalizer_state)
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
@@ -51,7 +61,7 @@ args_dict['num_classes'] = 25
 args_dict['target_repl'] = target_repl
 
 # Build the model
-print "==> using model {}".format(args.network)
+print("==> using model {}".format(args.network))
 model_module = imp.load_source(os.path.basename(args.network), args.network)
 model = model_module.Network(**args_dict)
 suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
@@ -60,11 +70,11 @@ suffix = ".bs{}{}{}.ts{}{}".format(args.batch_size,
                                    args.timestep,
                                    ".trc{}".format(args.target_repl_coef) if args.target_repl_coef > 0 else "")
 model.final_name = args.prefix + model.say_name() + suffix
-print "==> model.final_name:", model.final_name
+print("==> model.final_name:", model.final_name)
 
 
 # Compile the model
-print "==> compiling the model"
+print("==> compiling the model")
 optimizer_config = {'class_name': args.optimizer,
                     'config': {'lr': args.lr,
                                'beta_1': args.beta_1}}
@@ -101,7 +111,7 @@ val_data_gen = utils.BatchGen(val_reader, discretizer,
 
 if args.mode == 'train':
     # Prepare training
-    path = 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state'
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.epoch{epoch}.test{val_loss}.state')
 
     metrics_callback = keras_utils.PhenotypingMetrics(train_data_gen=train_data_gen,
                                                       val_data_gen=val_data_gen,
@@ -113,12 +123,13 @@ if args.mode == 'train':
         os.makedirs(dirname)
     saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
 
-    if not os.path.exists('keras_logs'):
-        os.makedirs('keras_logs')
-    csv_logger = CSVLogger(os.path.join('keras_logs', model.final_name + '.csv'),
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
                            append=True, separator=';')
 
-    print "==> training"
+    print("==> training")
     model.fit_generator(generator=train_data_gen,
                         steps_per_epoch=train_data_gen.steps,
                         validation_data=val_data_gen,
@@ -136,8 +147,8 @@ elif args.mode == 'test':
     del train_data_gen
     del val_data_gen
 
-    test_reader = PhenotypingReader(dataset_dir='../../data/phenotyping/test/',
-                                    listfile='../../data/phenotyping/test_listfile.csv')
+    test_reader = PhenotypingReader(dataset_dir=os.path.join(args.data, 'test'),
+                                    listfile=os.path.join(args.data, 'test_listfile.csv'))
 
     test_data_gen = utils.BatchGen(test_reader, discretizer,
                                    normalizer, args.batch_size,
@@ -149,7 +160,7 @@ elif args.mode == 'test':
     labels = []
     predictions = []
     for i in range(test_data_gen.steps):
-        print "\rpredicting {} / {}".format(i, test_data_gen.steps),
+        print("predicting {} / {}".format(i, test_data_gen.steps), end='\r')
         ret = next(test_data_gen)
         x = ret["data"][0]
         y = ret["data"][1]
@@ -163,7 +174,7 @@ elif args.mode == 'test':
         ts += list(cur_ts)
 
     metrics.print_metrics_multilabel(labels, predictions)
-    path = os.path.join("test_predictions", os.path.basename(args.load_state)) + ".csv"
+    path = os.path.join(args.output_dir, "test_predictions", os.path.basename(args.load_state)) + ".csv"
     utils.save_results(names, ts, predictions, labels, path)
 
 else:
