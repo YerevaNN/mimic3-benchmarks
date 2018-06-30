@@ -1,0 +1,4 @@
+Keras==2.1.2
+numpy==1.13.1
+scikit-learn==0.18.2
+pandas==0.20.3
