@@ -1,226 +1,220 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
 import argparse
-import time
 import os
-import importlib
+import imp
+import re
 
 from mimic3models.decompensation import utils
 from mimic3benchmark.readers import DecompensationReader
 
 from mimic3models.preprocessing import Discretizer, Normalizer
 from mimic3models import metrics
+from mimic3models import keras_utils
+from mimic3models import common_utils
+
+from keras.callbacks import ModelCheckpoint, CSVLogger
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--network', type=str, required=True)
-parser.add_argument('--dim', type=int, default=256,
-                        help='number of hidden units')
-parser.add_argument('--chunks', type=int, default=1000,
-                        help='number of chunks to train')
-parser.add_argument('--load_state', type=str, default="",
-                        help='state file path')
-parser.add_argument('--mode', type=str, default="train",
-                        help='mode: train, test or info')
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--l2', type=float, default=0, help='L2 regularization')
-parser.add_argument('--l1', type=float, default=0, help='L1 regularization')
-parser.add_argument('--log_every', type=int, default=1,
-                        help='print information every x iteration')
-parser.add_argument('--save_every', type=int, default=1,
-                        help='save state every x epoch')
-parser.add_argument('--prefix', type=str, default="",
-                        help='optional prefix of network name')
-parser.add_argument('--dropout', type=float, default=0.0, help='dropout rate')
-parser.add_argument('--batch_norm', type=bool, default=False,
-                        help='batch normalization')
-parser.add_argument('--timestep', type=float, default=0.8,
-                        help="fixed timestep used in the dataset")
-parser.add_argument('--small_part', dest='small_part', action='store_true')
-parser.add_argument('--whole_data', dest='small_part', action='store_false')
-parser.set_defaults(small_part=False)
+common_utils.add_common_arguments(parser)
+parser.add_argument('--deep_supervision', dest='deep_supervision', action='store_true')
+parser.add_argument('--data', type=str, help='Path to the data of decompensation task',
+                    default=os.path.join(os.path.dirname(__file__), '../../data/decompensation/'))
+parser.add_argument('--output_dir', type=str, help='Directory relative which all output files are stored',
+                    default='.')
+parser.set_defaults(deep_supervision=False)
 args = parser.parse_args()
-print args
+print(args)
 
-train_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/train_listfile.csv')
+if args.small_part:
+    args.save_every = 2**30
 
-val_reader = DecompensationReader(dataset_dir='../../data/decompensation/train/',
-                    listfile='../../data/decompensation/val_listfile.csv')
+# Build readers, discretizers, normalizers
+if args.deep_supervision:
+    train_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'train'),
+                                                               listfile=os.path.join(args.data, 'train_listfile.csv'),
+                                                               small_part=args.small_part)
+    val_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'train'),
+                                                             listfile=os.path.join(args.data, 'val_listfile.csv'),
+                                                             small_part=args.small_part)
+else:
+    train_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                        listfile=os.path.join(args.data, 'train_listfile.csv'))
+    val_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'train'),
+                                      listfile=os.path.join(args.data, 'val_listfile.csv'))
 
 discretizer = Discretizer(timestep=args.timestep,
                           store_masks=True,
-                          imput_strategy='previous',
+                          impute_strategy='previous',
                           start_time='zero')
 
-discretizer_header = discretizer.transform(train_reader.read_example(0)[0])[1].split(',')
+if args.deep_supervision:
+    discretizer_header = discretizer.transform(train_data_loader._data["X"][0])[1].split(',')
+else:
+    discretizer_header = discretizer.transform(train_reader.read_example(0)["X"])[1].split(',')
 cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") == -1]
 
-normalizer = Normalizer(fields=cont_channels) # choose here onlycont vs all
-normalizer.load_params('decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep))
+normalizer = Normalizer(fields=cont_channels)  # choose here which columns to standardize
+normalizer_state = args.normalizer_state
+if normalizer_state is None:
+    normalizer_state = 'decomp_ts{}.input_str:previous.n1e5.start_time:zero.normalizer'.format(args.timestep)
+    normalizer_state = os.path.join(os.path.dirname(__file__), normalizer_state)
+normalizer.load_params(normalizer_state)
 
 args_dict = dict(args._get_kwargs())
 args_dict['header'] = discretizer_header
+args_dict['task'] = 'decomp'
 
-# init class
-print "==> using network %s" % args.network
-network_module = importlib.import_module("networks." + args.network)
-network = network_module.Network(**args_dict)
-time_step_suffix = ".ts%.2f" % args.timestep
-network_name = args.prefix + network.say_name() + time_step_suffix
-print "==> network_name:", network_name
 
+# Build the model
+print("==> using model {}".format(args.network))
+model_module = imp.load_source(os.path.basename(args.network), args.network)
+model = model_module.Network(**args_dict)
+suffix = "{}.bs{}{}{}.ts{}".format("" if not args.deep_supervision else ".dsup",
+                                   args.batch_size,
+                                   ".L1{}".format(args.l1) if args.l1 > 0 else "",
+                                   ".L2{}".format(args.l2) if args.l2 > 0 else "",
+                                   args.timestep)
+model.final_name = args.prefix + model.say_name() + suffix
+print("==> model.final_name:", model.final_name)
+
+
+# Compile the model
+print("==> compiling the model")
+optimizer_config = {'class_name': args.optimizer,
+                    'config': {'lr': args.lr,
+                               'beta_1': args.beta_1}}
+
+# NOTE: one can use binary_crossentropy even for (B, T, C) shape.
+#       It will calculate binary_crossentropies for each class
+#       and then take the mean over axis=-1. Tre results is (B, T).
+model.compile(optimizer=optimizer_config,
+              loss='binary_crossentropy')
+model.summary()
+
+# Load model weights
 n_trained_chunks = 0
 if args.load_state != "":
-    n_trained_chunks = network.load_state(args.load_state) - 1
+    model.load_weights(args.load_state)
+    n_trained_chunks = int(re.match(".*chunk([0-9]+).*", args.load_state).group(1))
 
-if (args.small_part):
-    chunk_size = 50 * args.batch_size
-    args.save_every = 1000000
+# Load data and prepare generators
+if args.deep_supervision:
+    train_data_gen = utils.BatchGenDeepSupervision(train_data_loader, discretizer,
+                                                   normalizer, args.batch_size, shuffle=True)
+    val_data_gen = utils.BatchGenDeepSupervision(val_data_loader, discretizer,
+                                                 normalizer, args.batch_size, shuffle=False)
 else:
-    chunk_size = 10000
-
-def process_one_chunk(mode, chunk_index):
-    assert (mode == "train" or mode == "test")
-    
-    if (mode == "train"):
-        reader = train_reader
-    if (mode == "test"):
-        reader = val_reader
-    
-    (data, ts, mortalities, header) = utils.read_chunk(reader, chunk_size)
-    data = utils.preprocess_chunk(data, ts, discretizer, normalizer)
-    
-    #print "!!! ", np.max([x.shape[0] for x in data])
-    
-    if (mode == "train"):
-        network.set_datasets((data, mortalities), None)
-    if (mode == "test"):
-        network.set_datasets(None, (data, mortalities))
-        
-    network.shuffle_train_set()
-        
-    y_true = []
-    predictions = []
-    
-    avg_loss = 0.0
-    sum_loss = 0.0
-    prev_time = time.time()
-    
-    n_batches = network.get_batches_per_epoch(mode)
-        
-    for i in range(0, n_batches):
-        step_data = network.step(mode)
-        prediction = step_data["prediction"]
-        answers = step_data["answers"]
-        current_loss = step_data["current_loss"]
-        log = step_data["log"]
-        
-        avg_loss += current_loss
-        sum_loss += current_loss
-        
-        for x in answers:
-            y_true.append(x)
-        
-        for x in prediction:
-            predictions.append(x)
-        
-        if ((i + 1) % args.log_every == 0):
-            cur_time = time.time()
-            print ("  %sing: %d.%d / %d \t loss: %.3f \t avg_loss: %.3f \t"\
-                   "%s \t time: %.2fs" % (mode, chunk_index, i * args.batch_size,
-                        n_batches * args.batch_size, current_loss,
-                        avg_loss / args.log_every, log, cur_time - prev_time))
-            avg_loss = 0
-            prev_time = cur_time
-        
-        if np.isnan(current_loss):
-            raise Exception ("current loss IS NaN. This should never happen :)") 
-
-    sum_loss /= n_batches
-    print "\n  %s loss = %.5f" % (mode, sum_loss)
-    metrics.print_metrics_binary(y_true, predictions)
-    return sum_loss
-
+    # Set number of batches in one epoch
+    train_nbatches = 2000
+    val_nbatches = 1000
+    if args.small_part:
+        train_nbatches = 40
+        val_nbatches = 40
+    train_data_gen = utils.BatchGen(train_reader, discretizer,
+                                    normalizer, args.batch_size, train_nbatches, True)
+    val_data_gen = utils.BatchGen(val_reader, discretizer,
+                                  normalizer, args.batch_size, val_nbatches, False)
 
 if args.mode == 'train':
-    
-    print "==> training"  	
-    for chunk_index in range(n_trained_chunks, n_trained_chunks + args.chunks):
-        start_time = time.time()
-        
-        process_one_chunk("train", chunk_index)
-        cnt_trained = chunk_index - n_trained_chunks + 1
 
-        if (cnt_trained % 5 == 0):
-            val_loss = process_one_chunk("test", chunk_index)
-            if ((cnt_trained / 5) % args.save_every == 0):
-                state_name = 'states/%s.chunk%d.test%.8f.state' % (network_name,
-                                        chunk_index, val_loss)
-                               
-                print "==> saving ... %s" % state_name
-                network.save_params(state_name, chunk_index)
-        
-        print "chunk %d took %.3fs" % (chunk_index, float(time.time()) - start_time)
-        
-        chunks_per_epoch = train_reader.get_number_of_examples() // chunk_size
-        if (cnt_trained % chunks_per_epoch == 0):
-            train_reader.random_shuffle()
-            val_reader.random_shuffle()
-            
+    # Prepare training
+    path = os.path.join(args.output_dir, 'keras_states/' + model.final_name + '.chunk{epoch}.test{val_loss}.state')
+
+    metrics_callback = keras_utils.DecompensationMetrics(train_data_gen=train_data_gen,
+                                                         val_data_gen=val_data_gen,
+                                                         deep_supervision=args.deep_supervision,
+                                                         batch_size=args.batch_size,
+                                                         verbose=args.verbose)
+    # make sure save directory exists
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    saver = ModelCheckpoint(path, verbose=1, period=args.save_every)
+
+    keras_logs = os.path.join(args.output_dir, 'keras_logs')
+    if not os.path.exists(keras_logs):
+        os.makedirs(keras_logs)
+    csv_logger = CSVLogger(os.path.join(keras_logs, model.final_name + '.csv'),
+                           append=True, separator=';')
+
+    print("==> training")
+    model.fit_generator(generator=train_data_gen,
+                        steps_per_epoch=train_data_gen.steps,
+                        validation_data=val_data_gen,
+                        validation_steps=val_data_gen.steps,
+                        epochs=n_trained_chunks + args.epochs,
+                        initial_epoch=n_trained_chunks,
+                        callbacks=[metrics_callback, saver, csv_logger],
+                        verbose=args.verbose)
+
 elif args.mode == 'test':
+
     # ensure that the code uses test_reader
-    del train_reader
-    del val_reader 
-    
-    test_reader = DecompensationReader(dataset_dir='../../data/decompensation/test/',
-            listfile='../../data/decompensation/test_listfile.csv')
-    
-    n_batches = test_reader.get_number_of_examples() // args.batch_size
-    y_true = []
+    del train_data_gen
+    del val_data_gen
+
+    names = []
+    ts = []
+    labels = []
     predictions = []
-    avg_loss = 0.0
-    sum_loss = 0.0
-    activations = []
-    prev_time = time.time()
-    
-    n_batches = 1000 # TODO: remove this, to test on full data
-    
-    for i in range(n_batches):
-        (data, ts, mortalities, header) = utils.read_chunk(test_reader, args.batch_size)
-        data = utils.preprocess_chunk(data, ts, discretizer, normalizer)
 
-        ret = network.predict((data, mortalities))
-        prediction = ret[0]
-        current_loss = ret[1]
-        
-        avg_loss += current_loss
-        sum_loss += current_loss
-        
-        for x in mortalities:
-            y_true.append(x)
-        
-        for x in prediction:
-            predictions.append(x)
-        activations += zip(prediction[:, 1], mortalities)
-        
-        if ((i + 1) % args.log_every == 0):
-            cur_time = time.time()
-            print ("  testing: %d / %d \t loss: %.3f \t avg_loss: %.3f \t"\
-                   " time: %.2fs" % ((i+1) * args.batch_size,
-                        n_batches * args.batch_size, current_loss,
-                        avg_loss / args.log_every, cur_time - prev_time))
-            avg_loss = 0
-            prev_time = cur_time
-        
-        if np.isnan(current_loss):
-            raise Exception ("current loss IS NaN. This should never happen :)") 
+    if args.deep_supervision:
+        del train_data_loader
+        del val_data_loader
+        test_data_loader = common_utils.DeepSupervisionDataLoader(dataset_dir=os.path.join(args.data, 'test'),
+                                                                  listfile=os.path.join(args.data, 'test_listfile.csv'),
+                                                                  small_part=args.small_part)
+        test_data_gen = utils.BatchGenDeepSupervision(test_data_loader, discretizer,
+                                                      normalizer, args.batch_size,
+                                                      shuffle=False, return_names=True)
 
-    sum_loss /= n_batches
-    print "\n  test loss = %.5f" % sum_loss
-    metrics.print_metrics_binary(y_true, predictions)
-    
-    with open("activations.txt", "w") as fout:
-        for (x, y) in activations:
-            fout.write("%.6f, %d\n" % (x, y))
-        
+        for i in range(test_data_gen.steps):
+            print("\tdone {}/{}".format(i, test_data_gen.steps), end='\r')
+            ret = next(test_data_gen)
+            (x, y) = ret["data"]
+            cur_names = np.array(ret["names"]).repeat(x[0].shape[1], axis=-1)
+            cur_ts = ret["ts"]
+            for single_ts in cur_ts:
+                ts += single_ts
+
+            pred = model.predict(x, batch_size=args.batch_size)
+            for m, t, p, name in zip(x[1].flatten(), y.flatten(), pred.flatten(), cur_names.flatten()):
+                if np.equal(m, 1):
+                    labels.append(t)
+                    predictions.append(p)
+                    names.append(name)
+        print('\n')
+    else:
+        del train_reader
+        del val_reader
+        test_reader = DecompensationReader(dataset_dir=os.path.join(args.data, 'test'),
+                                           listfile=os.path.join(args.data, 'test_listfile.csv'))
+
+        test_data_gen = utils.BatchGen(test_reader, discretizer,
+                                       normalizer, args.batch_size,
+                                       None, shuffle=False, return_names=True)  # put steps = None for a full test
+
+        for i in range(test_data_gen.steps):
+            print("predicting {} / {}".format(i, test_data_gen.steps), end='\r')
+            ret = next(test_data_gen)
+            x, y = ret["data"]
+            cur_names = ret["names"]
+            cur_ts = ret["ts"]
+
+            x = np.array(x)
+            pred = model.predict_on_batch(x)[:, 0]
+            predictions += list(pred)
+            labels += list(y)
+            names += list(cur_names)
+            ts += list(cur_ts)
+
+    metrics.print_metrics_binary(labels, predictions)
+    path = os.path.join(args.output_dir, 'test_predictions', os.path.basename(args.load_state)) + '.csv'
+    utils.save_results(names, ts, predictions, labels, path)
+
 else:
-    raise Exception("unknown mode")
+    raise ValueError("Wrong value for args.mode")

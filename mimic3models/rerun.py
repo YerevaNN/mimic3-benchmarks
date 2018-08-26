@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 import argparse
 from mimic3models import parse_utils
 import json
@@ -143,7 +145,7 @@ def process_single(filename, verbose, select):
 
     batch_size = parse_utils.parse_batch_size(log)
 
-    command = "python -u keras_main.py --network {} --prefix {} --dim {}"\
+    command = "python -u main.py --network {} --prefix {} --dim {}"\
               " --depth {} --epochs 100 --batch_size {} --timestep 1.0"\
               " --load_state {}".format(network, prefix, dim, depth,  batch_size, last_state)
 
@@ -185,7 +187,6 @@ def process_single(filename, verbose, select):
             "filename": filename}
 
 
-# TODO: mark in the file that the file is reruned already
 def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument('logs', type=str, nargs='+')

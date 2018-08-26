@@ -1,5 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
-import metrics
+from mimic3models import metrics
 
 import keras
 import keras.backend as K
@@ -7,21 +10,22 @@ import keras.backend as K
 if K.backend() == 'tensorflow':
     import tensorflow as tf
 
-from keras.layers import Layer, LSTM
-from keras.layers.recurrent import _time_distributed_dense
+from keras.layers import Layer
 
-# ===================== METRICS ===================== #                        
 
-class MetricsBinaryFromGenerator(keras.callbacks.Callback):
-    
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32, early_stopping=True, verbose=2):
+# ===================== METRICS ===================== #
+
+
+class DecompensationMetrics(keras.callbacks.Callback):
+    def __init__(self, train_data_gen, val_data_gen, deep_supervision,
+                 batch_size=32, early_stopping=True, verbose=2):
+        super(DecompensationMetrics, self).__init__()
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
+        self.deep_supervision = deep_supervision
         self.batch_size = batch_size
         self.early_stopping = early_stopping
         self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
 
@@ -30,10 +34,10 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
         predictions = []
         for i in range(data_gen.steps):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, data_gen.steps),
-            (x,y) = next(data_gen)
+                print("\tdone {}/{}".format(i, data_gen.steps), end='\r')
+            (x, y) = next(data_gen)
             pred = self.model.predict(x, batch_size=self.batch_size)
-            if isinstance(x, list) and len(x) == 2: # deep supervision
+            if self.deep_supervision:
                 for m, t, p in zip(x[1].flatten(), y.flatten(), pred.flatten()):
                     if np.equal(m, 1):
                         y_true.append(t)
@@ -41,18 +45,18 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
             else:
                 y_true += list(y.flatten())
                 predictions += list(pred.flatten())
-        print "\n"
+        print('\n')
         predictions = np.array(predictions)
-        predictions = np.stack([1-predictions, predictions], axis=1)
+        predictions = np.stack([1 - predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
     def on_epoch_end(self, epoch, logs={}):
-        print "\n==>predicting on train"
+        print("\n==>predicting on train")
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
-        print "\n==>predicting on validation"
+        print("\n==>predicting on validation")
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
         if self.early_stopping:
@@ -62,16 +66,15 @@ class MetricsBinaryFromGenerator(keras.callbacks.Callback):
                 self.model.stop_training = True
 
 
-class MetricsBinaryFromData(keras.callbacks.Callback):
-
-    def __init__(self, train_data, val_data, batch_size=32, early_stopping=True, verbose=2):
+class InHospitalMortalityMetrics(keras.callbacks.Callback):
+    def __init__(self, train_data, val_data, target_repl, batch_size=32, early_stopping=True, verbose=2):
+        super(InHospitalMortalityMetrics, self).__init__()
         self.train_data = train_data
         self.val_data = val_data
+        self.target_repl = target_repl
         self.batch_size = batch_size
         self.early_stopping = early_stopping
         self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
 
@@ -81,28 +84,29 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
         B = self.batch_size
         for i in range(0, len(data[0]), B):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, len(data[0])),
-            (x,y) = (data[0][i:i+B], data[1][i:i+B])
-            outputs = self.model.predict(x, batch_size=B)
-
-            if isinstance(y[0], list): # target replication
-                y_true += list(y[0].flatten())
-                predictions += list(outputs[0].flatten())
+                print("\tdone {}/{}".format(i, len(data[0])), end='\r')
+            if self.target_repl:
+                (x, y, y_repl) = (data[0][i:i + B], data[1][0][i:i + B], data[1][1][i:i + B])
             else:
-                y_true += list(np.array(y).flatten())
-                predictions += list(outputs.flatten())
-        print "\n"
+                (x, y) = (data[0][i:i + B], data[1][i:i + B])
+            outputs = self.model.predict(x, batch_size=B)
+            if self.target_repl:
+                predictions += list(np.array(outputs[0]).flatten())
+            else:
+                predictions += list(np.array(outputs).flatten())
+            y_true += list(np.array(y).flatten())
+        print('\n')
         predictions = np.array(predictions)
-        predictions = np.stack([1-predictions, predictions], axis=1)
+        predictions = np.stack([1 - predictions, predictions], axis=1)
         ret = metrics.print_metrics_binary(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
     def on_epoch_end(self, epoch, logs={}):
-        print "\n==>predicting on train"
+        print("\n==>predicting on train")
         self.calc_metrics(self.train_data, self.train_history, 'train', logs)
-        print "\n==>predicting on validation"
+        print("\n==>predicting on validation")
         self.calc_metrics(self.val_data, self.val_history, 'val', logs)
 
         if self.early_stopping:
@@ -112,16 +116,15 @@ class MetricsBinaryFromData(keras.callbacks.Callback):
                 self.model.stop_training = True
 
 
-class MetricsMultilabel(keras.callbacks.Callback):
-
-    def __init__(self, train_data_gen, val_data_gen, batch_size=32, early_stopping=True, verbose=2):
+class PhenotypingMetrics(keras.callbacks.Callback):
+    def __init__(self, train_data_gen, val_data_gen, batch_size=32,
+                 early_stopping=True, verbose=2):
+        super(PhenotypingMetrics, self).__init__()
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.early_stopping = early_stopping
         self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
 
@@ -130,28 +133,26 @@ class MetricsMultilabel(keras.callbacks.Callback):
         predictions = []
         for i in range(data_gen.steps):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, data_gen.steps),
+                print("\tdone {}/{}".format(i, data_gen.steps), end='\r')
             (x, y) = next(data_gen)
             outputs = self.model.predict(x, batch_size=self.batch_size)
-
             if data_gen.target_repl:
                 y_true += list(y[0])
                 predictions += list(outputs[0])
             else:
                 y_true += list(y)
                 predictions += list(outputs)
-        print "\n"
-
+        print('\n')
         predictions = np.array(predictions)
         ret = metrics.print_metrics_multilabel(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
     def on_epoch_end(self, epoch, logs={}):
-        print "\n==>predicting on train"
+        print("\n==>predicting on train")
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
-        print "\n==>predicting on validation"
+        print("\n==>predicting on validation")
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
         if self.early_stopping:
@@ -161,17 +162,16 @@ class MetricsMultilabel(keras.callbacks.Callback):
                 self.model.stop_training = True
 
 
-class MetricsLOS(keras.callbacks.Callback):
-
-    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, early_stopping=True, verbose=2):
+class LengthOfStayMetrics(keras.callbacks.Callback):
+    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32,
+                 early_stopping=True, verbose=2):
+        super(LengthOfStayMetrics, self).__init__()
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
         self.early_stopping = early_stopping
         self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
 
@@ -180,13 +180,13 @@ class MetricsLOS(keras.callbacks.Callback):
         predictions = []
         for i in range(data_gen.steps):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, data_gen.steps),
+                print("\tdone {}/{}".format(i, data_gen.steps), end='\r')
             (x, y_processed, y) = data_gen.next(return_y_true=True)
             pred = self.model.predict(x, batch_size=self.batch_size)
-            if isinstance(x, list) and len(x) == 2: # deep supervision
-                if pred.shape[-1] == 1: # regression
+            if isinstance(x, list) and len(x) == 2:  # deep supervision
+                if pred.shape[-1] == 1:  # regression
                     pred_flatten = pred.flatten()
-                else: # classification
+                else:  # classification
                     pred_flatten = pred.reshape((-1, 10))
                 for m, t, p in zip(x[1].flatten(), y.flatten(), pred_flatten):
                     if np.equal(m, 1):
@@ -199,7 +199,7 @@ class MetricsLOS(keras.callbacks.Callback):
                 else:
                     y_true += list(y)
                     predictions += list(pred)
-        print "\n"
+        print('\n')
         if self.partition == 'log':
             predictions = [metrics.get_estimate_log(x, 10) for x in predictions]
             ret = metrics.print_metrics_log_bins(y_true, predictions)
@@ -208,14 +208,14 @@ class MetricsLOS(keras.callbacks.Callback):
             ret = metrics.print_metrics_custom_bins(y_true, predictions)
         if self.partition == 'none':
             ret = metrics.print_metrics_regression(y_true, predictions)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_' + k] = v
         history.append(ret)
 
     def on_epoch_end(self, epoch, logs={}):
-        print "\n==>predicting on train"
+        print("\n==>predicting on train")
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
-        print "\n==>predicting on validation"
+        print("\n==>predicting on validation")
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
         if self.early_stopping:
@@ -226,17 +226,16 @@ class MetricsLOS(keras.callbacks.Callback):
                 self.model.stop_training = True
 
 
-class MetricsMultitask(keras.callbacks.Callback):
-
-    def __init__(self, train_data_gen, val_data_gen, partition, batch_size=32, early_stopping=True, verbose=2):
+class MultitaskMetrics(keras.callbacks.Callback):
+    def __init__(self, train_data_gen, val_data_gen, partition,
+                 batch_size=32, early_stopping=True, verbose=2):
+        super(MultitaskMetrics, self).__init__()
         self.train_data_gen = train_data_gen
         self.val_data_gen = val_data_gen
         self.batch_size = batch_size
         self.partition = partition
         self.early_stopping = early_stopping
         self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
         self.train_history = []
         self.val_history = []
 
@@ -253,7 +252,7 @@ class MetricsMultitask(keras.callbacks.Callback):
 
         for i in range(data_gen.steps):
             if self.verbose == 1:
-                print "\r\tdone {}/{}".format(i, data_gen.steps),
+                print("\tdone {}/{}".format(i, data_gen.steps), end='\r')
             (X, y, los_y_reg) = data_gen.next(return_y_true=True)
             outputs = self.model.predict(X, batch_size=self.batch_size)
 
@@ -261,63 +260,63 @@ class MetricsMultitask(keras.callbacks.Callback):
             decomp_M = X[2]
             los_M = X[3]
 
-            if not data_gen.target_repl: # no target replication
+            if not data_gen.target_repl:  # no target replication
                 (ihm_p, decomp_p, los_p, pheno_p) = outputs
                 (ihm_t, decomp_t, los_t, pheno_t) = y
-            else: # target replication
+            else:  # target replication
                 (ihm_p, _, decomp_p, los_p, pheno_p, _) = outputs
                 (ihm_t, _, decomp_t, los_t, pheno_t, _) = y
-        
-            los_t = los_y_reg # real value not the label
 
-            ## ihm
+            los_t = los_y_reg  # real value not the label
+
+            # ihm
             for (m, t, p) in zip(ihm_M.flatten(), ihm_t.flatten(), ihm_p.flatten()):
                 if np.equal(m, 1):
                     ihm_y_true.append(t)
                     ihm_pred.append(p)
 
-            ## decomp
+            # decomp
             for (m, t, p) in zip(decomp_M.flatten(), decomp_t.flatten(), decomp_p.flatten()):
                 if np.equal(m, 1):
                     decomp_y_true.append(t)
                     decomp_pred.append(p)
 
-            ## los
-            if los_p.shape[-1] == 1: # regression
+            # los
+            if los_p.shape[-1] == 1:  # regression
                 for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.flatten()):
                     if np.equal(m, 1):
                         los_y_true.append(t)
                         los_pred.append(p)
-            else: # classification
+            else:  # classification
                 for (m, t, p) in zip(los_M.flatten(), los_t.flatten(), los_p.reshape((-1, 10))):
                     if np.equal(m, 1):
                         los_y_true.append(t)
                         los_pred.append(p)
 
-            ## pheno
+            # pheno
             for (t, p) in zip(pheno_t.reshape((-1, 25)), pheno_p.reshape((-1, 25))):
                 pheno_y_true.append(t)
                 pheno_pred.append(p)
-        print "\n"
+        print('\n')
 
-        ## ihm
-        print "\n ================= 48h mortality ================"
+        # ihm
+        print("\n ================= 48h mortality ================")
         ihm_pred = np.array(ihm_pred)
-        ihm_pred = np.stack([1-ihm_pred, ihm_pred], axis=1)
+        ihm_pred = np.stack([1 - ihm_pred, ihm_pred], axis=1)
         ret = metrics.print_metrics_binary(ihm_y_true, ihm_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_ihm_' + k] = v
 
-        ## decomp
-        print "\n ================ decompensation ================"
+        # decomp
+        print("\n ================ decompensation ================")
         decomp_pred = np.array(decomp_pred)
-        decomp_pred = np.stack([1-decomp_pred, decomp_pred], axis=1)
+        decomp_pred = np.stack([1 - decomp_pred, decomp_pred], axis=1)
         ret = metrics.print_metrics_binary(decomp_y_true, decomp_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_decomp_' + k] = v
 
-        ## los
-        print "\n ================ length of stay ================"
+        # los
+        print("\n ================ length of stay ================")
         if self.partition == 'log':
             los_pred = [metrics.get_estimate_log(x, 10) for x in los_pred]
             ret = metrics.print_metrics_log_bins(los_y_true, los_pred)
@@ -326,22 +325,22 @@ class MetricsMultitask(keras.callbacks.Callback):
             ret = metrics.print_metrics_custom_bins(los_y_true, los_pred)
         if self.partition == 'none':
             ret = metrics.print_metrics_regression(los_y_true, los_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_los_' + k] = v
 
-        ## pheno
-        print "\n =================== phenotype =================="
+        # pheno
+        print("\n =================== phenotype ==================")
         pheno_pred = np.array(pheno_pred)
         ret = metrics.print_metrics_multilabel(pheno_y_true, pheno_pred)
-        for k, v in ret.iteritems():
+        for k, v in ret.items():
             logs[dataset + '_pheno_' + k] = v
 
         history.append(logs)
 
     def on_epoch_end(self, epoch, logs={}):
-        print "\n==>predicting on train"
+        print("\n==>predicting on train")
         self.calc_metrics(self.train_data_gen, self.train_history, 'train', logs)
-        print "\n==>predicting on validation"
+        print("\n==>predicting on validation")
         self.calc_metrics(self.val_data_gen, self.val_history, 'val', logs)
 
         if self.early_stopping:
@@ -353,7 +352,7 @@ class MetricsMultitask(keras.callbacks.Callback):
                 self.model.stop_training = True
 
 
-# ===================== LAYERS ===================== #                        
+# ===================== LAYERS ===================== #
 
 
 def softmax(x, axis, mask=None):
@@ -378,14 +377,15 @@ def _collect_attention(x, a, mask):
     """
     if K.ndim(a) == 2:
         a = K.expand_dims(a)
-    a = softmax(a, axis=1, mask=mask) # (B, T, 1)
-    return K.sum(x * a, axis=1) # (B, D)
+    a = softmax(a, axis=1, mask=mask)  # (B, T, 1)
+    return K.sum(x * a, axis=1)  # (B, D)
 
 
 class CollectAttetion(Layer):
     """ Collect attention on 3D tensor with softmax and summation
         Masking is disabled after this layer
     """
+
     def __init__(self, **kwargs):
         self.supports_masking = True
         super(CollectAttetion, self).__init__(**kwargs)
@@ -395,7 +395,7 @@ class CollectAttetion(Layer):
         a = inputs[1]
         # mask has 2 components, both are the same
         return _collect_attention(x, a, mask[0])
-    
+
     def compute_output_shape(self, input_shape):
         return input_shape[0][0], input_shape[0][2]
 
@@ -406,6 +406,7 @@ class CollectAttetion(Layer):
 class Slice(Layer):
     """ Slice 3D tensor by taking x[:, :, indices]
     """
+
     def __init__(self, indices, **kwargs):
         self.supports_masking = True
         self.indices = indices
@@ -413,7 +414,7 @@ class Slice(Layer):
 
     def call(self, x, mask=None):
         if K.backend() == 'tensorflow':
-            xt = tf.transpose(x, perm=(2, 0 ,1))
+            xt = tf.transpose(x, perm=(2, 0, 1))
             gt = tf.gather(xt, self.indices)
             return tf.transpose(gt, perm=(1, 2, 0))
         return x[:, :, self.indices]
@@ -431,10 +432,11 @@ class Slice(Layer):
 class GetTimestep(Layer):
     """ Takes 3D tensor and returns x[:, pos, :]
     """
+
     def __init__(self, pos=-1, **kwargs):
         self.pos = pos
         self.supports_masking = True
-        super(LastTimestep, self).__init__(**kwargs)
+        super(GetTimestep, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
         return x[:, self.pos, :]
@@ -448,6 +450,7 @@ class GetTimestep(Layer):
     def get_config(self):
         return {'pos': self.pos}
 
+
 LastTimestep = GetTimestep
 
 
@@ -456,6 +459,7 @@ class ExtendMask(Layer):
         Output:      X
         Output_mask: M
     """
+
     def __init__(self, add_epsilon=False, **kwargs):
         self.supports_masking = True
         self.add_epsilon = add_epsilon

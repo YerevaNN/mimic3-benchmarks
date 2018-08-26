@@ -1,49 +1,16 @@
-import numpy as np
+from __future__ import absolute_import
+from __future__ import print_function
+
 from mimic3models import metrics
-from mimic3models import nn_utils
 from mimic3models import common_utils
+import numpy as np
 import threading
 import random
 
 
-def read_chunk(reader, chunk_size):
-    data = []
-    ts = []
-    fms = []
-    loss = []
-    phs = []
-    sws = []
-    for i in range(chunk_size):
-        (X, t, fm, los, ph, sw, header) = reader.read_next()
-        data.append(X)
-        ts.append(t)
-        fms.append(fm)
-        loss.append(los)
-        phs.append(ph)
-        sws.append(sw)
-    return (data, ts, fms, loss, phs, sws)
-
-
-def load_data(reader, discretizer, normalizer, small_part=False):
-    N = reader.get_number_of_examples()
-    if small_part:
-        N = 1000
-    (data, ts, fms, loss, phs, sws) = read_chunk(reader, N)
-    data = [discretizer.transform(X, end=t)[0] for (X, t) in zip(data, ts)]
-    if (normalizer is not None):
-        data = [normalizer.transform(X) for X in data]
-    return (data, fms, loss, phs, sws)
-
-
 class BatchGen(object):
-
     def __init__(self, reader, discretizer, normalizer, ihm_pos, partition,
-                 target_repl, batch_size, small_part, shuffle):
-
-        N = reader.get_number_of_examples()
-        if small_part:
-            N = 1000
-
+                 target_repl, batch_size, small_part, shuffle, return_names=False):
         self.discretizer = discretizer
         self.normalizer = normalizer
         self.ihm_pos = ihm_pos
@@ -51,16 +18,34 @@ class BatchGen(object):
         self.target_repl = target_repl
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.return_names = return_names
+
+        N = reader.get_number_of_examples()
+        if small_part:
+            N = 1000
         self.steps = (N + batch_size - 1) // batch_size
         self.lock = threading.Lock()
 
-        (Xs, ts, ihms, loss, phenos, decomps) = read_chunk(reader, N)
+        ret = common_utils.read_chunk(reader, N)
+        Xs = ret['X']
+        ts = ret['t']
+        ihms = ret['ihm']
+        loss = ret['los']
+        phenos = ret['pheno']
+        decomps = ret['decomp']
+
+        self.data = dict()
+        self.data['pheno_ts'] = ts
+        self.data['names'] = ret['name']
+        self.data['decomp_ts'] = []
+        self.data['los_ts'] = []
 
         for i in range(N):
+            self.data['decomp_ts'].append([pos for pos, m in enumerate(decomps[i][0]) if m == 1])
+            self.data['los_ts'].append([pos for pos, m in enumerate(loss[i][0]) if m == 1])
             (Xs[i], ihms[i], decomps[i], loss[i], phenos[i]) = \
                 self._preprocess_single(Xs[i], ts[i], ihms[i], decomps[i], loss[i], phenos[i])
 
-        self.data = {}
         self.data['X'] = Xs
         self.data['ihm_M'] = [x[0] for x in ihms]
         self.data['ihm_y'] = [x[1] for x in ihms]
@@ -79,48 +64,43 @@ class BatchGen(object):
         def get_bin(t):
             return int(t / timestep - eps)
 
-        sample_times = np.arange(0.0, max_time - eps, 1.0)
-        sample_times = np.array([int(x+eps) for x in sample_times])
-        assert len(sample_times) == len(decomp[0])
-        assert len(sample_times) == len(los[0])
+        n_steps = get_bin(max_time) + 1
 
-        nsteps = get_bin(max_time) + 1
-
-        ## X
+        # X
         X = self.discretizer.transform(X, end=max_time)[0]
         if self.normalizer is not None:
             X = self.normalizer.transform(X)
-        assert len(X) == nsteps
+        assert len(X) == n_steps
 
-        ## ihm
+        # ihm
         # NOTE: when mask is 0, we set y to be 0. This is important
-        #   because in the multitask networks when ihm_M = 0 we set
-        #   our prediction thus the loss will be 0.
+        #       because in the multitask networks when ihm_M = 0 we set
+        #       our prediction thus the loss will be 0.
         if np.equal(ihm[1], 0):
             ihm[2] = 0
-        ihm = (np.int32(ihm[1]), np.int32(ihm[2])) # mask, label
+        ihm = (np.int32(ihm[1]), np.int32(ihm[2]))  # mask, label
 
-        ## decomp
-        decomp_M = [0] * nsteps
-        decomp_y = [0] * nsteps
-        for (t, m, y) in zip(sample_times, decomp[0], decomp[1]):
-            pos = get_bin(t)
-            decomp_M[pos] = m
-            decomp_y[pos] = y
+        # decomp
+        decomp_M = [0] * n_steps
+        decomp_y = [0] * n_steps
+        for i in range(len(decomp[0])):
+            pos = get_bin(i)
+            decomp_M[pos] = decomp[0][i]
+            decomp_y[pos] = decomp[1][i]
         decomp = (np.array(decomp_M, dtype=np.int32),
                   np.array(decomp_y, dtype=np.int32))
 
-        ## los
-        los_M = [0] * nsteps
-        los_y = [0] * nsteps
-        for (t, m, y) in zip(sample_times, los[0], los[1]):
-            pos = get_bin(t)
-            los_M[pos] = m
-            los_y[pos] = y
+        # los
+        los_M = [0] * n_steps
+        los_y = [0] * n_steps
+        for i in range(len(los[0])):
+            pos = get_bin(i)
+            los_M[pos] = los[0][i]
+            los_y[pos] = los[1][i]
         los = (np.array(los_M, dtype=np.int32),
                np.array(los_y, dtype=np.float32))
 
-        ## pheno
+        # pheno
         pheno = np.array(pheno, dtype=np.int32)
 
         return (X, ihm, decomp, los, pheno)
@@ -129,79 +109,91 @@ class BatchGen(object):
         B = self.batch_size
         while True:
             # convert to right format for sort_and_shuffle
-            kvpairs = self.data.items()
-            mas = [kv[1] for kv in kvpairs]
+            kv_pairs = list(self.data.items())
+            data_index = [pair[0] for pair in kv_pairs].index('X')
+            if data_index > 0:
+                kv_pairs[0], kv_pairs[data_index] = kv_pairs[data_index], kv_pairs[0]
+            mas = [kv[1] for kv in kv_pairs]
 
             if self.shuffle:
                 N = len(self.data['X'])
-                order = range(N)
+                order = list(range(N))
                 random.shuffle(order)
                 tmp = [None] * len(mas)
                 for mas_idx in range(len(mas)):
                     tmp[mas_idx] = [None] * len(mas[mas_idx])
                     for i in range(N):
                         tmp[mas_idx][i] = mas[mas_idx][order[i]]
-                for i in range(len(kvpairs)):
-                    self.data[kvpairs[i][0]] = tmp[i]
+                for i in range(len(kv_pairs)):
+                    self.data[kv_pairs[i][0]] = tmp[i]
             else:
                 # sort entirely
                 mas = common_utils.sort_and_shuffle(mas, B)
-                for i in range(len(kvpairs)):
-                   self.data[kvpairs[i][0]] = mas[i]
+                for i in range(len(kv_pairs)):
+                    self.data[kv_pairs[i][0]] = mas[i]
 
             for i in range(0, len(self.data['X']), B):
                 outputs = []
 
                 # X
                 X = self.data['X'][i:i+B]
-                X = nn_utils.pad_zeros(X, min_length=self.ihm_pos+1)
+                X = common_utils.pad_zeros(X, min_length=self.ihm_pos + 1)
                 T = X.shape[1]
 
-                ## ihm
+                # ihm
                 ihm_M = np.array(self.data['ihm_M'][i:i+B])
-                ihm_M = np.expand_dims(ihm_M, axis=-1) # (B, 1)
+                ihm_M = np.expand_dims(ihm_M, axis=-1)  # (B, 1)
                 ihm_y = np.array(self.data['ihm_y'][i:i+B])
-                ihm_y = np.expand_dims(ihm_y, axis=-1) # (B, 1)
+                ihm_y = np.expand_dims(ihm_y, axis=-1)  # (B, 1)
                 outputs.append(ihm_y)
                 if self.target_repl:
-                    ihm_seq = np.expand_dims(ihm_y, axis=-1).repeat(T, axis=1) # (B, T, 1)
+                    ihm_seq = np.expand_dims(ihm_y, axis=-1).repeat(T, axis=1)  # (B, T, 1)
                     outputs.append(ihm_seq)
 
-                ## decomp
+                # decomp
                 decomp_M = self.data['decomp_M'][i:i+B]
-                decomp_M = nn_utils.pad_zeros(decomp_M, min_length=self.ihm_pos+1)
+                decomp_M = common_utils.pad_zeros(decomp_M, min_length=self.ihm_pos + 1)
                 decomp_y = self.data['decomp_y'][i:i+B]
-                decomp_y = nn_utils.pad_zeros(decomp_y, min_length=self.ihm_pos+1)
-                decomp_y = np.expand_dims(decomp_y, axis=-1) # (B, T, 1)
+                decomp_y = common_utils.pad_zeros(decomp_y, min_length=self.ihm_pos + 1)
+                decomp_y = np.expand_dims(decomp_y, axis=-1)  # (B, T, 1)
                 outputs.append(decomp_y)
 
-                ## los
+                # los
                 los_M = self.data['los_M'][i:i+B]
-                los_M = nn_utils.pad_zeros(los_M, min_length=self.ihm_pos+1)
+                los_M = common_utils.pad_zeros(los_M, min_length=self.ihm_pos + 1)
                 los_y = self.data['los_y'][i:i+B]
-                los_y_true = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
+                los_y_true = common_utils.pad_zeros(los_y, min_length=self.ihm_pos + 1)
 
                 if self.partition == 'log':
                     los_y = [np.array([metrics.get_bin_log(x, 10) for x in z]) for z in los_y]
                 if self.partition == 'custom':
                     los_y = [np.array([metrics.get_bin_custom(x, 10) for x in z]) for z in los_y]
-                los_y = nn_utils.pad_zeros(los_y, min_length=self.ihm_pos+1)
-                los_y = np.expand_dims(los_y, axis=-1) # (B, T, 1)
+                los_y = common_utils.pad_zeros(los_y, min_length=self.ihm_pos + 1)
+                los_y = np.expand_dims(los_y, axis=-1)  # (B, T, 1)
                 outputs.append(los_y)
 
-                ## pheno
+                # pheno
                 pheno_y = np.array(self.data['pheno_y'][i:i+B])
                 outputs.append(pheno_y)
                 if self.target_repl:
-                    pheno_seq = np.expand_dims(pheno_y, axis=1).repeat(T, axis=1) # (B, T, 25)
+                    pheno_seq = np.expand_dims(pheno_y, axis=1).repeat(T, axis=1)  # (B, T, 25)
                     outputs.append(pheno_seq)
 
                 inputs = [X, ihm_M, decomp_M, los_M]
 
                 if self.return_y_true:
-                    yield (inputs, outputs, los_y_true)
+                    batch_data = (inputs, outputs, los_y_true)
                 else:
-                    yield (inputs, outputs)
+                    batch_data = (inputs, outputs)
+
+                if not self.return_names:
+                    yield batch_data
+                else:
+                    yield {'data': batch_data,
+                           'names': self.data['names'][i:i+B],
+                           'decomp_ts': self.data['decomp_ts'][i:i+B],
+                           'los_ts': self.data['los_ts'][i:i+B],
+                           'pheno_ts': self.data['pheno_ts'][i:i + B]}
 
     def __iter__(self):
         return self.generator
@@ -209,7 +201,7 @@ class BatchGen(object):
     def next(self, return_y_true=False):
         with self.lock:
             self.return_y_true = return_y_true
-            return self.generator.next()
+            return next(self.generator)
 
     def __next__(self):
-        return self.generator.__next__()
+        return self.next()

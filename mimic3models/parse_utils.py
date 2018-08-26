@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 from __future__ import print_function
+
 import re
 
 
@@ -35,13 +37,6 @@ def parse_metrics(log, metric):
     if len(ret) % 2 == 1:
         ret = ret[:-1]
     return ret[::2], ret[1::2]
-
-
-def parse_last_state(log):
-    ret = re.findall('saving model to (.*.state)\n', log)
-    if len(ret) == 0:
-        return None
-    return ret[-1]
 
 
 def parse_network(log):
