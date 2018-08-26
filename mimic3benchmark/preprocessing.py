@@ -17,14 +17,19 @@ g_map = {'F': 1, 'M': 2, 'OTHER': 3, '': 0}
 
 def transform_gender(gender_series):
     global g_map
-    return {'Gender': gender_series.fillna('').apply(lambda s: g_map[s] if s in g_map else g_map['OTHER'])}
+    return { 'Gender': gender_series.fillna('').apply(lambda s: g_map[s] if s in g_map else g_map['OTHER']) }
 
-
+  
 e_map = {'ASIAN': 1,
          'BLACK': 2,
+         'CARIBBEAN ISLAND': 2,
          'HISPANIC': 3,
+         'SOUTH AMERICAN': 3,
          'WHITE': 4,
-         'OTHER': 5,  # map everything else to 5 (OTHER)
+         'MIDDLE EASTERN': 4,
+         'PORTUGUESE': 4,
+         'AMERICAN INDIAN': 0,
+         'NATIVE HAWAIIAN': 0,
          'UNABLE TO OBTAIN': 0,
          'PATIENT DECLINED TO ANSWER': 0,
          'UNKNOWN': 0,
