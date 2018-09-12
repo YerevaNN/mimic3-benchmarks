@@ -33,6 +33,7 @@ e_map = {'ASIAN': 1,
          'UNABLE TO OBTAIN': 0,
          'PATIENT DECLINED TO ANSWER': 0,
          'UNKNOWN': 0,
+         'OTHER': 0,
          '': 0}
 
 
