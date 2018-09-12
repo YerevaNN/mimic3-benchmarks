@@ -33,6 +33,7 @@ e_map = {'ASIAN': 1,
          'UNABLE TO OBTAIN': 0,
          'PATIENT DECLINED TO ANSWER': 0,
          'UNKNOWN': 0,
+         'OTHER': 0,
          '': 0}
 
 
@@ -43,7 +44,7 @@ def transform_ethnicity(ethnicity_series):
         return ethnicity_str.replace(' OR ', '/').split(' - ')[0].split('/')[0]
 
     ethnicity_series = ethnicity_series.apply(aggregate_ethnicity)
-    return {'Ethnicity': ethnicity_series.fillna('').apply(lambda s: e_map[s] if s in e_map else e_map['UNKNOWN'])}
+    return {'Ethnicity': ethnicity_series.fillna('').apply(lambda s: e_map[s] if s in e_map else e_map['OTHER'])}
 
 
 def assemble_episodic_data(stays, diagnoses):
