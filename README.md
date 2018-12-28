@@ -8,12 +8,13 @@ Python suite to construct benchmark machine learning datasets from the MIMIC-III
 
 ## News
 
+* 2018 December 28: The second draft of the paper is released on [arXiv](https://arxiv.org/abs/1703.07771).
 * 2017 December 8: This work was presented as a spotlight presentation at NIPS 2017 [Machine Learning for Health Workshop](https://ml4health.github.io/2017/).
 * 2017 March 23: We are pleased to announce the first official release of these benchmarks. We expect to release a revision within the coming months that will add at least ~50 additional input variables. We are likewise pleased to announce that the manuscript associated with these benchmarks is now [available on arXiv](https://arxiv.org/abs/1703.07771).
 
 ## Citation
 
-If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). The second version of the preprint is under preparation and will be posted soon. **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
+If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, Greg Ver Steeg, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 ## Motivation
 
