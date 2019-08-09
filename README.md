@@ -14,7 +14,22 @@ Python suite to construct benchmark machine learning datasets from the MIMIC-III
 
 ## Citation
 
-If you use this code or these benchmarks in your research, please cite the following publication: *Hrayr Harutyunyan, Hrant Khachatrian, David C. Kale, Greg Ver Steeg, and Aram Galstyan. Multitask Learning and Benchmarking with Clinical Time Series Data. arXiv:1703.07771* which is now available [on arXiv](https://arxiv.org/abs/1703.07771). **Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
+If you use this code or these benchmarks in your research, please cite the following publication.
+```
+@article{Harutyunyan2019,
+  author={Harutyunyan, Hrayr and Khachatrian, Hrant and Kale, David C. and Ver Steeg, Greg and Galstyan, Aram},
+  title={Multitask learning and benchmarking with clinical time series data},
+  journal={Scientific Data},
+  year={2019},
+  volume={6},
+  number={1},
+  pages={96},
+  issn={2052-4463},
+  doi={10.1038/s41597-019-0103-9},
+  url={https://doi.org/10.1038/s41597-019-0103-9}
+}
+```
+**Please be sure also to cite the original [MIMIC-III paper](http://www.nature.com/articles/sdata201635).**
 
 ## Motivation
 
