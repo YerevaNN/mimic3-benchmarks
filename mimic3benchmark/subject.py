@@ -26,7 +26,7 @@ def read_diagnoses(subject_path):
 def read_events(subject_path, remove_null=True):
     events = dataframe_from_csv(os.path.join(subject_path, 'events.csv'), index_col=None)
     if remove_null:
-        events = events.ix[events.VALUE.notnull()]
+        events = events.iloc[events.VALUE.notnull()]
     events.CHARTTIME = pd.to_datetime(events.CHARTTIME)
     events.HADM_ID = events.HADM_ID.fillna(value=-1).astype(int)
     events.ICUSTAY_ID = events.ICUSTAY_ID.fillna(value=-1).astype(int)
@@ -39,7 +39,7 @@ def get_events_for_stay(events, icustayid, intime=None, outtime=None):
     idx = (events.ICUSTAY_ID == icustayid)
     if intime is not None and outtime is not None:
         idx = idx | ((events.CHARTTIME >= intime) & (events.CHARTTIME <= outtime))
-    events = events.ix[idx]
+    events = events.iloc[idx]
     del events['ICUSTAY_ID']
     return events
 

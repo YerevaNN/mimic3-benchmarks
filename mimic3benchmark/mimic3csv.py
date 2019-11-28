@@ -56,14 +56,14 @@ def count_icd_codes(diagnoses, output_path=None):
     codes = diagnoses[['ICD9_CODE', 'SHORT_TITLE', 'LONG_TITLE']].drop_duplicates().set_index('ICD9_CODE')
     codes['COUNT'] = diagnoses.groupby('ICD9_CODE')['ICUSTAY_ID'].count()
     codes.COUNT = codes.COUNT.fillna(0).astype(int)
-    codes = codes.ix[codes.COUNT > 0]
+    codes = codes.iloc[codes.COUNT > 0]
     if output_path:
         codes.to_csv(output_path, index_label='ICD9_CODE')
     return codes.sort_values('COUNT', ascending=False).reset_index()
 
 
 def remove_icustays_with_transfers(stays):
-    stays = stays.ix[(stays.FIRST_WARDID == stays.LAST_WARDID) & (stays.FIRST_CAREUNIT == stays.LAST_CAREUNIT)]
+    stays = stays.iloc[(stays.FIRST_WARDID == stays.LAST_WARDID) & (stays.FIRST_CAREUNIT == stays.LAST_CAREUNIT)]
     return stays[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'LAST_CAREUNIT', 'DBSOURCE', 'INTIME', 'OUTTIME', 'LOS']]
 
 
@@ -76,8 +76,8 @@ def merge_on_subject_admission(table1, table2):
 
 
 def add_age_to_icustays(stays):
-    stays['AGE'] = (stays.INTIME - stays.DOB).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60/24/365
-    stays.ix[stays.AGE < 0, 'AGE'] = 90
+    stays['AGE'] = (stays.INTIME.dt.year - stays.DOB.dt.year) # .apply(lambda s: s / np.timedelta64(1, 's')) / 60./60/24/365
+    stays.iloc[stays.AGE < 0, 'AGE'] = 90
     return stays
 
 
@@ -98,13 +98,13 @@ def add_inunit_mortality_to_icustays(stays):
 
 def filter_admissions_on_nb_icustays(stays, min_nb_stays=1, max_nb_stays=1):
     to_keep = stays.groupby('HADM_ID').count()[['ICUSTAY_ID']].reset_index()
-    to_keep = to_keep.ix[(to_keep.ICUSTAY_ID >= min_nb_stays) & (to_keep.ICUSTAY_ID <= max_nb_stays)][['HADM_ID']]
+    to_keep = to_keep.iloc[(to_keep.ICUSTAY_ID >= min_nb_stays) & (to_keep.ICUSTAY_ID <= max_nb_stays)][['HADM_ID']]
     stays = stays.merge(to_keep, how='inner', left_on='HADM_ID', right_on='HADM_ID')
     return stays
 
 
 def filter_icustays_on_age(stays, min_age=18, max_age=np.inf):
-    stays = stays.ix[(stays.AGE >= min_age) & (stays.AGE <= max_age)]
+    stays = stays.iloc[(stays.AGE >= min_age) & (stays.AGE <= max_age)]
     return stays
 
 
@@ -125,7 +125,7 @@ def break_up_stays_by_subject(stays, output_path, subjects=None, verbose=1):
         except:
             pass
 
-        stays.ix[stays.SUBJECT_ID == subject_id].sort_values(by='INTIME').to_csv(os.path.join(dn, 'stays.csv'), index=False)
+        stays.iloc[stays.SUBJECT_ID == subject_id].sort_values(by='INTIME').to_csv(os.path.join(dn, 'stays.csv'), index=False)
     if verbose:
         sys.stdout.write('DONE!\n')
 
@@ -142,7 +142,7 @@ def break_up_diagnoses_by_subject(diagnoses, output_path, subjects=None, verbose
         except:
             pass
 
-        diagnoses.ix[diagnoses.SUBJECT_ID == subject_id].sort_values(by=['ICUSTAY_ID', 'SEQ_NUM']).to_csv(os.path.join(dn, 'diagnoses.csv'), index=False)
+        diagnoses.iloc[diagnoses.SUBJECT_ID == subject_id].sort_values(by=['ICUSTAY_ID', 'SEQ_NUM']).to_csv(os.path.join(dn, 'diagnoses.csv'), index=False)
     if verbose:
         sys.stdout.write('DONE!\n')
 
