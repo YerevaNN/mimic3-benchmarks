@@ -6,7 +6,7 @@ import re
 
 from pandas import DataFrame, Series
 
-from mimic3benchmark.util import *
+from mimic3benchmark.util import dataframe_from_csv
 
 ###############################
 # Non-time series preprocessing
@@ -19,7 +19,7 @@ def transform_gender(gender_series):
     global g_map
     return { 'Gender': gender_series.fillna('').apply(lambda s: g_map[s] if s in g_map else g_map['OTHER']) }
 
-  
+
 e_map = {'ASIAN': 1,
          'BLACK': 2,
          'CARIBBEAN ISLAND': 2,
@@ -76,7 +76,8 @@ diagnosis_labels = ['4019', '4280', '41401', '42731', '25000', '5849', '2724', '
 def extract_diagnosis_labels(diagnoses):
     global diagnosis_labels
     diagnoses['VALUE'] = 1
-    labels = diagnoses[['ICUSTAY_ID', 'ICD9_CODE', 'VALUE']].drop_duplicates().pivot(index='ICUSTAY_ID', columns='ICD9_CODE', values='VALUE').fillna(0).astype(int)
+    labels = diagnoses[['ICUSTAY_ID', 'ICD9_CODE', 'VALUE']].drop_duplicates()\
+                      .pivot(index='ICUSTAY_ID', columns='ICD9_CODE', values='VALUE').fillna(0).astype(int)
     for l in diagnosis_labels:
         if l not in labels:
             labels[l] = 0

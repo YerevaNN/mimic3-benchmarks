@@ -6,6 +6,7 @@ import argparse
 import pandas as pd
 import random
 random.seed(49297)
+from tqdm import tqdm
 
 
 def process_partition(args, partition, eps=1e-6, n_hours=48):
@@ -15,7 +16,7 @@ def process_partition(args, partition, eps=1e-6, n_hours=48):
 
     xy_pairs = []
     patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
-    for (patient_index, patient) in enumerate(patients):
+    for patient in tqdm(patients, desc='Iterating over patients in {}'.format(partition)):
         patient_folder = os.path.join(args.root_path, partition, patient)
         patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
 
@@ -58,10 +59,7 @@ def process_partition(args, partition, eps=1e-6, n_hours=48):
 
                 xy_pairs.append((output_ts_filename, mortality))
 
-        if (patient_index + 1) % 100 == 0:
-            print("processed {} / {} patients".format(patient_index + 1, len(patients)), end='\r')
-
-    print("\n", len(xy_pairs))
+    print("Number of created samples:", len(xy_pairs))
     if partition == "train":
         random.shuffle(xy_pairs)
     if partition == "test":

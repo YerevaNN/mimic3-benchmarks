@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pandas as pd
 
-from mimic3benchmark.util import *
+from mimic3benchmark.util import dataframe_from_csv
 
 
 def read_stays(subject_path):
@@ -57,7 +57,8 @@ def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[
     timeseries = events[['CHARTTIME', variable_column, 'VALUE']]\
                     .sort_values(by=['CHARTTIME', variable_column, 'VALUE'], axis=0)\
                     .drop_duplicates(subset=['CHARTTIME', variable_column], keep='last')
-    timeseries = timeseries.pivot(index='CHARTTIME', columns=variable_column, values='VALUE').merge(metadata, left_index=True, right_index=True)\
+    timeseries = timeseries.pivot(index='CHARTTIME', columns=variable_column, values='VALUE')\
+                    .merge(metadata, left_index=True, right_index=True)\
                     .sort_index(axis=0).reset_index()
     for v in variables:
         if v not in timeseries:
