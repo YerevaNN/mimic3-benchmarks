@@ -67,6 +67,9 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 
 - numpy
 - pandas
+- PyYAML (*not* `yaml`)
+
+More details can be found in `requirements.txt`
 
 For logistic regression  baselines [sklearn](http://scikit-learn.org/) is required. LSTM models use [Keras](https://keras.io/).
 
