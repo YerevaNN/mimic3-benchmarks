@@ -1,5 +1,6 @@
 Keras
-numpy
-scikit-learn
-pandas
-tqdm
+numpy==1.*
+scikit-learn==0.*
+pandas==1.*
+tqdm==4.*
+pyyaml==5.*
