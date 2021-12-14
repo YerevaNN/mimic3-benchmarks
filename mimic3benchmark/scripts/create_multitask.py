@@ -9,6 +9,7 @@ import pandas as pd
 import yaml
 import random
 random.seed(49297)
+from tqdm import tqdm
 
 
 def process_partition(args, definitions, code_to_group, id_to_group, group_to_id,
@@ -36,7 +37,7 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
 
     patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
 
-    for (patient_index, patient) in enumerate(patients):
+    for patient in tqdm(patients, desc='Iterating over patients in {}'.format(partition)):
         patient_folder = os.path.join(args.root_path, partition, patient)
         patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
         stays_df = pd.read_csv(os.path.join(patient_folder, "stays.csv"))
@@ -145,9 +146,6 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
                                      for t in sample_times]
                 decomp_masks.append(cur_decomp_masks)
                 decomp_labels.append(cur_decomp_labels)
-
-        if (patient_index + 1) % 100 == 0:
-            print("processed {} / {} patients" .format(patient_index + 1, len(patients)), end='\r')
 
     def permute(arr, p):
         return [arr[index] for index in p]

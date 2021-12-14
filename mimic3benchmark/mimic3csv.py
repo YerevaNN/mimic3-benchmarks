@@ -5,9 +5,9 @@ import csv
 import numpy as np
 import os
 import pandas as pd
-import sys
+from tqdm import tqdm
 
-from mimic3benchmark.util import *
+from mimic3benchmark.util import dataframe_from_csv
 
 
 def read_patients_table(mimic3_path):
@@ -56,14 +56,14 @@ def count_icd_codes(diagnoses, output_path=None):
     codes = diagnoses[['ICD9_CODE', 'SHORT_TITLE', 'LONG_TITLE']].drop_duplicates().set_index('ICD9_CODE')
     codes['COUNT'] = diagnoses.groupby('ICD9_CODE')['ICUSTAY_ID'].count()
     codes.COUNT = codes.COUNT.fillna(0).astype(int)
-    codes = codes.ix[codes.COUNT > 0]
+    codes = codes[codes.COUNT > 0]
     if output_path:
         codes.to_csv(output_path, index_label='ICD9_CODE')
     return codes.sort_values('COUNT', ascending=False).reset_index()
 
 
 def remove_icustays_with_transfers(stays):
-    stays = stays.ix[(stays.FIRST_WARDID == stays.LAST_WARDID) & (stays.FIRST_CAREUNIT == stays.LAST_CAREUNIT)]
+    stays = stays[(stays.FIRST_WARDID == stays.LAST_WARDID) & (stays.FIRST_CAREUNIT == stays.LAST_CAREUNIT)]
     return stays[['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'LAST_CAREUNIT', 'DBSOURCE', 'INTIME', 'OUTTIME', 'LOS']]
 
 
@@ -98,13 +98,13 @@ def add_inunit_mortality_to_icustays(stays):
 
 def filter_admissions_on_nb_icustays(stays, min_nb_stays=1, max_nb_stays=1):
     to_keep = stays.groupby('HADM_ID').count()[['ICUSTAY_ID']].reset_index()
-    to_keep = to_keep.ix[(to_keep.ICUSTAY_ID >= min_nb_stays) & (to_keep.ICUSTAY_ID <= max_nb_stays)][['HADM_ID']]
+    to_keep = to_keep[(to_keep.ICUSTAY_ID >= min_nb_stays) & (to_keep.ICUSTAY_ID <= max_nb_stays)][['HADM_ID']]
     stays = stays.merge(to_keep, how='inner', left_on='HADM_ID', right_on='HADM_ID')
     return stays
 
 
 def filter_icustays_on_age(stays, min_age=18, max_age=np.inf):
-    stays = stays.ix[(stays.AGE >= min_age) & (stays.AGE <= max_age)]
+    stays = stays[(stays.AGE >= min_age) & (stays.AGE <= max_age)]
     return stays
 
 
@@ -113,41 +113,36 @@ def filter_diagnoses_on_stays(diagnoses, stays):
                            left_on=['SUBJECT_ID', 'HADM_ID'], right_on=['SUBJECT_ID', 'HADM_ID'])
 
 
-def break_up_stays_by_subject(stays, output_path, subjects=None, verbose=1):
+def break_up_stays_by_subject(stays, output_path, subjects=None):
     subjects = stays.SUBJECT_ID.unique() if subjects is None else subjects
     nb_subjects = subjects.shape[0]
-    for i, subject_id in enumerate(subjects):
-        if verbose:
-            sys.stdout.write('\rSUBJECT {0} of {1}...'.format(i+1, nb_subjects))
+    for subject_id in tqdm(subjects, total=nb_subjects, desc='Breaking up stays by subjects'):
         dn = os.path.join(output_path, str(subject_id))
         try:
             os.makedirs(dn)
         except:
             pass
 
-        stays.ix[stays.SUBJECT_ID == subject_id].sort_values(by='INTIME').to_csv(os.path.join(dn, 'stays.csv'), index=False)
-    if verbose:
-        sys.stdout.write('DONE!\n')
+        stays[stays.SUBJECT_ID == subject_id].sort_values(by='INTIME').to_csv(os.path.join(dn, 'stays.csv'),
+                                                                              index=False)
 
 
-def break_up_diagnoses_by_subject(diagnoses, output_path, subjects=None, verbose=1):
+def break_up_diagnoses_by_subject(diagnoses, output_path, subjects=None):
     subjects = diagnoses.SUBJECT_ID.unique() if subjects is None else subjects
     nb_subjects = subjects.shape[0]
-    for i, subject_id in enumerate(subjects):
-        if verbose:
-            sys.stdout.write('\rSUBJECT {0} of {1}...'.format(i+1, nb_subjects))
+    for subject_id in tqdm(subjects, total=nb_subjects, desc='Breaking up diagnoses by subjects'):
         dn = os.path.join(output_path, str(subject_id))
         try:
             os.makedirs(dn)
         except:
             pass
 
-        diagnoses.ix[diagnoses.SUBJECT_ID == subject_id].sort_values(by=['ICUSTAY_ID', 'SEQ_NUM']).to_csv(os.path.join(dn, 'diagnoses.csv'), index=False)
-    if verbose:
-        sys.stdout.write('DONE!\n')
+        diagnoses[diagnoses.SUBJECT_ID == subject_id].sort_values(by=['ICUSTAY_ID', 'SEQ_NUM'])\
+                                                     .to_csv(os.path.join(dn, 'diagnoses.csv'), index=False)
 
 
-def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, items_to_keep=None, subjects_to_keep=None, verbose=1):
+def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path,
+                                              items_to_keep=None, subjects_to_keep=None):
     obs_header = ['SUBJECT_ID', 'HADM_ID', 'ICUSTAY_ID', 'CHARTTIME', 'ITEMID', 'VALUE', 'VALUEUOM']
     if items_to_keep is not None:
         items_to_keep = set([str(s) for s in items_to_keep])
@@ -157,17 +152,11 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
     class DataStats(object):
         def __init__(self):
             self.curr_subject_id = ''
-            self.last_write_no = 0
-            self.last_write_nb_rows = 0
-            self.last_write_subject_id = ''
             self.curr_obs = []
 
     data_stats = DataStats()
 
     def write_current_observations():
-        data_stats.last_write_no += 1
-        data_stats.last_write_nb_rows = len(data_stats.curr_obs)
-        data_stats.last_write_subject_id = data_stats.curr_subject_id
         dn = os.path.join(output_path, str(data_stats.curr_subject_id))
         try:
             os.makedirs(dn)
@@ -182,16 +171,11 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
         w.writerows(data_stats.curr_obs)
         data_stats.curr_obs = []
 
-    for row, row_no, nb_rows in read_events_table_by_row(mimic3_path, table):
-        if verbose and (row_no % 100000 == 0):
-            if data_stats.last_write_no != '':
-                sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...last write '
-                                 '({3}) {4} rows for subject {5}'.format(table, row_no, nb_rows,
-                                                                         data_stats.last_write_no,
-                                                                         data_stats.last_write_nb_rows,
-                                                                         data_stats.last_write_subject_id))
-            else:
-                sys.stdout.write('\rprocessing {0}: ROW {1} of {2}...'.format(table, row_no, nb_rows))
+    nb_rows_dict = {'chartevents': 330712484, 'labevents': 27854056, 'outputevents': 4349219}
+    nb_rows = nb_rows_dict[table.lower()]
+
+    for row, row_no, _ in tqdm(read_events_table_by_row(mimic3_path, table), total=nb_rows,
+                                                        desc='Processing {} table'.format(table)):
 
         if (subjects_to_keep is not None) and (row['SUBJECT_ID'] not in subjects_to_keep):
             continue
@@ -212,10 +196,3 @@ def read_events_table_and_break_up_by_subject(mimic3_path, table, output_path, i
 
     if data_stats.curr_subject_id != '':
         write_current_observations()
-
-    if verbose:
-        sys.stdout.write('\rfinished processing {0}: ROW {1} of {2}...last write '
-                         '({3}) {4} rows for subject {5}...DONE!\n'.format(table, row_no, nb_rows,
-                                                                           data_stats.last_write_no,
-                                                                           data_stats.last_write_nb_rows,
-                                                                           data_stats.last_write_subject_id))

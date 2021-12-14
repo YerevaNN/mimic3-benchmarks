@@ -6,7 +6,7 @@ import re
 
 from pandas import DataFrame, Series
 
-from mimic3benchmark.util import *
+from mimic3benchmark.util import dataframe_from_csv
 
 ###############################
 # Non-time series preprocessing
@@ -17,9 +17,9 @@ g_map = {'F': 1, 'M': 2, 'OTHER': 3, '': 0}
 
 def transform_gender(gender_series):
     global g_map
-    return { 'Gender': gender_series.fillna('').apply(lambda s: g_map[s] if s in g_map else g_map['OTHER']) }
+    return {'Gender': gender_series.fillna('').apply(lambda s: g_map[s] if s in g_map else g_map['OTHER'])}
 
-  
+
 e_map = {'ASIAN': 1,
          'BLACK': 2,
          'CARIBBEAN ISLAND': 2,
@@ -76,12 +76,13 @@ diagnosis_labels = ['4019', '4280', '41401', '42731', '25000', '5849', '2724', '
 def extract_diagnosis_labels(diagnoses):
     global diagnosis_labels
     diagnoses['VALUE'] = 1
-    labels = diagnoses[['ICUSTAY_ID', 'ICD9_CODE', 'VALUE']].drop_duplicates().pivot(index='ICUSTAY_ID', columns='ICD9_CODE', values='VALUE').fillna(0).astype(int)
+    labels = diagnoses[['ICUSTAY_ID', 'ICD9_CODE', 'VALUE']].drop_duplicates()\
+                      .pivot(index='ICUSTAY_ID', columns='ICD9_CODE', values='VALUE').fillna(0).astype(int)
     for l in diagnosis_labels:
         if l not in labels:
             labels[l] = 0
     labels = labels[diagnosis_labels]
-    return labels.rename_axis(dict(zip(diagnosis_labels, ['Diagnosis ' + d for d in diagnosis_labels])), axis=1)
+    return labels.rename(dict(zip(diagnosis_labels, ['Diagnosis ' + d for d in diagnosis_labels])), axis=1)
 
 
 def add_hcup_ccs_2015_groups(diagnoses, definitions):
@@ -95,11 +96,11 @@ def add_hcup_ccs_2015_groups(diagnoses, definitions):
 
 
 def make_phenotype_label_matrix(phenotypes, stays=None):
-    phenotypes = phenotypes[['ICUSTAY_ID', 'HCUP_CCS_2015']].ix[phenotypes.USE_IN_BENCHMARK > 0].drop_duplicates()
+    phenotypes = phenotypes[['ICUSTAY_ID', 'HCUP_CCS_2015']].loc[phenotypes.USE_IN_BENCHMARK > 0].drop_duplicates()
     phenotypes['VALUE'] = 1
     phenotypes = phenotypes.pivot(index='ICUSTAY_ID', columns='HCUP_CCS_2015', values='VALUE')
     if stays is not None:
-        phenotypes = phenotypes.ix[stays.ICUSTAY_ID.sort_values()]
+        phenotypes = phenotypes.reindex(stays.ICUSTAY_ID.sort_values())
     return phenotypes.fillna(0).astype(int).sort_index(axis=0).sort_index(axis=1)
 
 
@@ -111,11 +112,11 @@ def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
     var_map = dataframe_from_csv(fn, index_col=None).fillna('').astype(str)
     # var_map[variable_column] = var_map[variable_column].apply(lambda s: s.lower())
     var_map.COUNT = var_map.COUNT.astype(int)
-    var_map = var_map.ix[(var_map[variable_column] != '') & (var_map.COUNT > 0)]
-    var_map = var_map.ix[(var_map.STATUS == 'ready')]
+    var_map = var_map[(var_map[variable_column] != '') & (var_map.COUNT > 0)]
+    var_map = var_map[(var_map.STATUS == 'ready')]
     var_map.ITEMID = var_map.ITEMID.astype(int)
     var_map = var_map[[variable_column, 'ITEMID', 'MIMIC LABEL']].set_index('ITEMID')
-    return var_map.rename_axis({variable_column: 'VARIABLE', 'MIMIC LABEL': 'MIMIC_LABEL'}, axis=1)
+    return var_map.rename({variable_column: 'VARIABLE', 'MIMIC LABEL': 'MIMIC_LABEL'}, axis=1)
 
 
 def map_itemids_to_variables(events, var_map):
@@ -129,37 +130,37 @@ def read_variable_ranges(fn, variable_column='LEVEL2'):
     var_ranges = dataframe_from_csv(fn, index_col=None)
     # var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
     var_ranges = var_ranges[columns]
-    var_ranges.rename_axis(to_rename, axis=1, inplace=True)
+    var_ranges.rename(to_rename, axis=1, inplace=True)
     var_ranges = var_ranges.drop_duplicates(subset='VARIABLE', keep='first')
     var_ranges.set_index('VARIABLE', inplace=True)
-    return var_ranges.ix[var_ranges.notnull().all(axis=1)]
+    return var_ranges.loc[var_ranges.notnull().all(axis=1)]
 
 
 def remove_outliers_for_variable(events, variable, ranges):
     if variable not in ranges.index:
         return events
     idx = (events.VARIABLE == variable)
-    V = events.VALUE[idx]
-    V.ix[V < ranges.OUTLIER_LOW[variable]] = np.nan
-    V.ix[V > ranges.OUTLIER_HIGH[variable]] = np.nan
-    V.ix[V < ranges.VALID_LOW[variable]] = ranges.VALID_LOW[variable]
-    V.ix[V > ranges.VALID_HIGH[variable]] = ranges.VALID_HIGH[variable]
-    events.ix[idx, 'VALUE'] = V
+    v = events.VALUE[idx].copy()
+    v.loc[v < ranges.OUTLIER_LOW[variable]] = np.nan
+    v.loc[v > ranges.OUTLIER_HIGH[variable]] = np.nan
+    v.loc[v < ranges.VALID_LOW[variable]] = ranges.VALID_LOW[variable]
+    v.loc[v > ranges.VALID_HIGH[variable]] = ranges.VALID_HIGH[variable]
+    events.loc[idx, 'VALUE'] = v
     return events
 
 
 # SBP: some are strings of type SBP/DBP
 def clean_sbp(df):
-    v = df.VALUE.astype(str)
+    v = df.VALUE.astype(str).copy()
     idx = v.apply(lambda s: '/' in s)
-    v.ix[idx] = v[idx].apply(lambda s: re.match('^(\d+)/(\d+)$', s).group(1))
+    v.loc[idx] = v[idx].apply(lambda s: re.match('^(\d+)/(\d+)$', s).group(1))
     return v.astype(float)
 
 
 def clean_dbp(df):
-    v = df.VALUE.astype(str)
+    v = df.VALUE.astype(str).copy()
     idx = v.apply(lambda s: '/' in s)
-    v.ix[idx] = v[idx].apply(lambda s: re.match('^(\d+)/(\d+)$', s).group(2))
+    v.loc[idx] = v[idx].apply(lambda s: re.match('^(\d+)/(\d+)$', s).group(2))
     return v.astype(float)
 
 
@@ -170,16 +171,16 @@ def clean_crr(df):
 
     # when df.VALUE is empty, dtype can be float and comparision with string
     # raises an exception, to fix this we change dtype to str
-    df.VALUE = df.VALUE.astype(str)
+    df_value_str = df.VALUE.astype(str)
 
-    v.ix[(df.VALUE == 'Normal <3 secs') | (df.VALUE == 'Brisk')] = 0
-    v.ix[(df.VALUE == 'Abnormal >3 secs') | (df.VALUE == 'Delayed')] = 1
+    v.loc[(df_value_str == 'Normal <3 secs') | (df_value_str == 'Brisk')] = 0
+    v.loc[(df_value_str == 'Abnormal >3 secs') | (df_value_str == 'Delayed')] = 1
     return v
 
 
 # FIO2: many 0s, some 0<x<0.2 or 1<x<20
 def clean_fio2(df):
-    v = df.VALUE.astype(float)
+    v = df.VALUE.astype(float).copy()
 
     ''' The line below is the correct way of doing the cleaning, since we will not compare 'str' to 'float'.
     If we use that line it will create mismatches from the data of the paper in ~50 ICU stays.
@@ -198,58 +199,58 @@ def clean_fio2(df):
     is_str = np.array(map(lambda x: type(x) == str, list(df.VALUE)), dtype=np.bool)
     idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (is_str | (~is_str & (v > 1.0)))
 
-    v.ix[idx] = v[idx] / 100.
+    v.loc[idx] = v[idx] / 100.
     return v
 
 
 # GLUCOSE, PH: sometimes have ERROR as value
 def clean_lab(df):
-    v = df.VALUE
+    v = df.VALUE.copy()
     idx = v.apply(lambda s: type(s) is str and not re.match('^(\d+(\.\d*)?|\.\d+)$', s))
-    v.ix[idx] = np.nan
+    v.loc[idx] = np.nan
     return v.astype(float)
 
 
 # O2SAT: small number of 0<x<=1 that should be mapped to 0-100 scale
 def clean_o2sat(df):
     # change "ERROR" to NaN
-    v = df.VALUE
+    v = df.VALUE.copy()
     idx = v.apply(lambda s: type(s) is str and not re.match('^(\d+(\.\d*)?|\.\d+)$', s))
-    v.ix[idx] = np.nan
+    v.loc[idx] = np.nan
 
     v = v.astype(float)
     idx = (v <= 1)
-    v.ix[idx] = v[idx] * 100.
+    v.loc[idx] = v[idx] * 100.
     return v
 
 
 # Temperature: map Farenheit to Celsius, some ambiguous 50<x<80
 def clean_temperature(df):
-    v = df.VALUE.astype(float)
+    v = df.VALUE.astype(float).copy()
     idx = df.VALUEUOM.fillna('').apply(lambda s: 'F' in s.lower()) | df.MIMIC_LABEL.apply(lambda s: 'F' in s.lower()) | (v >= 79)
-    v.ix[idx] = (v[idx] - 32) * 5. / 9
+    v.loc[idx] = (v[idx] - 32) * 5. / 9
     return v
 
 
 # Weight: some really light/heavy adults: <50 lb, >450 lb, ambiguous oz/lb
 # Children are tough for height, weight
 def clean_weight(df):
-    v = df.VALUE.astype(float)
+    v = df.VALUE.astype(float).copy()
     # ounces
     idx = df.VALUEUOM.fillna('').apply(lambda s: 'oz' in s.lower()) | df.MIMIC_LABEL.apply(lambda s: 'oz' in s.lower())
-    v.ix[idx] = v[idx] / 16.
+    v.loc[idx] = v[idx] / 16.
     # pounds
     idx = idx | df.VALUEUOM.fillna('').apply(lambda s: 'lb' in s.lower()) | df.MIMIC_LABEL.apply(lambda s: 'lb' in s.lower())
-    v.ix[idx] = v[idx] * 0.453592
+    v.loc[idx] = v[idx] * 0.453592
     return v
 
 
 # Height: some really short/tall adults: <2 ft, >7 ft)
 # Children are tough for height, weight
 def clean_height(df):
-    v = df.VALUE.astype(float)
+    v = df.VALUE.astype(float).copy()
     idx = df.VALUEUOM.fillna('').apply(lambda s: 'in' in s.lower()) | df.MIMIC_LABEL.apply(lambda s: 'in' in s.lower())
-    v.ix[idx] = np.round(v[idx] * 2.54)
+    v.loc[idx] = np.round(v[idx] * 2.54)
     return v
 
 
@@ -282,10 +283,12 @@ def clean_events(events):
     for var_name, clean_fn in clean_fns.items():
         idx = (events.VARIABLE == var_name)
         try:
-            events.ix[idx, 'VALUE'] = clean_fn(events.ix[idx])
+            events.loc[idx, 'VALUE'] = clean_fn(events[idx])
         except Exception as e:
+            import traceback
             print("Exception in clean_events:", clean_fn.__name__, e)
+            print(traceback.format_exc())
             print("number of rows:", np.sum(idx))
-            print("values:", events.ix[idx])
+            print("values:", events[idx])
             exit()
-    return events.ix[events.VALUE.notnull()]
+    return events.loc[events.VALUE.notnull()]

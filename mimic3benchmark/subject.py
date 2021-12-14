@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pandas as pd
 
-from mimic3benchmark.util import *
+from mimic3benchmark.util import dataframe_from_csv
 
 
 def read_stays(subject_path):
@@ -26,7 +26,7 @@ def read_diagnoses(subject_path):
 def read_events(subject_path, remove_null=True):
     events = dataframe_from_csv(os.path.join(subject_path, 'events.csv'), index_col=None)
     if remove_null:
-        events = events.ix[events.VALUE.notnull()]
+        events = events[events.VALUE.notnull()]
     events.CHARTTIME = pd.to_datetime(events.CHARTTIME)
     events.HADM_ID = events.HADM_ID.fillna(value=-1).astype(int)
     events.ICUSTAY_ID = events.ICUSTAY_ID.fillna(value=-1).astype(int)
@@ -39,12 +39,13 @@ def get_events_for_stay(events, icustayid, intime=None, outtime=None):
     idx = (events.ICUSTAY_ID == icustayid)
     if intime is not None and outtime is not None:
         idx = idx | ((events.CHARTTIME >= intime) & (events.CHARTTIME <= outtime))
-    events = events.ix[idx]
+    events = events[idx]
     del events['ICUSTAY_ID']
     return events
 
 
 def add_hours_elpased_to_events(events, dt, remove_charttime=True):
+    events = events.copy()
     events['HOURS'] = (events.CHARTTIME - dt).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60
     if remove_charttime:
         del events['CHARTTIME']
@@ -57,7 +58,8 @@ def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[
     timeseries = events[['CHARTTIME', variable_column, 'VALUE']]\
                     .sort_values(by=['CHARTTIME', variable_column, 'VALUE'], axis=0)\
                     .drop_duplicates(subset=['CHARTTIME', variable_column], keep='last')
-    timeseries = timeseries.pivot(index='CHARTTIME', columns=variable_column, values='VALUE').merge(metadata, left_index=True, right_index=True)\
+    timeseries = timeseries.pivot(index='CHARTTIME', columns=variable_column, values='VALUE')\
+                    .merge(metadata, left_index=True, right_index=True)\
                     .sort_index(axis=0).reset_index()
     for v in variables:
         if v not in timeseries:

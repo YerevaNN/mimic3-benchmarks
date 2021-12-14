@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import datetime
 import random
 random.seed(49297)
+from tqdm import tqdm
 
 
 def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
@@ -19,7 +20,7 @@ def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
 
     xty_triples = []
     patients = list(filter(str.isdigit, os.listdir(os.path.join(args.root_path, partition))))
-    for (patient_index, patient) in enumerate(patients):
+    for patient in tqdm(patients, desc='Iterating over patients in {}'.format(partition)):
         patient_folder = os.path.join(args.root_path, partition, patient)
         patient_ts_files = list(filter(lambda x: x.find("timeseries") != -1, os.listdir(patient_folder)))
         stays_df = pd.read_csv(os.path.join(patient_folder, "stays.csv"))
@@ -84,10 +85,7 @@ def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
                         cur_mortality = int(lived_time - t < future_time_interval)
                     xty_triples.append((output_ts_filename, t, cur_mortality))
 
-        if (patient_index + 1) % 100 == 0:
-            print("processed {} / {} patients".format(patient_index + 1, len(patients)), end='\r')
-
-    print(len(xty_triples))
+    print("Number of created samples:", len(xty_triples))
     if partition == "train":
         random.shuffle(xty_triples)
     if partition == "test":

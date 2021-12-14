@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import argparse
 import pandas as pd
+from tqdm import tqdm
 
 
 def is_subject_folder(x):
@@ -29,10 +30,7 @@ def main():
     subdirectories = os.listdir(args.subjects_root_path)
     subjects = list(filter(is_subject_folder, subdirectories))
 
-    for (index, subject) in enumerate(subjects):
-        if index % 100 == 0:
-            print("processed {} / {} {}\r".format(index+1, len(subjects), ' '*10))
-
+    for subject in tqdm(subjects, desc='Iterating over subjects'):
         stays_df = pd.read_csv(os.path.join(args.subjects_root_path, subject, 'stays.csv'), index_col=False,
                                dtype={'HADM_ID': str, "ICUSTAY_ID": str})
         stays_df.columns = stays_df.columns.str.upper()
