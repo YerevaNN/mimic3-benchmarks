@@ -2,6 +2,9 @@
 .idea
 miscellaneous
 notebook
+*.csv
+*.state
+data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
