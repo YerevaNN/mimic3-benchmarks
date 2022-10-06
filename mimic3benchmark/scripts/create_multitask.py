@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime
 import pandas as pd
 import yaml
+from yaml import SafeLoader
 import random
 random.seed(49297)
 from tqdm import tqdm
@@ -206,7 +207,7 @@ def main():
     args, _ = parser.parse_known_args()
 
     with open(args.phenotype_definitions) as definitions_file:
-        definitions = yaml.load(definitions_file)
+        definitions = yaml.load(definitions_file, loader=SafeLoader)
 
     code_to_group = {}
     for group in definitions:

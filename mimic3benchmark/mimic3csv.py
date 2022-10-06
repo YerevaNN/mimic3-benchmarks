@@ -74,12 +74,12 @@ def merge_on_subject(table1, table2):
 def merge_on_subject_admission(table1, table2):
     return table1.merge(table2, how='inner', left_on=['SUBJECT_ID', 'HADM_ID'], right_on=['SUBJECT_ID', 'HADM_ID'])
 
-
 def add_age_to_icustays(stays):
-    stays['AGE'] = stays.INTIME.subtract(stays.DOB).apply(lambda s: s / np.timedelta64(1, 's')) / 60./60/24/365
-    stays.ix[stays.AGE < 0, 'AGE'] = 90
+    stays.INTIME = pd.to_datetime(stays.INTIME).dt.date
+    stays.DOB = pd.to_datetime(stays.DOB).dt.date
+    stays['AGE'] = stays.apply(lambda e:(e.INTIME - e.DOB).days/365, axis=1)
+    stays.loc[stays.AGE < 0, 'AGE'] = 90
     return stays
-
 
 def add_inhospital_mortality_to_icustays(stays):
     mortality = stays.DOD.notnull() & ((stays.ADMITTIME <= stays.DOD) & (stays.DISCHTIME >= stays.DOD))
