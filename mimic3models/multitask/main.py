@@ -58,7 +58,7 @@ cont_channels = [i for (i, x) in enumerate(discretizer_header) if x.find("->") =
 normalizer = Normalizer(fields=cont_channels)  # choose here which columns to standardize
 normalizer_state = args.normalizer_state
 if normalizer_state is None:
-    normalizer_state = 'mult_ts{}.input_str:{}.start_time:zero.normalizer'.format(args.timestep, args.imputation)
+    normalizer_state = 'mult_ts{}.input_str_{}.start_time_zero.normalizer'.format(args.timestep, args.imputation)
     normalizer_state = os.path.join(os.path.dirname(__file__), normalizer_state)
 normalizer.load_params(normalizer_state)
 
