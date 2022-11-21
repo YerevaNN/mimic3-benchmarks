@@ -136,8 +136,15 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
                 if pd.isnull(deathtime):
                     lived_time = 1e18
                 else:
-                    lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -
-                                  datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
+                    try:
+                        dt = datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S")
+                    except:
+                        dt = datetime.strptime(deathtime, "%Y-%m-%d")
+                    try:
+                        it = datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")
+                    except:
+                        it = datetime.strptime(intime, "%Y-%m-%d")
+                    lived_time = (dt - it).total_seconds() / 3600.0
 
                 sample_times = np.arange(0.0, min(los, lived_time) + eps, sample_rate)
                 sample_times = np.array([int(x+eps) for x in sample_times])
