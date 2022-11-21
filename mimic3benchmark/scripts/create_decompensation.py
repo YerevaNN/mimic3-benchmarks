@@ -7,13 +7,13 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import random
+
 random.seed(49297)
 from tqdm import tqdm
 
 
 def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
                       eps=1e-6, future_time_interval=24.0):
-
     output_dir = os.path.join(args.output_path, partition)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -47,8 +47,17 @@ def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
                 if pd.isnull(deathtime):
                     lived_time = 1e18
                 else:
-                    lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -
-                                  datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
+                    try:
+                        dt = datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S")
+                    except:
+                        dt = datetime.strptime(deathtime, "%Y-%m-%d")
+                    try:
+                        it = datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")
+                    except:
+                        it = datetime.strptime(intime, "%Y-%m-%d")
+                    lived_time = (dt - it).total_seconds() / 3600.0
+                    # lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -
+                    #               datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
 
                 ts_lines = tsfile.readlines()
                 header = ts_lines[0]
