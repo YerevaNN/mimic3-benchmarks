@@ -175,7 +175,7 @@ elif args.mode == 'test':
     predictions = np.array(predictions)[:, 0]
     metrics.print_metrics_binary(labels, predictions)
 
-    path = os.path.join(args.output_dir, "test_predictions", os.path.basename(args.load_state)) + ".csv"
+    path = os.path.join(args.output_dir, "test_predictions", os.path.basename(args.load_state)) + "-predictions.csv"
     utils.save_results(names, predictions, labels, path)
 
 else:

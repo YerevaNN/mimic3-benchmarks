@@ -2,7 +2,7 @@
 
 This directory contains four scripts (each for one benchmark task) for evaluating the models.
 These scripts take a prediction file and calculate different task-related metrics.
-Additionally the scripts use bootstrapping to estimate the standard deviations of the scores and to find an 95% confidence interval estimate.
+Additionally, the scripts use bootstrapping to estimate the standard deviations of the scores and to find an 95% confidence interval estimate.
 The calculated statistics are stored in a `json` file similar to the following.
 ```json
 {

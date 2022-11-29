@@ -1,5 +1,10 @@
 Keras==2.1.2
-numpy>=1.13.3
-scikit-learn==0.18.2
+numpy==1.19.5
+scikit-learn==0.24.2
 pandas==0.23.4
 tqdm
+h5py==2.10.0
+pandas==0.23.4
+protobuf==3.19.6
+scipy==1.5.4
+tensorflow==1.11.0

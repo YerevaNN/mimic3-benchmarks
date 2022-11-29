@@ -158,6 +158,10 @@ Use the following command to extract validation set from the training set. This 
 Run the following command to train the neural network which gives the best result. We got the best performance on validation set after 28 epochs.
        
        python -um mimic3models.in_hospital_mortality.main --network mimic3models/keras_models/lstm.py --dim 16 --timestep 1.0 --depth 2 --dropout 0.3 --mode train --batch_size 8 --output_dir mimic3models/in_hospital_mortality
+      
+To get the predictions file you need for the validation run the following command (currently the model of epoch 28 is used).
+
+          python -um mimic3models.in_hospital_mortality.main --network mimic3models/keras_models/lstm.py --dim 16 --timestep 1.0 --depth 2 --dropout 0.3 --mode train --batch_size 8 --load_state mimic3models/in_hospital_mortality/keras_states/k_lstm.n16.d0.3.dep2.bs8.ts1.0.epoch28.test0.28153726805873275.state --output_dir mimic3models/in_hospital_mortality
 
 Use the following command to train logistic regression. The best model we got used L2 regularization with `C=0.001`:
        
