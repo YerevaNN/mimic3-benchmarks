@@ -62,7 +62,7 @@ diagnoses.to_csv(os.path.join(args.output_path, 'all_diagnoses.csv'), index=Fals
 count_icd_codes(diagnoses, output_path=os.path.join(args.output_path, 'diagnosis_counts.csv'))
 
 phenotypes = add_hcup_ccs_2015_groups(diagnoses, yaml.load(open(args.phenotype_definitions, 'r'),
-                                                           Loade =yaml.SafeLoader))
+                                                           Loader=yaml.SafeLoader))
 make_phenotype_label_matrix(phenotypes, stays).to_csv(os.path.join(args.output_path, 'phenotype_labels.csv'),
                                                       index=False, quoting=csv.QUOTE_NONNUMERIC)
 
