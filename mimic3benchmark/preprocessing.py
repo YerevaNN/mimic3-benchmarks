@@ -196,7 +196,7 @@ def clean_fio2(df):
     ''' The two following lines implement the code that was used to create the benchmark dataset that the paper used.
     This works with both python 2 and python 3.
     '''
-    is_str = np.array(map(lambda x: type(x) == str, list(df.VALUE)), dtype=np.bool)
+    is_str = np.array(map(lambda x: type(x) == str, list(df.VALUE)), dtype=bool)
     idx = df.VALUEUOM.fillna('').apply(lambda s: 'torr' not in s.lower()) & (is_str | (~is_str & (v > 1.0)))
 
     v.loc[idx] = v[idx] / 100.
