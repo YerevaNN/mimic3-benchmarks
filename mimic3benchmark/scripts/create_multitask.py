@@ -4,10 +4,8 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
-from datetime import datetime
 import pandas as pd
 import yaml
-from yaml import SafeLoader
 import random
 random.seed(49297)
 from tqdm import tqdm
@@ -137,8 +135,7 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
                 if pd.isnull(deathtime):
                     lived_time = 1e18
                 else:
-                    lived_time = (datetime.strptime(deathtime, "%Y-%m-%d %H:%M:%S") -
-                                  datetime.strptime(intime, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600.0
+                    lived_time = (pd.to_datetime(deathtime) - pd.to_datetime(intime)).total_seconds() / 3600.0
 
                 sample_times = np.arange(0.0, min(los, lived_time) + eps, sample_rate)
                 sample_times = np.array([int(x+eps) for x in sample_times])
@@ -207,7 +204,7 @@ def main():
     args, _ = parser.parse_known_args()
 
     with open(args.phenotype_definitions) as definitions_file:
-        definitions = yaml.load(definitions_file, loader=SafeLoader)
+        definitions = yaml.safe_load(definitions_file)
 
     code_to_group = {}
     for group in definitions:

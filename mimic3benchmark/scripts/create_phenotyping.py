@@ -5,7 +5,6 @@ import os
 import argparse
 import pandas as pd
 import yaml
-from yaml import SafeLoader
 import random
 random.seed(49297)
 from tqdm import tqdm
@@ -100,7 +99,7 @@ def main():
     args, _ = parser.parse_known_args()
 
     with open(args.phenotype_definitions) as definitions_file:
-        definitions = yaml.load(definitions_file, loader=SafeLoader)
+        definitions = yaml.safe_load(definitions_file)
 
     code_to_group = {}
     for group in definitions:

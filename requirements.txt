@@ -1,7 +1,6 @@
-scipy
 numpy>=1.13.3
 Keras==2.1.2
 scikit-learn==0.18.2
-pandas==1.5
+pandas==1.5.*
 tqdm
-yaml
+pyyaml>=5.*
