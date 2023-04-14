@@ -11,6 +11,10 @@
 
 3. Renamed normalizer names to replace colons ':' with dashes '-'.
 
+4. Fix the requirements.txt file, making sure that both the benchmark and models parts run.
+
+5. Add notes on installation.
+
 #### Renamed normalizer files
 The following files are broken in a Windows context because of the `:` in the names. These files were renamed replacing `:` with `-`.
 ```

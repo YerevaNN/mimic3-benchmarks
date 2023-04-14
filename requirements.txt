@@ -1,6 +1,8 @@
-numpy>=1.13.3
 Keras==2.1.2
-scikit-learn==1.2.2
-pandas==1.5.*
+tensorflow==1.15.0
+protobuf==3.19.0
+pandas==1.2.5
+scikit-learn==1.0.2
+numpy==1.16.5
+pyyaml==6.0
 tqdm
-pyyaml>=5.*
