@@ -7,7 +7,9 @@
 #### Summary
 1. Updated pandas and yaml along with code where needed.
 
-2. Renamed normalizer names to replace colons ':' with dashes '-'.
+2. Using a newer version of scikit-learn.
+
+3. Renamed normalizer names to replace colons ':' with dashes '-'.
 
 #### Renamed normalizer files
 The following files are broken in a Windows context because of the `:` in the names. These files were renamed replacing `:` with `-`.

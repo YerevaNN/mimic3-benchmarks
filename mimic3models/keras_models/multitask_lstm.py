@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 from keras.models import Model
 from keras.layers import Input, Dense, LSTM, Masking, Dropout
 from keras.layers.wrappers import TimeDistributed

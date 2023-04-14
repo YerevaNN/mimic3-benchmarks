@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 from mimic3benchmark.readers import InHospitalMortalityReader
 from mimic3benchmark.readers import DecompensationReader
 from mimic3benchmark.readers import LengthOfStayReader

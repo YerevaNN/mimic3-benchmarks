@@ -2,7 +2,7 @@
 
 This directory contains four scripts (each for one benchmark task) for evaluating the models.
 These scripts take a prediction file and calculate different task-related metrics.
-Additionally the scripts use bootstrapping to estimate the standard deviations of the scores and to find an 95% confidence interval estimate.
+Additionally, the scripts use bootstrapping to estimate the standard deviations of the scores and to find an 95% confidence interval estimate.
 The calculated statistics are stored in a `json` file similar to the following.
 ```json
 {
@@ -39,7 +39,7 @@ The calculated statistics are stored in a `json` file similar to the following.
 The usage of the scrips is the following:
 ```
 python -m mimic3benchmark.evaluation.evaluate_{task} [-h] [--test_listfile TEST_LISTFILE] [--n_iters N_ITERS]\
-                                                     [--save_file SAVE_FILE] prediction
+                                                     [--save_file SAVE_FILE] PREDICTION_FILE
 ```
 
 * `test_listile` should be a `csv` file similar to `data/{task}/train/listfile.csv` files.

@@ -1,7 +1,5 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
-from sklearn.preprocessing import Imputer, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from mimic3benchmark.readers import PhenotypingReader
 from mimic3models import common_utils
@@ -69,7 +67,7 @@ def main():
     print("test set shape: {}".format(test_X.shape))
 
     print('Imputing missing values ...')
-    imputer = Imputer(missing_values=np.nan, strategy='mean', axis=0, verbose=0, copy=True)
+    imputer = SimpleImputer(missing_values=np.nan, strategy='mean', copy=True)
     imputer.fit(train_X)
     train_X = np.array(imputer.transform(train_X), dtype=np.float32)
     val_X = np.array(imputer.transform(val_X), dtype=np.float32)
