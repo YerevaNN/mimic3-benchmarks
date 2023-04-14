@@ -1,5 +1,5 @@
 Keras==2.1.2
-tensorflow==1.15.0
+tensorflow==2.11.1
 protobuf==3.19.0
 pandas==1.2.5
 scikit-learn==1.0.2
