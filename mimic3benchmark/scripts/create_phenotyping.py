@@ -9,6 +9,7 @@ import random
 random.seed(49297)
 from tqdm import tqdm
 
+
 def process_partition(args, definitions, code_to_group, id_to_group, group_to_id,
                       partition, eps=1e-6):
     output_dir = os.path.join(args.output_path, partition)

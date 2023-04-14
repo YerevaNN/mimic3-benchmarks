@@ -1,8 +1,15 @@
 # Changelog
 
-Updated pandas and yaml along with code where needed.
 
-# Renamed files
+## April 13, 2023
+
+
+#### Summary
+1. Updated pandas and yaml along with code where needed.
+
+2. Renamed normalizer names to replace colons ':' with dashes '-'.
+
+#### Renamed normalizer files
 The following files are broken in a Windows context because of the `:` in the names. These files were renamed replacing `:` with `-`.
 ```
 ./mimic3models/length_of_stay/los_ts0.8.input_str:previous.start_time:zero.n5e4.normalizer

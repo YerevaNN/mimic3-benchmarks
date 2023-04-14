@@ -74,11 +74,13 @@ def merge_on_subject(table1, table2):
 def merge_on_subject_admission(table1, table2):
     return table1.merge(table2, how='inner', left_on=['SUBJECT_ID', 'HADM_ID'], right_on=['SUBJECT_ID', 'HADM_ID'])
 
+
 def add_age_to_icustays(stays):
     stays['AGE'] = stays.apply(lambda e: (e['INTIME'].to_datetime() - e['DOB'].to_datetime()).total_seconds() / 3600.0 / 24.0 / 365.0,
                                axis=1)
     stays.loc[stays.AGE < 0, 'AGE'] = 90
     return stays
+
 
 def add_inhospital_mortality_to_icustays(stays):
     mortality = stays.DOD.notnull() & ((stays.ADMITTIME <= stays.DOD) & (stays.DISCHTIME >= stays.DOD))
