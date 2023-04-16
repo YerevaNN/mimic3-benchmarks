@@ -1,6 +1,4 @@
 from tqdm import tqdm
-
-import pickle as pkl
 import hashlib
 import os
 import argparse
@@ -12,13 +10,19 @@ def formatter(x):
         x = float(x)
         return '{:.1f}'.format(x)
     except:
+        pass
+
+    try:
+        x = pd.to_datetime(x)
+        return str(x)
+    except:
         return x
 
 
 def main():
     parser = argparse.ArgumentParser(description='Recursively produces hashes for all tables inside this directory')
     parser.add_argument('--directory', '-d', type=str, required=True, help='The directory to hash.')
-    parser.add_argument('--output_file', '-o', type=str, default='hashes.pkl')
+    parser.add_argument('--output_file', '-o', type=str, default='hashes.csv')
     args = parser.parse_args()
     print(args)
 
@@ -32,7 +36,7 @@ def main():
     os.chdir(args.directory)
 
     # iterate over all subdirectories
-    hashes = {}
+    hashes = []
     pbar = tqdm(total=total, desc='Iterating over files')
     for subdir, dirs, files in os.walk('.'):
         for file in files:
@@ -58,13 +62,15 @@ def main():
             # convert the data frame to string and hash it
             df_str = df.to_string().encode()
             hashcode = hashlib.md5(df_str).hexdigest()
-            hashes[full_path] = hashcode
+            hashes.append((full_path, hashcode))
     pbar.close()
 
     # go to the initial directory and save the results
     os.chdir(initial_dir)
-    with open(args.output_file, 'wb') as f:
-        pkl.dump(hashes, f)
+    hashes = sorted(hashes)
+    with open(args.output_file, 'w') as f:
+        for s, h in hashes:
+            f.write(f'{s},{h}\n')
 
 
 if __name__ == "__main__":
