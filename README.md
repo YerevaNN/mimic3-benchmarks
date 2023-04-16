@@ -67,7 +67,7 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 Here is our suggested way of installation.
 
 1. Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
-2. Run `conda create -n "mimic3" python=3.7`.
+2. Run `conda create -n "mimic3" python=3.7.13`.
 3. Run `conda init [SHELL_NAME]`. You might also need to do `source ~/.bashrc` or `source ~/.zshrc` (depends on the shell version).
 4. Change the conda environment to `mimic3` by running `conda activate mimic3`.
 5. Clone the repo and change the directory:
@@ -218,13 +218,10 @@ Use the following command for logistic regression. It will have L1 regularizatio
 ## General todos:
 
 - Improve comments and documentation
-- Add comments about channel-wise LSTMs and deep superivison
 - Add the best state files for each baseline
-- Add https://zenodo.org/ 
 - Release 1.0
 - Update citation section with Zenodo DOI
 - Add to MIMIC's derived data repo
 - Refactor, where appropriate, to make code more generally useful
 - Expand coverage of variable map and variable range files.
 - Decide whether we are missing any other high-priority data (CPT codes, inputs, etc.)
-

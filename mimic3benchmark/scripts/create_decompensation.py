@@ -38,11 +38,12 @@ def process_partition(args, partition, sample_rate=1.0, shortest_length=4.0,
                     continue
 
                 stay = stays_df[stays_df.ICUSTAY_ID == label_df.iloc[0]['Icustay']]
-                deathtime = stay['DEATHTIME'].iloc[0]
-                intime = stay['INTIME'].iloc[0]
+                deathtime = pd.to_datetime(stay['DEATHTIME'].iloc[0])
+                intime = pd.to_datetime(stay['INTIME'].iloc[0])
                 if pd.isnull(deathtime):
                     lived_time = 1e18
                 else:
+                    # conversion to pydatetime is needed to avoid overflow issues when subtracting
                     lived_time = (deathtime.to_pydatetime() - intime.to_pydatetime()).total_seconds() / 3600.0
 
                 ts_lines = tsfile.readlines()

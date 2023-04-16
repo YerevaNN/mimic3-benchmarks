@@ -127,11 +127,12 @@ def process_partition(args, definitions, code_to_group, id_to_group, group_to_id
 
                 # create decompensation
                 stay = stays_df[stays_df.ICUSTAY_ID == icustay]
-                deathtime = stay['DEATHTIME'].iloc[0]
-                intime = stay['INTIME'].iloc[0]
+                deathtime = pd.to_datetime(stay['DEATHTIME'].iloc[0])
+                intime = pd.to_datetime(stay['INTIME'].iloc[0])
                 if pd.isnull(deathtime):
                     lived_time = 1e18
                 else:
+                    # conversion to pydatetime is needed to avoid overflow issues when subtracting
                     lived_time = (deathtime.to_pydatetime() - intime.to_pydatetime()).total_seconds() / 3600.0
 
                 sample_times = np.arange(0.0, min(los, lived_time) + eps, sample_rate)
