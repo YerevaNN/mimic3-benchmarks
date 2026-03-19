@@ -62,7 +62,7 @@ for subject_dir in tqdm(os.listdir(args.subjects_root_path), desc='Iterating ove
             # no data for this episode
             continue
 
-        episode = add_hours_elpased_to_events(episode, intime).set_index('HOURS').sort_index(axis=0)
+        episode = add_hours_elpased_to_events(episode, intime).set_index('HOURS').sort_index()
         if stay_id in episodic_data.index:
             episodic_data.loc[stay_id, 'Weight'] = get_first_valid_from_timeseries(episode, 'Weight')
             episodic_data.loc[stay_id, 'Height'] = get_first_valid_from_timeseries(episode, 'Height')

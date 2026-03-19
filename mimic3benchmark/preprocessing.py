@@ -98,7 +98,7 @@ def make_phenotype_label_matrix(phenotypes, stays=None):
     phenotypes = phenotypes.pivot(index='ICUSTAY_ID', columns='HCUP_CCS_2015', values='VALUE')
     if stays is not None:
         phenotypes = phenotypes.reindex(stays.ICUSTAY_ID.sort_values())
-    return phenotypes.fillna(0).astype(int).sort_index(axis=0).sort_index(axis=1)
+    return phenotypes.fillna(0).astype(int).sort_index().sort_index(axis=1)
 
 
 ###################################
@@ -113,7 +113,7 @@ def read_itemid_to_variable_map(fn, variable_column='LEVEL2'):
     var_map = var_map[(var_map.STATUS == 'ready')]
     var_map.ITEMID = var_map.ITEMID.astype(int)
     var_map = var_map[[variable_column, 'ITEMID', 'MIMIC LABEL']].set_index('ITEMID')
-    return var_map.rename({variable_column: 'VARIABLE', 'MIMIC LABEL': 'MIMIC_LABEL'}, axis=1)
+    return var_map.rename(columns={variable_column: 'VARIABLE', 'MIMIC LABEL': 'MIMIC_LABEL'})
 
 
 def map_itemids_to_variables(events, var_map):
@@ -127,9 +127,9 @@ def read_variable_ranges(fn, variable_column='LEVEL2'):
     var_ranges = dataframe_from_csv(fn, index_col=None)
     # var_ranges = var_ranges[variable_column].apply(lambda s: s.lower())
     var_ranges = var_ranges[columns]
-    var_ranges.rename(to_rename, axis=1, inplace=True)
+    var_ranges = var_ranges.rename(columns=to_rename)
     var_ranges = var_ranges.drop_duplicates(subset='VARIABLE', keep='first')
-    var_ranges.set_index('VARIABLE', inplace=True)
+    var_ranges = var_ranges.set_index('VARIABLE')
     return var_ranges.loc[var_ranges.notnull().all(axis=1)]
 
 

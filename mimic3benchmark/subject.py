@@ -12,7 +12,7 @@ def read_stays(subject_path):
     stays.DOB = pd.to_datetime(stays.DOB)
     stays.DOD = pd.to_datetime(stays.DOD)
     stays.DEATHTIME = pd.to_datetime(stays.DEATHTIME)
-    stays.sort_values(by=['INTIME', 'OUTTIME'], inplace=True)
+    stays = stays.sort_values(by=['INTIME', 'OUTTIME'])
     return stays
 
 
@@ -53,11 +53,11 @@ def convert_events_to_timeseries(events, variable_column='VARIABLE', variables=[
     metadata = events[['CHARTTIME', 'ICUSTAY_ID']].sort_values(by=['CHARTTIME', 'ICUSTAY_ID'])\
                     .drop_duplicates(keep='first').set_index('CHARTTIME')
     timeseries = events[['CHARTTIME', variable_column, 'VALUE']]\
-                    .sort_values(by=['CHARTTIME', variable_column, 'VALUE'], axis=0)\
+                    .sort_values(by=['CHARTTIME', variable_column, 'VALUE'])\
                     .drop_duplicates(subset=['CHARTTIME', variable_column], keep='last')
     timeseries = timeseries.pivot(index='CHARTTIME', columns=variable_column, values='VALUE')\
                     .merge(metadata, left_index=True, right_index=True)\
-                    .sort_index(axis=0).reset_index()
+                    .sort_index().reset_index()
     for v in variables:
         if v not in timeseries:
             timeseries[v] = np.nan
